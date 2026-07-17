@@ -1,23 +1,31 @@
-# 亚马逊广告智能体 PoC 第一阶段成果总结
+# 亚马逊广告智能体 PoC 前两日成果总结
 
 ## 1. 文档信息
 
 | 项目 | 内容 |
 |---|---|
 | 项目名称 | 亚马逊广告智能体 PoC |
-| 文档名称 | 亚马逊广告智能体 PoC 第一阶段成果总结 |
-| 阶段 | 第一阶段：PoC-01 最小闭环与 PoC-02 模型接入工程基线 |
-| 当前仓库 | `C:\QSZ\markdown\amazon-ads-agent-poc` |
-| 当前 Git Commit | `6ae7e8c573531beba3509075711c931892a7b123` |
+| 文档名称 | 亚马逊广告智能体 PoC 前两日成果总结 |
+| 时间范围 | 项目第 1～2 天：2026-07-16 至 2026-07-17 |
+| 当前仓库 | `amazon-ads-agent-poc` |
+| 总结依据 Git Commit | `f9df310409c92db2d064d93290917b9178d7150f` |
 | 当前标签 | `poc-01-verified` 已存在；`poc-02-verified` 未创建 |
-| 文档用途 | 项目留存、团队周报、阶段成果上交、比赛 PPT 与演示视频素材、后续真实模型验证基线 |
+| 文档用途 | 两日项目进展留存、团队内部同步、成果上交、比赛 PPT 与演示视频素材、后续真实模型验证基线 |
 | 编写日期 | 2026-07-17 |
 
-## 2. 本周目标
+## 2. 两日目标
 
 完成亚马逊广告关键词竞价优化智能体的最小闭环工程验证，确保确定性分析、候选生成、Reasoner 选择、结果校验、失败反馈、有限自动修订、dry-run 预检和人工确认边界可以稳定运行。
 
-## 3. 本周完成成果
+## 3. 两日完成成果
+
+### 第 1 天：工程规范与安全基线
+
+- 完成 Loop Engineering V0.2 工程规范，明确确定性计算、候选约束、状态机、人工审批、Decimal、Schema、审计和测试追踪要求。
+- 明确 PoC 只覆盖合成数据与计划生成前半闭环，不接入 Amazon Ads API，不具备生产写入能力。
+- 建立后续实现必须遵守的安全原则：Candidate Engine 先于 Reasoner、模型只能选择候选、校验失败需有限修订、合法变更必须停在人工确认前。
+
+### 第 2 天：PoC 实现、模型工程能力与离线验收
 
 - **PoC-01 单关键词高 ACoS 优化闭环**：使用合成 Keyword 数据跑通从任务校验到等待人工确认的完整计划生成路径。
 - **Decimal 指标计算**：CTR、CPC、CVR、ACoS 和 ROAS 使用 `decimal.Decimal` 确定性重算，业务 JSON 数值使用 Decimal 字符串。
@@ -141,7 +149,7 @@ stateDiagram-v2
 | Agent 修订 | 总计 `3`，平均 `0.250000` |
 | Fake 评估 Transport 重试 | 总计 `0`，平均 `0.000000` |
 | 生产写入违规 | `production_write_violation_count=0` |
-| 本阶段验收 | 离线 `PASS`；真实模型 `FAIL / NOT EXECUTED` |
+| 两日验收结果 | 离线 `PASS`；真实模型 `FAIL / NOT EXECUTED` |
 | Git 状态与标签 | 生成文档前工作区干净；`poc-01-verified` 存在；`poc-02-verified` 未创建 |
 
 上述数字来自 `docs/verification/poc-02-offline-verification.md` 和当前本地 `evaluation/results/latest.md`。最新评估报告记录 Git commit `6ae7e8c573531beba3509075711c931892a7b123`、12 个案例全部通过，且无失败检查。
@@ -154,7 +162,7 @@ stateDiagram-v2
 - 所有合法变更必须停在 `waiting_for_approval`；仓库未实现正式 Approval Service。
 - 真实模型调用默认关闭，必须同时满足环境开关和 CLI 明确确认才可创建真实 Transport。
 - API Key 只允许来自本地环境变量，不能进入源码、配置、日志、审计、错误或报告。
-- 本阶段离线测试未配置或使用真实 API Key，Stub、Fake 和默认 pytest 不访问公网。
+- 两日内完成的离线测试未配置或使用真实 API Key，Stub、Fake 和默认 pytest 不访问公网。
 - Transport 重试与 Agent 修订分别计数；网络重试不改变 `retry_count`、`plan_version` 或 `attempt_id`。
 - Candidate、对象、当前值、对象版本、证据、规则版本和计划摘要篡改均由 Schema 或 Runtime Validator 拒绝。
 - 人工介入不是人工审批；失败计划不进入 Preflight 或等待审批。
@@ -178,7 +186,7 @@ stateDiagram-v2
 
 > 当前离线验收结论为 PASS，但真实模型验收仍为 FAIL / NOT EXECUTED。该状态表示真实模型尚未实际运行，不代表离线工程实现失败。
 
-## 11. Git 里程碑
+## 11. 两日 Git 里程碑
 
 | 提交 | 阶段里程碑 |
 |---|---|
@@ -203,10 +211,10 @@ stateDiagram-v2
 - `docs/implementation/poc-02-hour-04-real-model-integration.md`：HTTP Transport、双重 opt-in、预算和验收门槛。
 - `docs/spec/amazon-ads-agent-loop-engineering-spec-v0.2.md` 与 `docs/spec/amazon-ads-agent-loop-engineering-spec-v0.2.1.md`：主规范及人工介入补丁基线。
 
-## 13. 下一阶段
+## 13. 后续验证边界
 
 在本地提供真实模型配置后，依次运行 CASE-001、CASE-006、CASE-011 和完整真实评估。只有真实模型实际运行、绝对安全指标全部为零且质量门槛满足后，才创建 `poc-02-verified` 标签。
 
-## 14. 阶段结论
+## 14. 两日结论
 
-第一阶段已经完成亚马逊广告关键词竞价优化智能体的离线工程闭环、严格输出合同、安全校验、有限自动修订、人工介入以及固定评估框架。当前系统已经具备真实模型接入的工程条件，但真实模型质量尚未执行验证。项目仍保持无 Amazon Ads API、无生产写入和人工确认优先的安全边界。
+项目启动前两日已经完成工程规范基线、亚马逊广告关键词竞价优化智能体的离线工程闭环、严格输出合同、安全校验、有限自动修订、人工介入以及固定评估框架。当前系统已经具备真实模型接入的工程条件，但真实模型质量尚未执行验证。项目仍保持无 Amazon Ads API、无生产写入和人工确认优先的安全边界。
