@@ -24,6 +24,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Explicit test-only Reasoner Stub mode",
     )
+    parser.add_argument(
+        "--reasoner-provider",
+        choices=("stub", "llm"),
+        default=None,
+        help="Explicit Reasoner Provider; defaults to LLM_PROVIDER or stub",
+    )
     return parser
 
 
@@ -32,10 +38,16 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = build_parser().parse_args(argv)
     try:
+        if args.reasoner_provider == "llm" and args.reasoner_mode is not None:
+            raise ValueError("ERR_LLM_CONFIG_INVALID: --reasoner-mode is only valid with the stub provider")
         task = json.loads(args.input.read_text(encoding="utf-8"))
         if not isinstance(task, dict):
             raise SchemaValidationError("TaskInput root must be an object")
-        result = run_workflow(task, reasoner_mode=args.reasoner_mode)
+        result = run_workflow(
+            task,
+            reasoner_mode=args.reasoner_mode,
+            reasoner_provider=args.reasoner_provider,
+        )
     except (FileNotFoundError, json.JSONDecodeError, SchemaValidationError) as exc:
         print(f"INPUT_ERROR: {exc}", file=sys.stderr)
         return 2

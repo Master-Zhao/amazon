@@ -54,7 +54,7 @@ def validate_config(raw: dict[str, Any]) -> dict[str, Any]:
     if _require(raw, "runtime.allowed_execution_modes") != ["dry_run"]:
         raise RuleConfigError("dry_run must be the only execution mode")
     if _require(raw, "reasoner.provider") != "stub":
-        raise RuleConfigError("the PoC accepts only the explicit Reasoner Stub")
+        raise RuleConfigError("the versioned business rule file must remain offline-safe and use the Stub")
 
     decimal_paths = (
         "analysis.target_acos", "analysis.confidence_threshold",

@@ -166,3 +166,24 @@ always-invalid 场景在同一错误连续出现两次后返回退出码 3。其
 ## 后续建议
 
 未来版本应先由规范明确人工介入结果协议，再补齐持久化审计、正式 Approval Service、RBAC、平台规则与币种精度配置、只读数据适配器及沙箱 Adapter Contract。生产 Adapter 必须在审批、并发锁、幂等和审计守卫全部落地后单独评审，不应直接加入本 PoC。
+
+## PoC-02 第一小时：Reasoner Provider 配置
+
+默认 Provider 仍为离线 `stub`。可使用 `--reasoner-provider stub|llm` 或环境变量 `LLM_PROVIDER` 显式选择；`--reasoner-mode` 仅适用于 Stub。LLM 工程骨架读取下列环境变量，仓库和示例不保存变量值：
+
+```text
+LLM_PROVIDER
+LLM_MODEL
+LLM_API_KEY
+LLM_BASE_URL
+LLM_TIMEOUT_SECONDS
+LLM_MAX_RETRIES
+```
+
+当前仓库只提供注入式 Fake Transport 与 fail-closed 的未配置 Transport，不包含真实 HTTP 客户端，也不会访问模型网络。选择 `llm` 时，模型名、API Key 和 Base URL 缺失都会明确失败，不会静默回退到 Stub。
+
+模型服务重试由 LLMReasoner 内部计数，不增加 Agent 的 `retry_count`、`plan_version` 或 `attempt_id`。合法 Provider 结果仍必须经过 Runtime Validator 和本地 dry-run preflight，并停在 `waiting_for_approval`；`production_write_called` 保持为 `false`。
+
+详细设计与离线测试边界见 `docs/implementation/poc-02-hour-01-reasoner-provider.md`。
+
+本阶段只完成真实模型 Provider 的工程接入能力，不代表正式提示词完成，也不代表真实模型回答质量已经通过。

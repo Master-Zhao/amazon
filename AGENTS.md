@@ -56,6 +56,16 @@ Read both files before any coding task:
 30. Never reuse a failed plan or an old approval during recovery.
 31. A plan digest mismatch must fail closed before preflight.
 32. V0.2.1 is the current PoC patch baseline; the original V0.2 file must remain byte-for-byte unchanged.
+33. The Reasoner Stub must remain fully offline-capable.
+34. Tests must not access a real model-service network by default.
+35. An LLM API key may come only from an environment variable.
+36. Logs and audit events must never record an API key or authorization header.
+37. Model transport retries and Agent plan revisions are independent counters.
+38. Every LLM integration must use the unified `Reasoner.reason()` contract.
+39. An LLM must not modify candidate sets, business rules, object references, snapshots, or versions.
+40. An unconfigured LLM Provider must fail explicitly and must not pretend to succeed or fall back to Stub.
+41. PoC-01 safety and manual-intervention tests must remain passing.
+42. Provider engineering integration does not establish formal-prompt completion or model-answer quality acceptance.
 
 ## Modification limits
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from copy import deepcopy
 from typing import Any
 
@@ -13,29 +14,115 @@ from .evidence import evaluate_evidence
 from .failure_analyzer import analyze_failure
 from .manual_intervention import build_manual_agent_output, build_manual_intervention_package
 from .metrics import calculate_metrics
-from .models import ReasonerOutput, WorkflowResult
+from .models import ReasonerOutput, ValidationIssue, WorkflowResult
 from .post_processor import build_completed, build_plan
 from .preflight import run_preflight
-from .reasoner import Reasoner, ReasonerStub
+from .reasoners.base import Reasoner, ReasonerInput, ReasonerResult, adapt_reasoner
+from .reasoners.config import LLMReasonerConfig
+from .reasoners.errors import ReasonerError
+from .reasoners.provider import create_reasoner, load_reasoner_config
+from .reasoners.transport import LLMTransport
 from .runtime_validator import validate_runtime
 from .schema_loader import validate_agent_output, validate_task_input
 
+_INDEXED_PATH = re.compile(r"^entity_metrics\[([0-9]+)\]\.([A-Za-z_][A-Za-z0-9_]*)$")
 
-def _reasoner_context(task: dict[str, Any], acos: str, config: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "entity_metrics": task["entity_metrics"],
-        "target_acos": task["target_acos"],
-        "acos": acos,
-        "confidence": str(require_config(config, "analysis.confidence_threshold")),
-        "rule_set_version": task["rule_set_version"],
-    }
+
+def _resolve_evidence_value(task: dict[str, Any], path: str) -> Any:
+    if path == "target_acos":
+        return task["target_acos"]
+    match = _INDEXED_PATH.fullmatch(path)
+    if match:
+        try:
+            return task["entity_metrics"][int(match.group(1))][match.group(2)]
+        except (IndexError, KeyError):
+            return None
+    return None
+
+
+def _reasoner_input(
+    task: dict[str, Any],
+    metrics: Any,
+    acos: str,
+    candidates: Any,
+    rules: dict[str, Any],
+    plan_version: int,
+    previous_failure: dict[str, Any] | None,
+) -> ReasonerInput:
+    entity = task["entity_metrics"][0]
+    return ReasonerInput.create(
+        task_id=task["task_id"],
+        run_id=task["run_id"],
+        attempt_id=task["attempt_id"],
+        data_snapshot_id=task["data_snapshot_id"],
+        plan_version=plan_version,
+        object_type=entity["entity_type"],
+        object_id=entity["entity_id"],
+        optimization_goal=task["optimization_goal"],
+        requested_risk_profile=task["requested_risk_profile"],
+        entity_metrics=task["entity_metrics"],
+        calculated_metrics={
+            "acos": acos,
+            "ctr": None if metrics.ctr is None else decimal_to_string(metrics.ctr, places=6),
+            "cpc": None if metrics.cpc is None else decimal_to_string(metrics.cpc, places=6),
+            "cvr": None if metrics.cvr is None else decimal_to_string(metrics.cvr, places=6),
+            "roas": None if metrics.roas is None else decimal_to_string(metrics.roas, places=6),
+        },
+        candidate_values=candidates.values,
+        constraints={
+            "rule_set_version": task["rule_set_version"],
+            "target_acos": task["target_acos"],
+            "confidence": str(require_config(rules, "analysis.confidence_threshold")),
+            "max_decrease_ratio": str(require_config(rules, "keyword_bid.max_decrease_ratio")),
+            "bid_step": str(require_config(rules, "keyword_bid.bid_step")),
+        },
+        previous_failure=previous_failure,
+    )
+
+
+def _legacy_output(task: dict[str, Any], result: ReasonerResult, rules: dict[str, Any]) -> ReasonerOutput:
+    risk = result.risk_summary if result.risk_summary in {"low", "medium", "high"} else "medium"
+    return ReasonerOutput(
+        suggested_value=result.selected_value,
+        reason=result.reason,
+        evidence=tuple(
+            {"path": path, "value": _resolve_evidence_value(task, path)} for path in result.evidence_paths
+        ),
+        confidence=str(require_config(rules, "analysis.confidence_threshold")),
+        risk_summary=risk,
+    )
+
+
+def _manual_result(
+    task: dict[str, Any],
+    issue: ValidationIssue,
+    failures: list[dict[str, Any]],
+    audit: AuditCollector,
+    rules: dict[str, Any],
+    plan_version: int,
+    retry_count: int,
+) -> WorkflowResult:
+    package = build_manual_intervention_package(task, failures, audit.events, rules)
+    output = build_manual_agent_output(
+        task, issue, package["manual_intervention_package_id"], plan_version, retry_count
+    )
+    validate_agent_output(output)
+    return WorkflowResult(
+        output=output,
+        audit_events=audit.events,
+        failure_analyses=failures,
+        manual_intervention_package=package,
+    )
 
 
 def run_workflow(
     task: dict[str, Any],
     *,
     reasoner_mode: str | None = None,
-    reasoner: Reasoner | None = None,
+    reasoner: Any | None = None,
+    reasoner_provider: str | None = None,
+    reasoner_config: LLMReasonerConfig | None = None,
+    transport: LLMTransport | None = None,
     config: dict[str, Any] | None = None,
 ) -> WorkflowResult:
     """Run the synthetic keyword workflow and stop before any human approval."""
@@ -67,12 +154,7 @@ def run_workflow(
     if evidence.outcome in {"insufficient_evidence", "no_change_required"}:
         output = build_completed(working_task, evidence.outcome, evidence.reason_codes)
         validate_agent_output(output)
-        audit.record(
-            "completed_without_change",
-            "analyzing",
-            "completed",
-            f"Completed with {evidence.outcome}; no preflight or approval was created.",
-        )
+        audit.record("completed_without_change", "analyzing", "completed", f"Completed with {evidence.outcome}; no preflight or approval was created.")
         return WorkflowResult(output=output, audit_events=audit.events, failure_analyses=failures)
 
     candidates = generate_bid_candidates(entity["current_bid"], rules)
@@ -85,43 +167,135 @@ def run_workflow(
         metadata={"candidate_count": len(candidates.values), "candidate_values": ",".join(candidates.values)},
     )
     selected_mode = reasoner_mode or working_task.get("test_fault", {}).get("reasoner_mode", "valid")
-    active_reasoner: Reasoner = reasoner or ReasonerStub(selected_mode)
+    if reasoner is not None:
+        active_reasoner: Reasoner = adapt_reasoner(reasoner)
+        provider_name = "injected"
+        model_name: str | None = type(reasoner).__name__
+    else:
+        provider_config = reasoner_config or load_reasoner_config(provider_override=reasoner_provider)
+        active_reasoner = create_reasoner(provider_config, transport=transport, stub_mode=selected_mode)
+        provider_name = provider_config.provider
+        model_name = provider_config.model if provider_config.provider == "llm" else str(require_config(rules, "reasoner.model_config_id"))
+    audit.record(
+        "reasoner_provider_selected",
+        "generating_plan",
+        "generating_plan",
+        "Configured Reasoner Provider selected.",
+        plan_version=1,
+        metadata={
+            "provider": provider_name,
+            "model": model_name,
+            "transport_retry_count": 0,
+            "agent_revision_count": 0,
+        },
+    )
     plan_version = 1
     retry_count = 0
     fingerprints: list[str] = []
     feedback: dict[str, Any] | None = None
 
     while True:
-        reasoned: ReasonerOutput = active_reasoner.select(candidates, _reasoner_context(working_task, acos_text, rules), feedback)
-        plan = build_plan(working_task, metrics, candidates, reasoned, plan_version, retry_count)
+        if provider_name == "llm":
+            audit.record(
+                "llm_request_started",
+                "generating_plan" if retry_count == 0 else "retrying",
+                "generating_plan",
+                "Injected LLM Transport request started.",
+                plan_version=plan_version,
+                metadata={"provider": "llm", "model": model_name, "agent_revision_count": retry_count},
+            )
+        try:
+            result = active_reasoner.reason(
+                _reasoner_input(working_task, metrics, acos_text, candidates, rules, plan_version, feedback)
+            )
+        except ReasonerError as error:
+            transport_retries = int(getattr(active_reasoner, "last_transport_retry_count", 0))
+            audit.record(
+                "llm_request_failed",
+                "generating_plan" if retry_count == 0 else "retrying",
+                "manual_intervention_required",
+                error.safe_message,
+                plan_version=plan_version,
+                error_code=error.error_code,
+                metadata={
+                    "provider": error.provider,
+                    "model": model_name,
+                    "transport_retry_count": transport_retries,
+                    "agent_revision_count": retry_count,
+                },
+            )
+            issue = ValidationIssue(error.error_code, error.safe_message, failed_paths=("reasoner",))
+            analysis = analyze_failure(working_task, issue, plan_version, retry_count, fingerprints, rules)
+            failures.append(analysis)
+            fingerprints.append(analysis["error_fingerprint"])
+            audit.record(
+                "failure_analyzed",
+                "generating_plan" if retry_count == 0 else "retrying",
+                "manual_intervention_required",
+                f"Failure next action: {analysis['next_action']}.",
+                plan_version=plan_version,
+                error_code=issue.error_code,
+                metadata={"same_error_consecutive_count": analysis["same_error_consecutive_count"]},
+            )
+            audit.record(
+                "manual_intervention_required",
+                "generating_plan" if retry_count == 0 else "retrying",
+                "manual_intervention_required",
+                "Reasoner service failed; no preflight or production write was attempted.",
+                plan_version=plan_version,
+                error_code=issue.error_code,
+            )
+            return _manual_result(working_task, issue, failures, audit, rules, plan_version, retry_count)
+
+        transport_retries = int(getattr(active_reasoner, "last_transport_retry_count", 0))
+        if provider_name == "llm":
+            if transport_retries:
+                audit.record(
+                    "llm_transport_retry",
+                    "generating_plan" if retry_count == 0 else "retrying",
+                    "generating_plan",
+                    "Model transport retry completed inside the current agent attempt.",
+                    plan_version=plan_version,
+                    metadata={
+                        "transport_retry_count": transport_retries,
+                        "agent_revision_count": retry_count,
+                    },
+                )
+            audit.record(
+                "llm_request_succeeded",
+                "generating_plan" if retry_count == 0 else "retrying",
+                "generating_plan",
+                "Injected LLM Transport returned a parseable Provider result.",
+                plan_version=plan_version,
+                metadata={
+                    "provider": result.provider,
+                    "model": result.model,
+                    "request_id": result.request_id,
+                    "transport_retry_count": transport_retries,
+                    "agent_revision_count": retry_count,
+                },
+            )
+        plan = build_plan(working_task, metrics, candidates, _legacy_output(working_task, result, rules), plan_version, retry_count)
         audit.record(
             "reasoner_completed",
             "generating_plan" if retry_count == 0 else "retrying",
             "validating_plan",
-            "Reasoner Stub returned a candidate selection and explanation.",
+            "Reasoner returned an untrusted candidate selection and explanation.",
             plan_version=plan_version,
-            metadata={"model_config_id": str(require_config(rules, "reasoner.model_config_id"))},
+            metadata={
+                "provider": result.provider,
+                "model": result.model,
+                "request_id": result.request_id,
+                "transport_retry_count": transport_retries,
+                "agent_revision_count": retry_count,
+            },
         )
         validation = validate_runtime(plan, working_task, rules)
         if not validation.passed:
             assert validation.issue is not None
             issue = validation.issue
-            audit.record(
-                "runtime_validation_failed",
-                "validating_plan",
-                "retrying",
-                issue.message,
-                plan_version=plan_version,
-                error_code=issue.error_code,
-            )
-            analysis = analyze_failure(
-                working_task,
-                issue,
-                plan_version,
-                retry_count,
-                fingerprints,
-                rules,
-            )
+            audit.record("runtime_validation_failed", "validating_plan", "retrying", issue.message, plan_version=plan_version, error_code=issue.error_code)
+            analysis = analyze_failure(working_task, issue, plan_version, retry_count, fingerprints, rules)
             failures.append(analysis)
             fingerprints.append(analysis["error_fingerprint"])
             audit.record(
@@ -134,70 +308,23 @@ def run_workflow(
                 metadata={"same_error_consecutive_count": analysis["same_error_consecutive_count"]},
             )
             if not analysis["retry_allowed"]:
-                audit.record(
-                    "manual_intervention_required",
-                    "retrying",
-                    "manual_intervention_required",
-                    "Bounded automatic revision stopped without preflight or production write.",
-                    plan_version=plan_version,
-                    error_code=issue.error_code,
-                )
-                package = build_manual_intervention_package(working_task, failures, audit.events, rules)
-                output = build_manual_agent_output(
-                    working_task,
-                    issue,
-                    package["manual_intervention_package_id"],
-                    plan_version,
-                    retry_count,
-                )
-                validate_agent_output(output)
-                return WorkflowResult(
-                    output=output,
-                    audit_events=audit.events,
-                    failure_analyses=failures,
-                    manual_intervention_package=package,
-                )
+                audit.record("manual_intervention_required", "retrying", "manual_intervention_required", "Bounded automatic revision stopped without preflight or production write.", plan_version=plan_version, error_code=issue.error_code)
+                return _manual_result(working_task, issue, failures, audit, rules, plan_version, retry_count)
 
             retry_count += 1
             plan_version += 1
             working_task["attempt_id"] = f"attempt-{plan_version:04d}"
             audit.set_attempt_id(working_task["attempt_id"])
             feedback = analysis
-            audit.record(
-                "plan_revised",
-                "retrying",
-                "validating_plan",
-                "Created a new pre-approval attempt and plan version.",
-                plan_version=plan_version,
-                metadata={"retry_count": retry_count},
-            )
+            audit.record("plan_revised", "retrying", "validating_plan", "Created a new pre-approval attempt and plan version.", plan_version=plan_version, metadata={"retry_count": retry_count})
             continue
 
-        audit.record(
-            "runtime_validation_passed",
-            "validating_plan",
-            "preflighting",
-            "Runtime Schema, reference, rule, and state validation passed.",
-            plan_version=plan_version,
-        )
+        audit.record("runtime_validation_passed", "validating_plan", "preflighting", "Runtime Schema, reference, rule, and state validation passed.", plan_version=plan_version)
         preflight = run_preflight(plan, rules)
-        audit.record(
-            "preflight_passed",
-            "preflighting",
-            "waiting_for_approval",
-            "Local dry-run preflight passed with zero production writes.",
-            plan_version=plan_version,
-            metadata={"production_write_called": False},
-        )
+        audit.record("preflight_passed", "preflighting", "waiting_for_approval", "Local dry-run preflight passed with zero production writes.", plan_version=plan_version, metadata={"production_write_called": False})
         plan["current_status"] = "waiting_for_approval"
         plan["runtime_validation"] = {"passed": True, "error_code": None, "failed_rule_ids": []}
         plan["execution_preflight"] = preflight
         validate_agent_output(plan)
-        audit.record(
-            "waiting_for_approval",
-            "preflighting",
-            "waiting_for_approval",
-            "Plan frozen; automatic modification stopped before human approval.",
-            plan_version=plan_version,
-        )
+        audit.record("waiting_for_approval", "preflighting", "waiting_for_approval", "Plan frozen; automatic modification stopped before human approval.", plan_version=plan_version)
         return WorkflowResult(output=plan, audit_events=audit.events, failure_analyses=failures)
