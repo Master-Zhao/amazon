@@ -78,6 +78,12 @@ def validate_failure_analysis(document: dict[str, Any]) -> None:
     validate_document(document, "failure-analysis.schema.json")
 
 
+def validate_manual_intervention_package(document: dict[str, Any]) -> None:
+    """Validate one V0.2.1 terminal manual-intervention evidence package."""
+
+    validate_document(document, "manual-intervention-package.schema.json")
+
+
 def validate_audit_event(document: dict[str, Any]) -> None:
     """Validate one append-only audit event."""
 

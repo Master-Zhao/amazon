@@ -10,6 +10,7 @@ from .candidate_engine import generate_bid_candidates
 from .config_loader import require_config
 from .decimal_utils import decimal_to_string, parse_decimal, percentage_change
 from .models import ValidationIssue, ValidationResult
+from .post_processor import calculate_plan_digest
 from .schema_loader import SchemaValidationError, validate_agent_output
 
 ERR_SCHEMA_VALIDATION_FAILED = "ERR_SCHEMA_VALIDATION_FAILED"
@@ -22,6 +23,7 @@ ERR_EVIDENCE_REFERENCE_INVALID = "ERR_EVIDENCE_REFERENCE_INVALID"
 ERR_RULE_CONFIG_MISSING = "ERR_RULE_CONFIG_MISSING"
 ERR_STATE_TRANSITION_INVALID = "ERR_STATE_TRANSITION_INVALID"
 ERR_PRODUCTION_WRITE_FORBIDDEN = "ERR_PRODUCTION_WRITE_FORBIDDEN"
+ERR_PLAN_DIGEST_MISMATCH = "ERR_PLAN_DIGEST_MISMATCH"
 
 _INDEXED_PATH = re.compile(r"^entity_metrics\[([0-9]+)\]\.([A-Za-z_][A-Za-z0-9_]*)$")
 
@@ -51,6 +53,15 @@ def validate_runtime(plan: dict[str, Any], task: dict[str, Any], config: dict[st
         validate_agent_output(plan)
     except SchemaValidationError as exc:
         return _failed(ERR_SCHEMA_VALIDATION_FAILED, str(exc), paths=("$",))
+
+    calculated_digest = calculate_plan_digest(plan)
+    if plan["plan_digest"] != calculated_digest:
+        return _failed(
+            ERR_PLAN_DIGEST_MISMATCH,
+            "plan_digest does not match the immutable V0.2.1 plan fields",
+            paths=("plan_digest",),
+            values=(str(plan["plan_digest"]), calculated_digest),
+        )
 
     if plan["rule_set_version"] != task["rule_set_version"] or plan["rule_set_version"] != config["rule_set_version"]:
         return _failed(ERR_RULE_CONFIG_MISSING, "rule_set_version does not match loaded config", paths=("rule_set_version",))

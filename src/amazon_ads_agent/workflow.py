@@ -7,13 +7,14 @@ from typing import Any
 
 from .audit import AuditCollector
 from .candidate_engine import generate_bid_candidates
-from .config_loader import load_config, require_config
+from .config_loader import load_config, require_config, validate_config
 from .decimal_utils import decimal_to_string
 from .evidence import evaluate_evidence
 from .failure_analyzer import analyze_failure
+from .manual_intervention import build_manual_agent_output, build_manual_intervention_package
 from .metrics import calculate_metrics
 from .models import ReasonerOutput, WorkflowResult
-from .post_processor import build_completed, build_manual_intervention, build_plan
+from .post_processor import build_completed, build_plan
 from .preflight import run_preflight
 from .reasoner import Reasoner, ReasonerStub
 from .runtime_validator import validate_runtime
@@ -39,7 +40,7 @@ def run_workflow(
 ) -> WorkflowResult:
     """Run the synthetic keyword workflow and stop before any human approval."""
 
-    rules = config or load_config()
+    rules = validate_config(deepcopy(config)) if config is not None else load_config()
     working_task = deepcopy(task)
     audit = AuditCollector(working_task)
     failures: list[dict[str, Any]] = []
@@ -133,8 +134,6 @@ def run_workflow(
                 metadata={"same_error_consecutive_count": analysis["same_error_consecutive_count"]},
             )
             if not analysis["retry_allowed"]:
-                output = build_manual_intervention(working_task, issue, plan_version, retry_count)
-                validate_agent_output(output)
                 audit.record(
                     "manual_intervention_required",
                     "retrying",
@@ -143,7 +142,21 @@ def run_workflow(
                     plan_version=plan_version,
                     error_code=issue.error_code,
                 )
-                return WorkflowResult(output=output, audit_events=audit.events, failure_analyses=failures)
+                package = build_manual_intervention_package(working_task, failures, audit.events, rules)
+                output = build_manual_agent_output(
+                    working_task,
+                    issue,
+                    package["manual_intervention_package_id"],
+                    plan_version,
+                    retry_count,
+                )
+                validate_agent_output(output)
+                return WorkflowResult(
+                    output=output,
+                    audit_events=audit.events,
+                    failure_analyses=failures,
+                    manual_intervention_package=package,
+                )
 
             retry_count += 1
             plan_version += 1

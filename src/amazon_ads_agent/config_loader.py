@@ -26,13 +26,9 @@ def _require(mapping: dict[str, Any], path: str) -> Any:
     return current
 
 
-def load_config(path: Path | None = None) -> dict[str, Any]:
-    """Load and validate the complete, explicitly non-production PoC config."""
+def validate_config(raw: dict[str, Any]) -> dict[str, Any]:
+    """Validate an in-memory rule set before any workflow step can run."""
 
-    config_path = path or DEFAULT_CONFIG_PATH
-    if not config_path.is_file():
-        raise RuleConfigError(f"ERR_RULE_CONFIG_MISSING: {config_path}")
-    raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise RuleConfigError("configuration root must be an object")
 
@@ -54,7 +50,7 @@ def load_config(path: Path | None = None) -> dict[str, Any]:
     if raw["environment"] != "poc" or raw["not_for_production"] is not True:
         raise RuleConfigError("PoC configuration must be explicitly marked not for production")
     if _require(raw, "runtime.production_write_enabled") is not False:
-        raise RuleConfigError("production writes must be disabled")
+        raise RuleConfigError("ERR_PRODUCTION_WRITE_FORBIDDEN: production writes must be disabled")
     if _require(raw, "runtime.allowed_execution_modes") != ["dry_run"]:
         raise RuleConfigError("dry_run must be the only execution mode")
     if _require(raw, "reasoner.provider") != "stub":
@@ -82,6 +78,16 @@ def load_config(path: Path | None = None) -> dict[str, Any]:
         if not isinstance(value, int) or isinstance(value, bool) or value < 1:
             raise RuleConfigError(f"{key} must be a positive integer")
     return raw
+
+
+def load_config(path: Path | None = None) -> dict[str, Any]:
+    """Load and validate the complete, explicitly non-production PoC config."""
+
+    config_path = path or DEFAULT_CONFIG_PATH
+    if not config_path.is_file():
+        raise RuleConfigError(f"ERR_RULE_CONFIG_MISSING: {config_path}")
+    raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    return validate_config(raw)
 
 
 def require_config(config: dict[str, Any], path: str) -> Any:

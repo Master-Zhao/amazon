@@ -38,6 +38,8 @@ Synthetic JSON
 
 AuditCollector 在每个关键步骤追加 Schema 校验过的内存审计事件。运行期 Validator/Preflight 与开发期 pytest 完全分离。
 
+PoC 当前规范基线由不可变的 V0.2 原文和 [V0.2.1 补丁](docs/spec/amazon-ads-agent-loop-engineering-spec-v0.2.1.md)共同组成。V0.2.1 只澄清人工介入输出和计划摘要守卫，不增加任何生产能力。
+
 ## 目录结构
 
 ```text
@@ -94,7 +96,7 @@ python -m amazon_ads_agent examples/repeated-invalid-output.json --reasoner-mode
 amazon-ads-agent examples/high-acos-keyword.json
 ```
 
-CLI 将步骤日志写到 stderr，将最终结构化 AgentOutput 写到 stdout。正常完成或等待审批返回 0；输入错误返回 2；人工介入返回 3；不可恢复内部错误返回 4。
+CLI 将步骤日志写到 stderr，将包含 `agent_output` 与 `manual_intervention_package` 的结构化协议信封写到 stdout。正常路径中人工介入包为 `null`；人工介入路径中该包为独立对象。正常完成或等待审批返回 0；输入错误返回 2；人工介入返回 3；不可恢复内部错误返回 4。
 
 ## 测试命令
 
@@ -110,19 +112,23 @@ pytest -q
 
 ```json
 {
-  "current_status": "waiting_for_approval",
-  "plan_version": 1,
-  "changes": [
-    {
-      "candidate_values": ["1.02", "1.08", "1.14"],
-      "suggested_value": "1.08"
-    }
-  ],
-  "human_approval_required": true,
-  "execution_preflight": {
-    "mode": "dry_run",
-    "production_write_called": false
-  }
+  "agent_output": {
+    "current_status": "waiting_for_approval",
+    "plan_version": 1,
+    "changes": [
+      {
+        "candidate_values": ["1.02", "1.08", "1.14"],
+        "suggested_value": "1.08"
+      }
+    ],
+    "human_approval_required": true,
+    "execution_preflight": {
+      "mode": "dry_run",
+      "production_write_called": false
+    },
+    "manual_intervention_package_id": null
+  },
+  "manual_intervention_package": null
 }
 ```
 
@@ -133,6 +139,8 @@ pytest -q
 ## 人工确认
 
 本仓库不实现 Approval Service。`waiting_for_approval` 只表示计划已冻结并等待未来的授权审批系统处理；它不代表已批准或已执行。`manual_intervention_required` 同样不代表批准。
+
+always-invalid 场景在同一错误连续出现两次后返回退出码 3。其 AgentOutput 为 `manual_intervention_required`、`human_approval_required=false`、`execution_preflight=null`，并通过 `manual_intervention_package_id` 引用独立的 ManualInterventionPackage。包中记录错误指纹、尝试历史、审计事件和恢复限制，且固定 `original_run_terminal=true`、`production_write_called=false`。人工介入不等于人工审批；失败方案不会进入审批或 preflight。
 
 ## 安全边界
 
@@ -149,11 +157,11 @@ pytest -q
 
 仅支持单 Keyword、高 ACoS 降价和合成数据；置信度是版本化 PoC 配置，不是生产评分；审计只保存在内存；没有数据库、真实模型、真实 API、正式审批、RBAC 或前端。跨字段计数关系由 Schema 加载器的确定性语义校验补齐，因为标准 JSON Schema 不支持同级数值比较。
 
-连续非法输出的人工介入结果与 V0.2 的空变更表达存在边界冲突，已记录在 `docs/implementation/poc-01-issues.md`；主规范未被修改。
+连续非法输出的人工介入表达问题已由 V0.2.1 补丁和独立 ManualInterventionPackage 解决，记录见 `docs/implementation/poc-01-issues.md`；V0.2 原文件未被修改。
 
 ## 与主工程规范的关系
 
-`docs/spec/amazon-ads-agent-loop-engineering-spec-v0.2.md` 是唯一主工程规范。本 PoC 只落地计划生成前半闭环，重点追踪 FR-003～FR-013、NFR-003、NFR-004、NFR-007～NFR-010 和 NFR-013。实现任务只能缩小范围，不能把 PoC 简化升级为生产默认行为。
+`docs/spec/amazon-ads-agent-loop-engineering-spec-v0.2.md` 是不可变主工程规范，`docs/spec/amazon-ads-agent-loop-engineering-spec-v0.2.1.md` 是当前 PoC 补丁基线。本 PoC 只落地计划生成前半闭环，重点追踪 FR-003～FR-013、NFR-003、NFR-004、NFR-007～NFR-010 和 NFR-013。实现任务只能缩小范围，不能把 PoC 简化升级为生产默认行为。
 
 ## 后续建议
 

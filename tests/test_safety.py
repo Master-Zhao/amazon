@@ -79,7 +79,10 @@ def test_config_is_fail_closed_and_dry_run_only() -> None:
 
 
 def test_manual_intervention_never_reaches_approval() -> None:
-    output = run_workflow(load_example("repeated-invalid-output.json"), reasoner_mode="always_invalid").output
+    result = run_workflow(load_example("repeated-invalid-output.json"), reasoner_mode="always_invalid")
+    output = result.output
     assert output["current_status"] == "manual_intervention_required"
     assert output["human_approval_required"] is False
-    assert output["execution_preflight"]["production_write_called"] is False
+    assert output["execution_preflight"] is None
+    assert result.manual_intervention_package is not None
+    assert result.manual_intervention_package["production_write_called"] is False

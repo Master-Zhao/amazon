@@ -9,7 +9,13 @@ from decimal import Decimal
 from typing import Any
 
 from .decimal_utils import decimal_to_string, parse_decimal, percentage_change
-from .models import CandidateSet, MetricsResult, ReasonerOutput, ValidationIssue
+from .models import CandidateSet, MetricsResult, ReasonerOutput
+
+PLAN_DIGEST_CHANGE_FIELDS = (
+    "change_id", "object_type", "object_id", "action", "expected_current_value",
+    "expected_object_version", "candidate_values", "suggested_value", "change_ratio",
+    "reason", "evidence", "confidence", "change_risk_level",
+)
 
 
 def utc_now() -> str:
@@ -23,6 +29,25 @@ def canonical_digest(payload: Any) -> str:
 
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return f"sha256:{hashlib.sha256(encoded).hexdigest()}"
+
+
+def calculate_plan_digest(plan: dict[str, Any]) -> str:
+    """Recalculate the V0.2.1 immutable PoC plan digest."""
+
+    changes = [
+        {key: change[key] for key in PLAN_DIGEST_CHANGE_FIELDS}
+        for change in sorted(plan["changes"], key=lambda item: item["change_id"])
+    ]
+    return canonical_digest(
+        {
+            "task_id": plan["task_id"],
+            "run_id": plan["run_id"],
+            "plan_version": plan["plan_version"],
+            "data_snapshot_id": plan["data_snapshot_id"],
+            "rule_set_version": plan["rule_set_version"],
+            "changes": changes,
+        }
+    )
 
 
 def _change_id(task_id: str, object_id: str) -> str:
@@ -59,24 +84,7 @@ def build_plan(
         "confidence": reasoner_output.confidence,
         "change_risk_level": reasoner_output.risk_summary,
     }
-    digest_fields = {
-        "task_id": task["task_id"],
-        "run_id": task["run_id"],
-        "plan_version": plan_version,
-        "data_snapshot_id": task["data_snapshot_id"],
-        "rule_set_version": task["rule_set_version"],
-        "changes": [
-            {
-                key: change[key]
-                for key in (
-                    "change_id", "object_type", "object_id", "action",
-                    "expected_current_value", "expected_object_version",
-                    "suggested_value", "change_ratio", "change_risk_level",
-                )
-            }
-        ],
-    }
-    return {
+    output = {
         "schema_version": "2.0",
         "task_id": task["task_id"],
         "run_id": task["run_id"],
@@ -94,15 +102,18 @@ def build_plan(
         "plan_version": plan_version,
         "rule_set_version": task["rule_set_version"],
         "data_snapshot_id": task["data_snapshot_id"],
-        "plan_digest": canonical_digest(digest_fields),
+        "plan_digest": None,
         "changes": [change],
         "calculated_risk_level": reasoner_output.risk_summary,
         "runtime_validation": None,
         "execution_preflight": None,
         "retry_count": retry_count,
         "human_approval_required": True,
+        "manual_intervention_package_id": None,
         "generated_at": utc_now(),
     }
+    output["plan_digest"] = calculate_plan_digest(output)
+    return output
 
 
 def build_completed(task: dict[str, Any], completion_reason: str, reason_codes: tuple[str, ...]) -> dict[str, Any]:
@@ -131,49 +142,6 @@ def build_completed(task: dict[str, Any], completion_reason: str, reason_codes: 
         "execution_preflight": None,
         "retry_count": 0,
         "human_approval_required": False,
-        "generated_at": utc_now(),
-    }
-
-
-def build_manual_intervention(
-    task: dict[str, Any], issue: ValidationIssue, plan_version: int, retry_count: int
-) -> dict[str, Any]:
-    """Build the isolated PoC failure terminal described in ISSUE-001."""
-
-    return {
-        "schema_version": "2.0",
-        "task_id": task["task_id"],
-        "run_id": task["run_id"],
-        "attempt_id": task["attempt_id"],
-        "current_status": "manual_intervention_required",
-        "completion_reason": None,
-        "analysis_summary": f"自动修订已停止：{issue.error_code}，{issue.message}",
-        "issues": [
-            {
-                "issue_id": "issue-manual-intervention",
-                "type": issue.error_code.lower(),
-                "evidence_paths": list(issue.failed_paths),
-            }
-        ],
-        "plan_version": plan_version,
-        "rule_set_version": task["rule_set_version"],
-        "data_snapshot_id": task["data_snapshot_id"],
-        "plan_digest": None,
-        "changes": [],
-        "calculated_risk_level": "high",
-        "runtime_validation": {
-            "passed": False,
-            "error_code": issue.error_code,
-            "failed_rule_ids": list(issue.failed_rule_ids),
-        },
-        "execution_preflight": {
-            "passed": False,
-            "preflight_id": None,
-            "mode": "dry_run",
-            "request_digest": None,
-            "production_write_called": False,
-        },
-        "retry_count": retry_count,
-        "human_approval_required": False,
+        "manual_intervention_package_id": None,
         "generated_at": utc_now(),
     }

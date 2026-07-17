@@ -73,3 +73,4 @@ class WorkflowResult:
     output: dict[str, Any]
     audit_events: list[dict[str, Any]] = field(default_factory=list)
     failure_analyses: list[dict[str, Any]] = field(default_factory=list)
+    manual_intervention_package: dict[str, Any] | None = None

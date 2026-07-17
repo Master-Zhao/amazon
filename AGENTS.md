@@ -5,11 +5,12 @@ This repository is a synthetic-data proof of concept (PoC). It has no production
 ## Document precedence
 
 1. `docs/implementation/poc-01-keyword-bid-agent.md`
-2. `docs/spec/amazon-ads-agent-loop-engineering-spec-v0.2.md`
-3. JSON Schema files under `schemas/`
-4. Versioned YAML configuration under `config/`
-5. Automated tests
-6. Code implementation
+2. `docs/spec/amazon-ads-agent-loop-engineering-spec-v0.2.1.md` (current PoC patch baseline)
+3. `docs/spec/amazon-ads-agent-loop-engineering-spec-v0.2.md` (immutable original baseline)
+4. JSON Schema files under `schemas/`
+5. Versioned YAML configuration under `config/`
+6. Automated tests
+7. Code implementation
 
 The current implementation task may narrow scope but must not violate the main specification. If a Schema conflicts with the main specification, record the issue in `docs/implementation/poc-01-issues.md`; do not guess silently. Tests must not weaken the main safety constraints.
 
@@ -18,6 +19,7 @@ The current implementation task may narrow scope but must not violate the main s
 Read both files before any coding task:
 
 - `docs/spec/amazon-ads-agent-loop-engineering-spec-v0.2.md`
+- `docs/spec/amazon-ads-agent-loop-engineering-spec-v0.2.1.md`
 - `docs/implementation/poc-01-keyword-bid-agent.md`
 
 ## Mandatory engineering constraints
@@ -47,6 +49,13 @@ Read both files before any coding task:
 23. Record specification issues in `poc-01-issues.md`.
 24. Run focused tests after completing each module.
 25. Run the complete test suite before completion.
+26. `manual_intervention_required` must not enter approval or preflight.
+27. Every manual-intervention terminal must create a Schema-valid ManualInterventionPackage.
+28. The original run is terminal after entering manual intervention.
+29. Future recovery must explicitly create a new run.
+30. Never reuse a failed plan or an old approval during recovery.
+31. A plan digest mismatch must fail closed before preflight.
+32. V0.2.1 is the current PoC patch baseline; the original V0.2 file must remain byte-for-byte unchanged.
 
 ## Modification limits
 

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.internal/amazon-ads-agent-poc/manual-intervention-package.schema.json",
+  "title": "PoC Manual Intervention Package",
+  "description": "Immutable failure evidence and recovery constraints for a terminal PoC run.",
+  "x-schema-version": "2.0.1-poc.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "manual_intervention_package_id", "task_id", "run_id",
+    "data_snapshot_id", "latest_attempt_id", "latest_plan_version", "stop_reason",
+    "last_error_code", "last_error_fingerprint", "last_error_message", "retry_count",
+    "same_error_consecutive_count", "attempt_history", "audit_event_ids",
+    "recovery_constraints", "original_run_terminal", "production_write_called", "created_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "2.0.1"},
+    "manual_intervention_package_id": {"type": "string", "pattern": "^mip-[0-9a-f]{16}$"},
+    "task_id": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "data_snapshot_id": {"type": "string", "minLength": 1},
+    "latest_attempt_id": {"type": "string", "minLength": 1},
+    "latest_plan_version": {"type": "integer", "minimum": 1, "maximum": 4},
+    "stop_reason": {
+      "enum": [
+        "same_error_repeated", "maximum_revisions_reached",
+        "uncorrectable_validation_failure", "rule_config_missing",
+        "invalid_state_transition", "internal_safety_guard"
+      ]
+    },
+    "last_error_code": {"type": "string", "pattern": "^ERR_[A-Z0-9_]+$"},
+    "last_error_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "last_error_message": {"type": "string", "minLength": 1, "maxLength": 1000},
+    "retry_count": {"type": "integer", "minimum": 0, "maximum": 3},
+    "same_error_consecutive_count": {"type": "integer", "minimum": 1},
+    "attempt_history": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": {"$ref": "#/$defs/attempt"}
+    },
+    "audit_event_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "recovery_constraints": {"$ref": "#/$defs/recovery_constraints"},
+    "original_run_terminal": {"const": true},
+    "production_write_called": {"const": false},
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "(?:Z|[+-][0-9]{2}:[0-9]{2})$"
+    }
+  },
+  "$defs": {
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempt_id", "plan_version", "error_code", "error_fingerprint", "correctable", "occurred_at"],
+      "properties": {
+        "attempt_id": {"type": "string", "minLength": 1},
+        "plan_version": {"type": "integer", "minimum": 1, "maximum": 4},
+        "error_code": {"type": "string", "pattern": "^ERR_[A-Z0-9_]+$"},
+        "error_fingerprint": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "correctable": {"type": "boolean"},
+        "occurred_at": {"type": "string", "format": "date-time", "pattern": "(?:Z|[+-][0-9]{2}:[0-9]{2})$"}
+      }
+    },
+    "recovery_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "human_explicit_recovery_required", "new_run_id_required",
+        "failed_plan_reuse_forbidden", "old_approval_reuse_forbidden",
+        "automatic_replay_forbidden", "input_and_config_revalidation_required"
+      ],
+      "properties": {
+        "human_explicit_recovery_required": {"const": true},
+        "new_run_id_required": {"const": true},
+        "failed_plan_reuse_forbidden": {"const": true},
+        "old_approval_reuse_forbidden": {"const": true},
+        "automatic_replay_forbidden": {"const": true},
+        "input_and_config_revalidation_required": {"const": true}
+      }
+    }
+  }
+}

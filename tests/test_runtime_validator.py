@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 
+from amazon_ads_agent.post_processor import calculate_plan_digest
 from amazon_ads_agent.runtime_validator import (
     ERR_CANDIDATE_OUT_OF_RANGE,
     ERR_CURRENT_VALUE_MISMATCH,
@@ -14,36 +15,45 @@ from amazon_ads_agent.runtime_validator import (
 )
 
 
+def _refresh_digest(plan: dict) -> None:
+    plan["plan_digest"] = calculate_plan_digest(plan)
+
+
 def test_valid_candidate_plan_passes(valid_candidate_plan: dict, high_task: dict, config: dict) -> None:
     assert validate_runtime(valid_candidate_plan, high_task, config).passed is True
 
 
 def test_candidate_outside_set_is_rejected(valid_candidate_plan: dict, high_task: dict, config: dict) -> None:
     valid_candidate_plan["changes"][0]["suggested_value"] = "0.80"
+    _refresh_digest(valid_candidate_plan)
     result = validate_runtime(valid_candidate_plan, high_task, config)
     assert result.issue is not None and result.issue.error_code == ERR_CANDIDATE_OUT_OF_RANGE
 
 
 def test_nonexistent_object_is_rejected(valid_candidate_plan: dict, high_task: dict, config: dict) -> None:
     valid_candidate_plan["changes"][0]["object_id"] = "kw-not-in-snapshot"
+    _refresh_digest(valid_candidate_plan)
     result = validate_runtime(valid_candidate_plan, high_task, config)
     assert result.issue is not None and result.issue.error_code == ERR_OBJECT_REFERENCE_INVALID
 
 
 def test_current_value_mismatch_is_rejected(valid_candidate_plan: dict, high_task: dict, config: dict) -> None:
     valid_candidate_plan["changes"][0]["expected_current_value"] = "1.21"
+    _refresh_digest(valid_candidate_plan)
     result = validate_runtime(valid_candidate_plan, high_task, config)
     assert result.issue is not None and result.issue.error_code == ERR_CURRENT_VALUE_MISMATCH
 
 
 def test_object_version_mismatch_is_rejected(valid_candidate_plan: dict, high_task: dict, config: dict) -> None:
     valid_candidate_plan["changes"][0]["expected_object_version"] = "wrong-version"
+    _refresh_digest(valid_candidate_plan)
     result = validate_runtime(valid_candidate_plan, high_task, config)
     assert result.issue is not None and result.issue.error_code == ERR_OBJECT_VERSION_MISMATCH
 
 
 def test_bad_evidence_path_is_rejected(valid_candidate_plan: dict, high_task: dict, config: dict) -> None:
     valid_candidate_plan["changes"][0]["evidence"][0]["path"] = "entity_metrics[0].unknown"
+    _refresh_digest(valid_candidate_plan)
     result = validate_runtime(valid_candidate_plan, high_task, config)
     assert result.issue is not None and result.issue.error_code == ERR_EVIDENCE_REFERENCE_INVALID
 
@@ -71,5 +81,6 @@ def test_candidate_values_cannot_be_modified_with_suggestion(valid_candidate_pla
     changed = deepcopy(valid_candidate_plan)
     changed["changes"][0]["candidate_values"] = ["0.80"]
     changed["changes"][0]["suggested_value"] = "0.80"
+    _refresh_digest(changed)
     result = validate_runtime(changed, high_task, config)
     assert result.issue is not None and result.issue.error_code == ERR_CANDIDATE_OUT_OF_RANGE

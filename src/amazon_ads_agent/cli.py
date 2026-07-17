@@ -28,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run one workflow, print progress to stderr and final JSON to stdout."""
+    """Run one workflow and print a protocol envelope to stdout."""
 
     args = build_parser().parse_args(argv)
     try:
@@ -46,5 +46,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     for event in result.audit_events:
         marker = f" [{event['error_code']}]" if event["error_code"] else ""
         print(f"{event['step_id']} {event['event_type']} -> {event['status_after']}{marker}", file=sys.stderr)
-    print(json.dumps(result.output, ensure_ascii=False, indent=2, sort_keys=True))
+    payload = {
+        "agent_output": result.output,
+        "manual_intervention_package": result.manual_intervention_package,
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
     return 3 if result.output["current_status"] == "manual_intervention_required" else 0
