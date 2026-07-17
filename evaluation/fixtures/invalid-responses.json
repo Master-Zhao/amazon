@@ -1,0 +1,14 @@
+{
+  "fixture_schema_version": "1.0",
+  "test_only": true,
+  "category": "invalid",
+  "responses": {
+    "markdown_json": {"classification": "json_invalid", "raw_body": "```json\n{}\n```"},
+    "prefixed_json": {"classification": "json_invalid", "raw_body": "Here is the answer: {}"},
+    "candidate_outside": {"classification": "business_invalid", "body": {"schema_version": "1.0", "decision": "select", "selected_value": "0.80", "reason": "This test-only response intentionally selects a value outside the candidate set.", "evidence_paths": ["calculated_metrics.acos", "task_context.target_acos"], "risk_summary": "This invalid response must never reach approval or production execution.", "confidence": "0.500000"}},
+    "invalid_evidence": {"classification": "business_invalid", "body": {"schema_version": "1.0", "decision": "select", "selected_value": "1.08", "reason": "This test-only response intentionally cites a nonexistent evidence path.", "evidence_paths": ["calculated_metrics.profit_margin"], "risk_summary": "The invalid evidence must be rejected before approval.", "confidence": "0.500000"}},
+    "object_override": {"classification": "schema_invalid", "body": {"schema_version": "1.0", "decision": "select", "selected_value": "1.08", "reason": "This test-only response attempts to reference a fabricated object.", "evidence_paths": ["calculated_metrics.acos"], "risk_summary": "The fabricated object field must be rejected.", "confidence": "0.500000", "object_id": "kw-9999"}},
+    "execute_now": {"classification": "schema_invalid", "body": {"schema_version": "1.0", "decision": "select", "selected_value": "1.08", "reason": "This test-only response attempts to bypass the execution boundary.", "evidence_paths": ["calculated_metrics.acos"], "risk_summary": "The execution field must be rejected.", "confidence": "0.500000", "execute_now": true}},
+    "repeated_candidate_outside": {"classification": "business_invalid", "body": {"schema_version": "1.0", "decision": "select", "selected_value": "0.80", "reason": "This repeated test-only response intentionally remains outside the candidate set.", "evidence_paths": ["calculated_metrics.acos", "task_context.target_acos"], "risk_summary": "The repeated invalid response must stop in manual intervention.", "confidence": "0.500000"}}
+  }
+}

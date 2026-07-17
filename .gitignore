@@ -8,6 +8,10 @@ venv/
 .tmp/
 .env
 .env.*
+evaluation/results/latest.json
+evaluation/results/latest.md
+evaluation/results/custom*.json
+evaluation/results/custom*.md
 dist/
 build/
 *.egg-info/

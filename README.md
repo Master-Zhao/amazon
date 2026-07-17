@@ -1,5 +1,16 @@
 # Amazon Ads Agent PoC
 
+## PoC-02 第三小时：确定性离线评测
+
+离线评测框架位于 `evaluation/`，当前包含 12 个固定案例及一一对应的机器可判定 Expected。运行：
+
+```powershell
+python evaluation/run_evaluation.py
+python evaluation/run_evaluation.py --case CASE-006
+```
+
+所有结果均使用 Fake Provider、ReasonerStub、Fake Transport 或预定义模拟响应，`real_model_used=false`，不需要 `LLM_API_KEY`，不访问真实模型网络或 Amazon Ads API，也没有生产写入能力。这些结果验证离线框架和固定合同，不代表真实模型回答质量。详细说明见 `evaluation/README.md` 与 `docs/implementation/poc-02-hour-03-evaluation-framework.md`。
+
 本项目使用合成亚马逊关键词广告数据，验证一个可运行、可测试、可审计的竞价优化闭环。
 
 > 本项目是 PoC。

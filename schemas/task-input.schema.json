@@ -34,7 +34,7 @@
       "pattern": "(?:Z|[+-][0-9]{2}:[0-9]{2})$"
     },
     "optimization_goal": {"const": "target_acos"},
-    "requested_risk_profile": {"const": "balanced"},
+    "requested_risk_profile": {"enum": ["balanced", "conservative"]},
     "rule_set_version": {"type": "string", "minLength": 1},
     "target_acos": {"$ref": "#/$defs/ratio"},
     "entity_metrics": {
