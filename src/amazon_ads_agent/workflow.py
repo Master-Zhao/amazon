@@ -20,6 +20,7 @@ from .preflight import run_preflight
 from .reasoners.base import Reasoner, ReasonerInput, ReasonerResult, adapt_reasoner
 from .reasoners.config import LLMReasonerConfig
 from .reasoners.errors import ReasonerError
+from .reasoners.llm import LLMReasoner
 from .reasoners.provider import create_reasoner, load_reasoner_config
 from .reasoners.transport import LLMTransport
 from .runtime_validator import validate_runtime
@@ -183,8 +184,12 @@ def run_workflow(
     selected_mode = reasoner_mode or working_task.get("test_fault", {}).get("reasoner_mode", "valid")
     if reasoner is not None:
         active_reasoner: Reasoner = adapt_reasoner(reasoner)
-        provider_name = "injected"
-        model_name: str | None = type(reasoner).__name__
+        if isinstance(active_reasoner, LLMReasoner):
+            provider_name = "llm"
+            model_name = active_reasoner.config.model
+        else:
+            provider_name = "injected"
+            model_name = type(reasoner).__name__
     else:
         provider_config = reasoner_config or load_reasoner_config(provider_override=reasoner_provider)
         active_reasoner = create_reasoner(provider_config, transport=transport, stub_mode=selected_mode)

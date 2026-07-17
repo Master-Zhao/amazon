@@ -85,5 +85,6 @@ def test_api_key_is_absent_from_repr_and_safe_description() -> None:
 
 def test_environment_names_are_centralized() -> None:
     assert set(LLM_ENVIRONMENT_VARIABLES) == {
-        "LLM_PROVIDER", "LLM_MODEL", "LLM_API_KEY", "LLM_BASE_URL", "LLM_TIMEOUT_SECONDS", "LLM_MAX_RETRIES"
+        "LLM_PROVIDER", "LLM_MODEL", "LLM_API_KEY", "LLM_BASE_URL", "LLM_TIMEOUT_SECONDS", "LLM_MAX_RETRIES",
+        "LLM_REAL_CALL_ENABLED", "LLM_MAX_OUTPUT_TOKENS",
     }

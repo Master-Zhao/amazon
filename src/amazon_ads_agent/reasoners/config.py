@@ -14,6 +14,8 @@ ENV_LLM_API_KEY = "LLM_API_KEY"
 ENV_LLM_BASE_URL = "LLM_BASE_URL"
 ENV_LLM_TIMEOUT_SECONDS = "LLM_TIMEOUT_SECONDS"
 ENV_LLM_MAX_RETRIES = "LLM_MAX_RETRIES"
+ENV_LLM_REAL_CALL_ENABLED = "LLM_REAL_CALL_ENABLED"
+ENV_LLM_MAX_OUTPUT_TOKENS = "LLM_MAX_OUTPUT_TOKENS"
 LLM_ENVIRONMENT_VARIABLES = (
     ENV_LLM_PROVIDER,
     ENV_LLM_MODEL,
@@ -21,6 +23,8 @@ LLM_ENVIRONMENT_VARIABLES = (
     ENV_LLM_BASE_URL,
     ENV_LLM_TIMEOUT_SECONDS,
     ENV_LLM_MAX_RETRIES,
+    ENV_LLM_REAL_CALL_ENABLED,
+    ENV_LLM_MAX_OUTPUT_TOKENS,
 )
 
 
@@ -48,6 +52,8 @@ class LLMReasonerConfig:
     base_url: str | None = None
     timeout_seconds: int = 30
     max_retries: int = 1
+    real_call_enabled: bool = False
+    max_output_tokens: int = 1024
 
     @classmethod
     def from_env(
@@ -67,8 +73,21 @@ class LLMReasonerConfig:
                 retryable=False,
                 provider=provider or "unknown",
             )
+        if provider == "stub":
+            return cls(provider="stub")
         timeout = _parse_integer(env.get(ENV_LLM_TIMEOUT_SECONDS, "30"), ENV_LLM_TIMEOUT_SECONDS, minimum=1)
         retries = _parse_integer(env.get(ENV_LLM_MAX_RETRIES, "1"), ENV_LLM_MAX_RETRIES, minimum=0)
+        real_call_raw = env.get(ENV_LLM_REAL_CALL_ENABLED, "false").strip().lower()
+        if real_call_raw not in {"true", "false"}:
+            raise ReasonerConfigurationError(
+                "ERR_REAL_MODEL_CALL_NOT_ENABLED",
+                "LLM_REAL_CALL_ENABLED must be true or false",
+                retryable=False,
+                provider="llm",
+            )
+        max_output_tokens = _parse_integer(
+            env.get(ENV_LLM_MAX_OUTPUT_TOKENS, "1024"), ENV_LLM_MAX_OUTPUT_TOKENS, minimum=1
+        )
         model = env.get(ENV_LLM_MODEL) or None
         api_key = env.get(ENV_LLM_API_KEY) or None
         base_url = env.get(ENV_LLM_BASE_URL) or None
@@ -89,7 +108,7 @@ class LLMReasonerConfig:
                     retryable=False,
                     provider="llm",
                 )
-        return cls(provider, model, api_key, base_url, timeout, retries)
+        return cls(provider, model, api_key, base_url, timeout, retries, real_call_raw == "true", max_output_tokens)
 
     def safe_description(self) -> dict[str, str | int | bool | None]:
         """Return non-sensitive metadata suitable for audit and diagnostics."""
@@ -100,5 +119,7 @@ class LLMReasonerConfig:
             "base_url_configured": self.base_url is not None,
             "timeout_seconds": self.timeout_seconds,
             "max_retries": self.max_retries,
+            "real_call_enabled": self.real_call_enabled,
+            "max_output_tokens": self.max_output_tokens,
             "api_key_configured": self.api_key is not None,
         }

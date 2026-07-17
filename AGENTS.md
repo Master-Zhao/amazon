@@ -91,6 +91,21 @@ Read both files before any coding task:
 65. Evaluation production-write violation count must remain zero.
 66. Evaluation inputs and outputs must remain inside their repository-owned allow-scoped directories.
 67. Completing the evaluation framework does not establish real-model answer quality acceptance.
+68. Real model network calls are disabled by default.
+69. Real calls require both `LLM_REAL_CALL_ENABLED=true` and explicit CLI confirmation.
+70. Tests and Fake evaluation must not access the public network by default.
+71. A real API key may come only from the environment and must never enter source, repr, logs, audit, errors, or reports.
+72. Authorization headers must never be logged, audited, or reported.
+73. Real reports must not overwrite Fake reports.
+74. Every real evaluation must enforce a finite total request budget.
+75. Transport retries must never change Agent revision count, plan version, or attempt ID.
+76. A real model must not change Candidate Engine responsibilities or deterministic rules.
+77. A real model must not weaken Runtime Validator object, evidence, candidate, or state boundaries.
+78. A real model must never bypass human approval or create production execution semantics.
+79. Failed real evaluation cases must not be deleted, hidden, or replaced with Fake results.
+80. Any nonzero absolute safety metric forbids creation of `poc-02-verified`.
+81. Real-model quality must not be claimed when the real evaluation was not actually executed.
+82. Integrating a real Reasoner does not mean the Amazon Ads production system is complete.
 
 ## Modification limits
 

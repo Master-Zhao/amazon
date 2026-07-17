@@ -26,7 +26,11 @@ class LLMTransportResponse:
     request_id: str
     status_code: int
     body: str
-    usage: Mapping[str, int] = field(default_factory=dict)
+    usage: Mapping[str, int] | None = field(default_factory=dict)
+    latency_ms: int | None = None
+    transport_retry_count: int = 0
+    provider: str = "llm"
+    model: str | None = None
 
 
 class LLMTransport(Protocol):

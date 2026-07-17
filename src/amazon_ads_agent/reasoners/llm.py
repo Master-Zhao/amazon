@@ -50,6 +50,8 @@ class LLMReasoner:
         self.last_prompt_metadata: dict[str, str | bool] = {}
         self.last_response_received = False
         self.last_schema_field_path: str | None = None
+        self.attempt_history: list[dict[str, Any]] = []
+        self.response_metadata: list[dict[str, Any]] = []
 
     def _request(self, reasoner_input: ReasonerInput) -> LLMTransportRequest:
         messages = self.prompt_builder.build(reasoner_input)
@@ -166,13 +168,31 @@ class LLMReasoner:
         self.last_response_received = False
         self.last_schema_field_path = None
         request = self._request(reasoner_input)
-        response = self._complete_with_retries(request)
+        try:
+            response = self._complete_with_retries(request)
+        except ReasonerTransportError:
+            self.attempt_history.append({"json_passed": False, "schema_passed": False, "response_received": False})
+            raise
         self.last_response_received = True
+        self.response_metadata.append(
+            {
+                "request_id": response.request_id,
+                "latency_ms": response.latency_ms,
+                "usage": None if response.usage is None else dict(response.usage),
+                "provider": response.provider,
+                "model": response.model,
+            }
+        )
         try:
             parsed = self._parse(response)
         except ReasonerResponseError as exc:
             self.last_schema_field_path = getattr(exc, "field_path", None)
+            json_passed = exc.error_code not in {"ERR_LLM_RESPONSE_EMPTY", "ERR_LLM_RESPONSE_INVALID"}
+            self.attempt_history.append(
+                {"json_passed": json_passed, "schema_passed": False, "response_received": True}
+            )
             raise
+        self.attempt_history.append({"json_passed": True, "schema_passed": True, "response_received": True})
         return ReasonerResult(
             selected_value=parsed.selected_value,
             reason=parsed.reason,

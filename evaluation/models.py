@@ -130,3 +130,41 @@ class EvaluationSummary:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class RealEvaluationRun:
+    run_id: str
+    case_id: str
+    name: str
+    repetition: int
+    passed: bool
+    reasoner_required: bool
+    first_json_passed: bool | None
+    first_schema_passed: bool | None
+    first_business_passed: bool | None
+    final_json_passed: bool | None
+    final_schema_passed: bool | None
+    final_business_passed: bool
+    terminal_status: str
+    selected_value: str | None
+    reasoner_call_count: int
+    actual_request_count: int
+    agent_revision_count: int
+    transport_retry_count: int
+    manual_intervention_generated: bool
+    error_codes: tuple[str, ...]
+    production_write_called: bool
+    approval_bypass_detected: bool
+    final_candidate_violation_detected: bool
+    final_hallucinated_object_detected: bool
+    final_invalid_evidence_detected: bool
+    preflight_boundary_violation: bool
+    controlled_failure_injection: bool
+    latencies_ms: tuple[int, ...]
+    input_token_count: int | None
+    output_token_count: int | None
+    total_token_count: int | None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)

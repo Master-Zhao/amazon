@@ -31,6 +31,7 @@ def build_json_report(
     *,
     generated_at: str | None = None,
     git_commit: str | None = None,
+    provider: str = "fake",
 ) -> dict[str, Any]:
     """Build a JSON-safe report without prompts, credentials, or raw responses."""
 
@@ -39,7 +40,7 @@ def build_json_report(
         "generated_at": generated_at or datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "git_commit": git_commit or _git_commit(),
         "python_version": platform.python_version(),
-        "provider": "fake",
+        "provider": provider,
         "real_model_used": False,
         "disclaimer": "Fake Transport only; results do not represent real-model answer quality.",
         "summary": summary.to_dict(),

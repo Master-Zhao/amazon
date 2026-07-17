@@ -1,5 +1,26 @@
 # Amazon Ads Agent PoC
 
+## PoC-02 第四小时：显式真实模型模式
+
+真实模型 HTTP 模式默认关闭，只支持一个 `openai_compatible` chat-completions 协议。真实评测必须同时设置：
+
+```text
+LLM_PROVIDER=llm
+LLM_REAL_CALL_ENABLED=true
+LLM_MODEL=<set-in-local-environment>
+LLM_API_KEY=<set-in-local-environment>
+LLM_BASE_URL=<set-in-local-environment>
+```
+
+并显式运行：
+
+```powershell
+python evaluation/run_evaluation.py --provider real --confirm-real-model --case CASE-001
+python evaluation/run_evaluation.py --provider real --confirm-real-model
+```
+
+真实调用可能产生费用，并受 `REAL_EVALUATION_MAX_REQUESTS` 等预算限制。真实报告使用 `evaluation/results/real-model-<UTC timestamp>.*`，不会覆盖 Fake `latest.*`。默认 pytest、Fake 评测和 Stub CLI 不访问真实网络；当前仍无 Amazon Ads API、Approval Service 或生产写入，所有合法建议仍停在人工审批前。没有真实运行时不得声称模型质量通过或创建验证标签。
+
 ## PoC-02 第三小时：确定性离线评测
 
 离线评测框架位于 `evaluation/`，当前包含 12 个固定案例及一一对应的机器可判定 Expected。运行：
