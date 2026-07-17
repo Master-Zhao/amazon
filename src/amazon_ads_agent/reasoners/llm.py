@@ -1,4 +1,4 @@
-"""LLM Reasoner engineering skeleton using an injected offline-safe Transport."""
+"""Strict structured-output LLM Reasoner using an injected offline-safe Transport."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import json
 import re
 from typing import Any
 
-from .base import ReasonerInput, ReasonerResult, to_plain_data
+from .base import ReasonerInput, ReasonerResult
 from .config import LLMReasonerConfig
 from .errors import (
     ReasonerResponseError,
@@ -14,40 +14,59 @@ from .errors import (
     ReasonerTimeoutError,
     ReasonerTransportError,
 )
+from .output_schema import validate_reasoner_output
+from .prompt_builder import PromptBuilder
 from .transport import LLMTransport, LLMTransportRequest, LLMTransportResponse
 
-PLACEHOLDER_SYSTEM_MESSAGE = "provider-contract-placeholder"
-PLACEHOLDER_NOTICE = (
-    "This message only verifies Provider and Transport integration; "
-    "it is not the formal model prompt."
-)
+
+def _reject_constant(value: str) -> None:
+    raise ValueError(f"non-standard JSON constant: {value}")
+
+
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    document: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in document:
+            raise ValueError("duplicate JSON object key")
+        document[key] = value
+    return document
 
 
 class LLMReasoner:
-    """Convert immutable inputs to raw Transport calls and parse test JSON."""
+    """Build formal messages, call Transport, and strictly validate pure JSON."""
 
-    def __init__(self, config: LLMReasonerConfig, transport: LLMTransport) -> None:
+    def __init__(
+        self,
+        config: LLMReasonerConfig,
+        transport: LLMTransport,
+        *,
+        prompt_builder: PromptBuilder | None = None,
+    ) -> None:
         self.config = config
         self.transport = transport
+        self.prompt_builder = prompt_builder or PromptBuilder()
         self.call_count = 0
         self.last_transport_retry_count = 0
+        self.last_prompt_metadata: dict[str, str | bool] = {}
+        self.last_response_received = False
+        self.last_schema_field_path: str | None = None
 
     def _request(self, reasoner_input: ReasonerInput) -> LLMTransportRequest:
-        payload = {
-            "messages": [
-                {"role": "system", "content": PLACEHOLDER_SYSTEM_MESSAGE},
-                {
-                    "role": "user",
-                    "content": json.dumps(to_plain_data(reasoner_input), ensure_ascii=False, sort_keys=True),
-                },
-            ],
-            "notice": PLACEHOLDER_NOTICE,
+        messages = self.prompt_builder.build(reasoner_input)
+        self.last_prompt_metadata = {
+            "template_version": self.prompt_builder.TEMPLATE_VERSION,
+            "system_template": "reasoner-system.md",
+            "scenario_template": "keyword-bid-optimization.md",
+            "revision_template_added": reasoner_input.previous_failure is not None,
         }
         return LLMTransportRequest(
             model=str(self.config.model),
             base_url=str(self.config.base_url),
             timeout_seconds=self.config.timeout_seconds,
-            payload=payload,
+            payload={
+                "messages": messages,
+                "response_contract": "reasoner-output.schema.json",
+            },
             request_metadata={
                 "task_id": reasoner_input.task_id,
                 "run_id": reasoner_input.run_id,
@@ -116,50 +135,44 @@ class LLMReasoner:
                 "ERR_LLM_RESPONSE_EMPTY", "model service returned an empty response", retryable=False, provider="llm"
             )
         try:
-            document: Any = json.loads(response.body)
-        except json.JSONDecodeError as exc:
-            raise ReasonerResponseError(
-                "ERR_LLM_RESPONSE_INVALID", "model service response is not valid JSON", retryable=False, provider="llm"
-            ) from exc
-        required = {"selected_value", "reason", "evidence_paths", "risk_summary"}
-        if not isinstance(document, dict) or set(document) != required:
+            document = json.loads(
+                response.body,
+                object_pairs_hook=_unique_object,
+                parse_constant=_reject_constant,
+            )
+        except (json.JSONDecodeError, ValueError) as exc:
             raise ReasonerResponseError(
                 "ERR_LLM_RESPONSE_INVALID",
-                "model service response fields do not match the Provider contract",
+                "model service response is not one strict JSON object",
                 retryable=False,
                 provider="llm",
-            )
-        if not isinstance(document["selected_value"], str) or re.fullmatch(
-            r"^(0|[1-9][0-9]*)(\.[0-9]+)?$", document["selected_value"]
-        ) is None:
-            raise ReasonerResponseError(
-                "ERR_LLM_RESPONSE_INVALID", "selected_value must be a Decimal string", retryable=False, provider="llm"
-            )
-        if not isinstance(document["reason"], str) or not isinstance(document["risk_summary"], str):
-            raise ReasonerResponseError(
-                "ERR_LLM_RESPONSE_INVALID", "reason and risk_summary must be strings", retryable=False, provider="llm"
-            )
-        paths = document["evidence_paths"]
-        if not isinstance(paths, list) or not paths or not all(isinstance(path, str) for path in paths):
-            raise ReasonerResponseError(
-                "ERR_LLM_RESPONSE_INVALID", "evidence_paths must be a non-empty string array", retryable=False, provider="llm"
-            )
+            ) from exc
+        validated = validate_reasoner_output(document)
         return ReasonerResult(
-            selected_value=document["selected_value"],
-            reason=document["reason"],
-            evidence_paths=tuple(paths),
-            risk_summary=document["risk_summary"],
+            selected_value=validated["selected_value"],
+            reason=validated["reason"],
+            evidence_paths=tuple(validated["evidence_paths"]),
+            risk_summary=validated["risk_summary"],
             provider="llm",
             model="",
             request_id=response.request_id,
+            model_confidence=validated["confidence"],
         )
 
     def reason(self, reasoner_input: ReasonerInput) -> ReasonerResult:
-        """Perform one agent reasoning call with internal service retries only."""
+        """Perform one reasoning call; service retries remain inside this call."""
 
         self.call_count += 1
-        response = self._complete_with_retries(self._request(reasoner_input))
-        parsed = self._parse(response)
+        self.last_response_received = False
+        self.last_schema_field_path = None
+        request = self._request(reasoner_input)
+        response = self._complete_with_retries(request)
+        self.last_response_received = True
+        try:
+            parsed = self._parse(response)
+        except ReasonerResponseError as exc:
+            self.last_schema_field_path = getattr(exc, "field_path", None)
+            raise
         return ReasonerResult(
             selected_value=parsed.selected_value,
             reason=parsed.reason,
@@ -168,4 +181,5 @@ class LLMReasoner:
             provider="llm",
             model=str(self.config.model),
             request_id=parsed.request_id,
+            model_confidence=parsed.model_confidence,
         )

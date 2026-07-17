@@ -9,6 +9,7 @@ from typing import Any
 from .candidate_engine import generate_bid_candidates
 from .config_loader import require_config
 from .decimal_utils import decimal_to_string, parse_decimal, percentage_change
+from .metrics import calculate_metrics
 from .models import ValidationIssue, ValidationResult
 from .post_processor import calculate_plan_digest
 from .schema_loader import SchemaValidationError, validate_agent_output
@@ -33,8 +34,17 @@ def _failed(code: str, message: str, rules: tuple[str, ...] = (), paths: tuple[s
 
 
 def _resolve_evidence(task: dict[str, Any], path: str) -> Any:
-    if path == "target_acos":
+    if path in {"target_acos", "task_context.target_acos"}:
         return task["target_acos"]
+    if path.startswith("entity_metrics."):
+        return task["entity_metrics"][0][path.removeprefix("entity_metrics.")]
+    if path.startswith("calculated_metrics."):
+        field = path.removeprefix("calculated_metrics.")
+        calculated = calculate_metrics(task["entity_metrics"][0])
+        if not hasattr(calculated, field):
+            raise KeyError(path)
+        value = getattr(calculated, field)
+        return None if value is None else decimal_to_string(value, places=6)
     match = _INDEXED_PATH.fullmatch(path)
     if not match:
         raise KeyError(path)

@@ -33,5 +33,23 @@ class ReasonerResponseError(ReasonerError):
     """Non-retryable empty or malformed service response."""
 
 
+class PromptError(ReasonerConfigurationError):
+    """Fail-closed prompt loading or path validation error."""
+
+
+class ReasonerOutputSchemaError(ReasonerResponseError):
+    """Reasoner output Schema loading or validation error."""
+
+    def __init__(
+        self,
+        error_code: str,
+        safe_message: str,
+        *,
+        field_path: str = "$",
+    ) -> None:
+        super().__init__(error_code, safe_message, retryable=False, provider="llm")
+        self.field_path = field_path
+
+
 class ReasonerRetriesExhaustedError(ReasonerTransportError):
     """Network/service retry budget exhausted inside one agent attempt."""

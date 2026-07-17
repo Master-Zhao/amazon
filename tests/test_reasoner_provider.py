@@ -23,10 +23,13 @@ def _config(*, retries: int = 0) -> LLMReasonerConfig:
 
 def _response(value: str = "1.08", *, extra: dict[str, str] | None = None) -> LLMTransportResponse:
     body = {
+        "schema_version": "1.0",
+        "decision": "select",
         "selected_value": value,
         "reason": "offline Fake Transport selection",
         "evidence_paths": ["entity_metrics[0].spend", "entity_metrics[0].sales", "target_acos"],
         "risk_summary": "human approval required",
+        "confidence": "0.840000",
     }
     body.update(extra or {})
     return LLMTransportResponse("request-offline-1", 200, json.dumps(body), {})
@@ -104,7 +107,7 @@ def test_llm_outside_candidate_is_rejected_then_revised(high_task: dict) -> None
 def test_llm_fabricated_object_field_fails_closed(high_task: dict) -> None:
     result = run_workflow(high_task, reasoner_config=_config(), transport=FakeTransport([_response(extra={"object_id": "fabricated"})]))
     assert result.output["current_status"] == "manual_intervention_required"
-    assert result.output["runtime_validation"]["error_code"] == "ERR_LLM_RESPONSE_INVALID"
+    assert result.output["runtime_validation"]["error_code"] == "ERR_REASONER_OUTPUT_SCHEMA_FAILED"
     assert result.output["execution_preflight"] is None
 
 

@@ -10,7 +10,7 @@ import pytest
 from amazon_ads_agent.reasoners.base import ReasonerInput
 from amazon_ads_agent.reasoners.config import LLMReasonerConfig
 from amazon_ads_agent.reasoners.errors import ReasonerError, ReasonerTransportError
-from amazon_ads_agent.reasoners.llm import LLMReasoner, PLACEHOLDER_NOTICE, PLACEHOLDER_SYSTEM_MESSAGE
+from amazon_ads_agent.reasoners.llm import LLMReasoner
 from amazon_ads_agent.reasoners.transport import FakeTransport, LLMTransportResponse, NotConfiguredTransport
 
 FAKE_KEY = "test-only-not-a-real-key"
@@ -34,9 +34,10 @@ def _input() -> ReasonerInput:
 
 def _response(body: str | None = None, *, status: int = 200, request_id: str = "req-test-1") -> LLMTransportResponse:
     document = {
+        "schema_version": "1.0", "decision": "select",
         "selected_value": "1.08", "reason": "offline test response",
         "evidence_paths": ["entity_metrics[0].spend", "entity_metrics[0].sales", "target_acos"],
-        "risk_summary": "medium",
+        "risk_summary": "medium", "confidence": "0.840000",
     }
     return LLMTransportResponse(request_id, status, json.dumps(document) if body is None else body, {"input": 3})
 
@@ -61,13 +62,14 @@ def test_request_contains_model_timeout_and_metadata() -> None:
     assert (request.model, request.timeout_seconds, request.request_metadata["attempt_id"]) == ("test-model", 30, "attempt-0001")
 
 
-def test_request_uses_only_placeholder_message() -> None:
+def test_request_uses_formal_repository_prompts() -> None:
     transport = FakeTransport([_response()])
     LLMReasoner(_config(), transport).reason(_input())
     request = transport.last_request
     assert request is not None
-    assert request.payload["messages"][0]["content"] == PLACEHOLDER_SYSTEM_MESSAGE
-    assert request.payload["notice"] == PLACEHOLDER_NOTICE
+    assert "# Role" in request.payload["messages"][0]["content"]
+    assert "Keyword Bid Optimization Task" in request.payload["messages"][1]["content"]
+    assert request.payload["response_contract"] == "reasoner-output.schema.json"
 
 
 def test_request_and_repr_do_not_contain_api_key() -> None:
@@ -92,12 +94,12 @@ def test_sensitive_or_malformed_request_id_is_rejected() -> None:
     [
         ("", "ERR_LLM_RESPONSE_EMPTY"),
         ("not-json", "ERR_LLM_RESPONSE_INVALID"),
-        ("{}", "ERR_LLM_RESPONSE_INVALID"),
-        ('{"selected_value": 108, "reason": "x", "evidence_paths": ["target_acos"], "risk_summary": "medium"}', "ERR_LLM_RESPONSE_INVALID"),
-        ('{"selected_value": "abc", "reason": "x", "evidence_paths": ["target_acos"], "risk_summary": "medium"}', "ERR_LLM_RESPONSE_INVALID"),
-        ('{"selected_value": "1.08", "reason": "x", "evidence_paths": [], "risk_summary": "medium"}', "ERR_LLM_RESPONSE_INVALID"),
-        ('{"selected_value": "1.08", "reason": "x", "evidence_paths": [1], "risk_summary": "medium"}', "ERR_LLM_RESPONSE_INVALID"),
-        ('{"selected_value": "1.08", "reason": "x", "evidence_paths": ["target_acos"], "risk_summary": "medium", "object_id": "fabricated"}', "ERR_LLM_RESPONSE_INVALID"),
+        ("{}", "ERR_REASONER_OUTPUT_SCHEMA_FAILED"),
+        ('{"selected_value": 108, "reason": "x", "evidence_paths": ["target_acos"], "risk_summary": "medium"}', "ERR_REASONER_OUTPUT_SCHEMA_FAILED"),
+        ('{"selected_value": "abc", "reason": "x", "evidence_paths": ["target_acos"], "risk_summary": "medium"}', "ERR_REASONER_OUTPUT_SCHEMA_FAILED"),
+        ('{"selected_value": "1.08", "reason": "x", "evidence_paths": [], "risk_summary": "medium"}', "ERR_REASONER_OUTPUT_SCHEMA_FAILED"),
+        ('{"selected_value": "1.08", "reason": "x", "evidence_paths": [1], "risk_summary": "medium"}', "ERR_REASONER_OUTPUT_SCHEMA_FAILED"),
+        ('{"selected_value": "1.08", "reason": "x", "evidence_paths": ["target_acos"], "risk_summary": "medium", "object_id": "fabricated"}', "ERR_REASONER_OUTPUT_SCHEMA_FAILED"),
     ],
 )
 def test_invalid_response_shapes_fail(body: str, code: str) -> None:

@@ -74,6 +74,7 @@ class ReasonerResult:
     provider: str
     model: str
     request_id: str
+    model_confidence: str | None = None
 
 
 class Reasoner(Protocol):

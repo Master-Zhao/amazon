@@ -28,9 +28,15 @@ from .schema_loader import validate_agent_output, validate_task_input
 _INDEXED_PATH = re.compile(r"^entity_metrics\[([0-9]+)\]\.([A-Za-z_][A-Za-z0-9_]*)$")
 
 
-def _resolve_evidence_value(task: dict[str, Any], path: str) -> Any:
-    if path == "target_acos":
+def _resolve_evidence_value(task: dict[str, Any], metrics: Any, path: str) -> Any:
+    if path in {"target_acos", "task_context.target_acos"}:
         return task["target_acos"]
+    if path.startswith("calculated_metrics."):
+        field = path.removeprefix("calculated_metrics.")
+        value = getattr(metrics, field, None)
+        return None if value is None else decimal_to_string(value, places=6)
+    if path.startswith("entity_metrics."):
+        return task["entity_metrics"][0].get(path.removeprefix("entity_metrics."))
     match = _INDEXED_PATH.fullmatch(path)
     if match:
         try:
@@ -74,19 +80,27 @@ def _reasoner_input(
             "target_acos": task["target_acos"],
             "confidence": str(require_config(rules, "analysis.confidence_threshold")),
             "max_decrease_ratio": str(require_config(rules, "keyword_bid.max_decrease_ratio")),
+            "max_increase_ratio": str(require_config(rules, "keyword_bid.max_increase_ratio")),
+            "min_bid": str(require_config(rules, "keyword_bid.min_bid")),
+            "max_bid": str(require_config(rules, "keyword_bid.max_bid")),
             "bid_step": str(require_config(rules, "keyword_bid.bid_step")),
+            "requested_risk_profile": task["requested_risk_profile"],
+            "human_approval_required": True,
         },
         previous_failure=previous_failure,
     )
 
 
-def _legacy_output(task: dict[str, Any], result: ReasonerResult, rules: dict[str, Any]) -> ReasonerOutput:
+def _legacy_output(
+    task: dict[str, Any], metrics: Any, result: ReasonerResult, rules: dict[str, Any]
+) -> ReasonerOutput:
     risk = result.risk_summary if result.risk_summary in {"low", "medium", "high"} else "medium"
     return ReasonerOutput(
         suggested_value=result.selected_value,
         reason=result.reason,
         evidence=tuple(
-            {"path": path, "value": _resolve_evidence_value(task, path)} for path in result.evidence_paths
+            {"path": path, "value": _resolve_evidence_value(task, metrics, path)}
+            for path in result.evidence_paths
         ),
         confidence=str(require_config(rules, "analysis.confidence_threshold")),
         risk_summary=risk,
@@ -210,6 +224,36 @@ def run_workflow(
             )
         except ReasonerError as error:
             transport_retries = int(getattr(active_reasoner, "last_transport_retry_count", 0))
+            prompt_metadata = dict(getattr(active_reasoner, "last_prompt_metadata", {}))
+            if prompt_metadata:
+                audit.record(
+                    "reasoner_prompt_built",
+                    "generating_plan" if retry_count == 0 else "retrying",
+                    "generating_plan",
+                    "Formal Reasoner messages were built from repository templates.",
+                    plan_version=plan_version,
+                    metadata=prompt_metadata,
+                )
+            if bool(getattr(active_reasoner, "last_response_received", False)):
+                audit.record(
+                    "reasoner_response_received",
+                    "generating_plan",
+                    "generating_plan",
+                    "A model response body was received for strict local validation.",
+                    plan_version=plan_version,
+                    metadata={"provider": "llm", "model": model_name},
+                )
+            schema_path = getattr(active_reasoner, "last_schema_field_path", None)
+            if error.error_code == "ERR_REASONER_OUTPUT_SCHEMA_FAILED":
+                audit.record(
+                    "reasoner_schema_validation_failed",
+                    "generating_plan",
+                    "manual_intervention_required",
+                    "Reasoner output failed the independent Schema.",
+                    plan_version=plan_version,
+                    error_code=error.error_code,
+                    metadata={"field_path": schema_path or "$", "schema_version": "1.0"},
+                )
             audit.record(
                 "llm_request_failed",
                 "generating_plan" if retry_count == 0 else "retrying",
@@ -249,6 +293,47 @@ def run_workflow(
 
         transport_retries = int(getattr(active_reasoner, "last_transport_retry_count", 0))
         if provider_name == "llm":
+            audit.record(
+                "reasoner_prompt_built",
+                "generating_plan" if retry_count == 0 else "retrying",
+                "generating_plan",
+                "Formal Reasoner messages were built from repository templates.",
+                plan_version=plan_version,
+                metadata=dict(getattr(active_reasoner, "last_prompt_metadata", {})),
+            )
+            audit.record(
+                "reasoner_response_received",
+                "generating_plan",
+                "generating_plan",
+                "A model response body was received for strict local validation.",
+                plan_version=plan_version,
+                metadata={"provider": "llm", "model": result.model, "request_id": result.request_id},
+            )
+            audit.record(
+                "reasoner_response_parsed",
+                "generating_plan",
+                "generating_plan",
+                "The response was exactly one strict JSON object.",
+                plan_version=plan_version,
+                metadata={"provider": "llm", "request_id": result.request_id},
+            )
+            audit.record(
+                "reasoner_schema_validation_passed",
+                "generating_plan",
+                "generating_plan",
+                "Reasoner output passed Schema 1.0; business validation is still required.",
+                plan_version=plan_version,
+                metadata={"schema_version": "1.0", "request_id": result.request_id},
+            )
+            if bool(getattr(active_reasoner, "last_prompt_metadata", {}).get("revision_template_added")):
+                audit.record(
+                    "reasoner_revision_feedback_added",
+                    "retrying",
+                    "generating_plan",
+                    "Safe deterministic failure feedback was added to the revision prompt.",
+                    plan_version=plan_version,
+                    metadata={"previous_failure_included": True},
+                )
             if transport_retries:
                 audit.record(
                     "llm_transport_retry",
@@ -275,7 +360,14 @@ def run_workflow(
                     "agent_revision_count": retry_count,
                 },
             )
-        plan = build_plan(working_task, metrics, candidates, _legacy_output(working_task, result, rules), plan_version, retry_count)
+        plan = build_plan(
+            working_task,
+            metrics,
+            candidates,
+            _legacy_output(working_task, metrics, result, rules),
+            plan_version,
+            retry_count,
+        )
         audit.record(
             "reasoner_completed",
             "generating_plan" if retry_count == 0 else "retrying",

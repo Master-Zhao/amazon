@@ -187,3 +187,13 @@ LLM_MAX_RETRIES
 详细设计与离线测试边界见 `docs/implementation/poc-02-hour-01-reasoner-provider.md`。
 
 本阶段只完成真实模型 Provider 的工程接入能力，不代表正式提示词完成，也不代表真实模型回答质量已经通过。
+
+## PoC-02 第二小时：正式 Prompt 与输出合同
+
+正式 Reasoner 模板位于 `prompts/reasoner-system.md`、`prompts/keyword-bid-optimization.md` 和 `prompts/revision-feedback.md`；独立输出合同位于 `schemas/reasoner-output.schema.json`。
+
+LLM 输出必须是符合 Schema 1.0 的单个纯 JSON object。Markdown 代码块、JSON 前后附加文字、多个 JSON、数组根、未知字段和自动类型转换都会被拒绝。模型只能选择 `candidate_values` 中已有的 Decimal 字符串，不能创建竞价、修改对象、规则、快照、版本、审批或执行状态。
+
+Schema 通过不代表业务合法。输出仍必须经过 Runtime Validator 和本地 dry-run preflight，并在真实修改前等待人工审批。当前没有真实模型网络、Amazon Ads API 或生产写入，也尚未进行真实模型回答质量评估。
+
+详细说明见 `docs/implementation/poc-02-hour-02-prompt-and-output-contract.md`。
