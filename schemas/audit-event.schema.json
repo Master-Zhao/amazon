@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.internal/amazon-ads-agent-poc/audit-event.schema.json",
+  "title": "PoC Audit Event",
+  "description": "Append-only, credential-free in-memory workflow event.",
+  "x-schema-version": "2.0-poc.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "event_id", "task_id", "run_id", "attempt_id", "step_id",
+    "trace_id", "event_type", "occurred_at", "plan_version", "data_snapshot_id",
+    "status_before", "status_after", "summary", "error_code", "metadata"
+  ],
+  "properties": {
+    "schema_version": {"const": "2.0"},
+    "event_id": {"type": "string", "minLength": 1},
+    "task_id": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "attempt_id": {"type": ["string", "null"]},
+    "step_id": {"type": "string", "minLength": 1},
+    "trace_id": {"type": "string", "minLength": 1},
+    "event_type": {"type": "string", "minLength": 1, "maxLength": 128},
+    "occurred_at": {"type": "string", "format": "date-time", "pattern": "(?:Z|[+-][0-9]{2}:[0-9]{2})$"},
+    "plan_version": {"type": "integer", "minimum": 0, "maximum": 4},
+    "data_snapshot_id": {"type": "string", "minLength": 1},
+    "status_before": {"type": ["string", "null"]},
+    "status_after": {"type": "string", "minLength": 1},
+    "summary": {"type": "string", "minLength": 1, "maxLength": 1000},
+    "error_code": {"type": ["string", "null"], "pattern": "^ERR_[A-Z0-9_]+$"},
+    "metadata": {
+      "type": "object",
+      "propertyNames": {"not": {"enum": ["access_token", "refresh_token", "authorization_header", "secret", "password"]}},
+      "additionalProperties": {"type": ["string", "integer", "boolean", "null"]}
+    }
+  }
+}

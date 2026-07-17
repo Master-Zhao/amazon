@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.internal/amazon-ads-agent-poc/task-input.schema.json",
+  "title": "PoC Keyword Bid Optimization Task Input",
+  "description": "Synthetic single-keyword input bound to an immutable data snapshot.",
+  "x-schema-version": "2.0-poc.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "task_id", "run_id", "attempt_id", "scenario_type",
+    "data_snapshot_id", "date_range", "measurement_at", "optimization_goal",
+    "requested_risk_profile", "rule_set_version", "target_acos", "entity_metrics"
+  ],
+  "properties": {
+    "schema_version": {"const": "2.0"},
+    "task_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "run_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "attempt_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "scenario_type": {"const": "keyword_bid_optimization"},
+    "data_snapshot_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "date_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end", "timezone"],
+      "properties": {
+        "start": {"type": "string", "format": "date"},
+        "end": {"type": "string", "format": "date"},
+        "timezone": {"type": "string", "minLength": 1, "maxLength": 64}
+      }
+    },
+    "measurement_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "(?:Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "optimization_goal": {"const": "target_acos"},
+    "requested_risk_profile": {"const": "balanced"},
+    "rule_set_version": {"type": "string", "minLength": 1},
+    "target_acos": {"$ref": "#/$defs/ratio"},
+    "entity_metrics": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {"$ref": "#/$defs/keyword_metric"}
+    },
+    "test_fault": {
+      "description": "TEST-ONLY fault injection; never accepted by a production profile.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reasoner_mode"],
+      "properties": {
+        "reasoner_mode": {"enum": ["invalid_once", "always_invalid"]}
+      }
+    }
+  },
+  "$defs": {
+    "decimal": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$",
+      "maxLength": 40
+    },
+    "ratio": {
+      "type": "string",
+      "pattern": "^(0(\\.[0-9]+)?|1(\\.0+)?)$",
+      "maxLength": 20
+    },
+    "keyword_metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entity_type", "entity_id", "parent_campaign_id", "parent_ad_group_id",
+        "keyword", "object_version", "impressions", "clicks", "orders", "spend",
+        "sales", "currency", "current_bid"
+      ],
+      "properties": {
+        "entity_type": {"const": "keyword"},
+        "entity_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "parent_campaign_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "parent_ad_group_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "keyword": {"type": "string", "minLength": 1, "maxLength": 256},
+        "object_version": {"type": "string", "minLength": 1, "maxLength": 128},
+        "impressions": {"type": "integer", "minimum": 0},
+        "clicks": {"type": "integer", "minimum": 0},
+        "orders": {"type": "integer", "minimum": 0},
+        "spend": {"$ref": "#/$defs/decimal"},
+        "sales": {"$ref": "#/$defs/decimal"},
+        "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+        "current_bid": {"$ref": "#/$defs/decimal"}
+      }
+    }
+  }
+}

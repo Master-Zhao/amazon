@@ -1,0 +1,40 @@
+# NOT FOR PRODUCTION. Synthetic-data PoC configuration only.
+schema_version: "1.0"
+environment: "poc"
+not_for_production: true
+rule_set_version: "poc-rules-v0.1"
+
+analysis:
+  minimum_analysis_days: 7
+  min_clicks: 20
+  min_orders: 1
+  target_acos: "0.250000"
+  confidence_threshold: "0.600000"
+
+keyword_bid:
+  max_decrease_ratio: "0.150000"
+  max_increase_ratio: "0.150000"
+  min_bid: "0.02"
+  max_bid: "5.00"
+  bid_step: "0.01"
+  candidate_change_ratios:
+    - "-0.150000"
+    - "-0.100000"
+    - "-0.050000"
+
+strategy:
+  default_profile: "balanced"
+  balanced:
+    min_confidence: "0.600000"
+    approval_level: "standard"
+
+runtime:
+  max_automatic_revisions: 3
+  stop_on_same_error_consecutive_count: 2
+  production_write_enabled: false
+  allowed_execution_modes:
+    - "dry_run"
+
+reasoner:
+  provider: "stub"
+  model_config_id: "reasoner-stub-v0.1"

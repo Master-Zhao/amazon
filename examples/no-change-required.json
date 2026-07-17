@@ -1,0 +1,35 @@
+{
+  "schema_version": "2.0",
+  "task_id": "task-no-change-001",
+  "run_id": "run-no-change-001",
+  "attempt_id": "attempt-0001",
+  "scenario_type": "keyword_bid_optimization",
+  "data_snapshot_id": "snapshot-no-change-001",
+  "date_range": {
+    "start": "2026-07-01",
+    "end": "2026-07-14",
+    "timezone": "Asia/Shanghai"
+  },
+  "measurement_at": "2026-07-14T23:59:59+08:00",
+  "optimization_goal": "target_acos",
+  "requested_risk_profile": "balanced",
+  "rule_set_version": "poc-rules-v0.1",
+  "target_acos": "0.250000",
+  "entity_metrics": [
+    {
+      "entity_type": "keyword",
+      "entity_id": "kw-no-change-001",
+      "parent_campaign_id": "campaign-synthetic-001",
+      "parent_ad_group_id": "adgroup-synthetic-001",
+      "keyword": "synthetic ergonomic mouse",
+      "object_version": "etag-synthetic-v1",
+      "impressions": 18000,
+      "clicks": 300,
+      "orders": 35,
+      "spend": "180.00",
+      "sales": "900.00",
+      "currency": "USD",
+      "current_bid": "1.00"
+    }
+  ]
+}
