@@ -1,8 +1,18 @@
 # 亚马逊广告智能体模块——核心功能、关键决策与测试效果总结
 
-> 编制日期：2026-07-19
+> 编制日期：2026-07-20
 >
-> 证据基线：`d8d7ce7e339224970123248d117ebbaa9c0a8d3a`
+> 文档状态：智能体模块内容已核验
+>
+> 离线测试基线：565 passed
+>
+> 固定评估基线：12/12 passed
+>
+> 真实模型状态：FAIL / NOT EXECUTED
+>
+> 生产写入违规：0
+>
+> 证据基线：`0d8da52`
 >
 > 模块范围：仅总结当前仓库已经完成的智能体 PoC，不包含前端、Amazon Ads API、云部署或 CI/CD 实现
 
@@ -424,7 +434,7 @@ flowchart TB
 
 当前没有真实广告账户，也没有实际 ACoS 改善、预算节省、线上转化提升、真实模型质量或生产稳定性数据。离线测试证明工程合同和安全边界可运行，不证明广告投放收益。
 
-当前阶段尚未开展真实用户访谈或可用性测试，因此本节不提供虚构反馈。后续应由真实广告投手基于分析解释、候选合理性、证据可读性和人工确认效率进行评估。
+当前阶段尚未开展真实投手访谈和可用性测试，因此不提供虚构反馈。后续应由真实广告投手基于分析解释、候选合理性、证据可读性和人工确认效率进行评估。
 
 以下指标仅作为后续计划，不填入未经验证的数值：
 
@@ -481,6 +491,9 @@ flowchart LR
 - `docs/verification/poc-02-offline-verification.md`：565 项测试、专项测试和离线结论；
 - `docs/verification/poc-02-real-model-evaluation.md`：真实模型 `FAIL / NOT EXECUTED` 状态；
 - `evaluation/results/latest.md`：当前 12/12 Fake 评估运行报告，该文件存在但按 `.gitignore` 作为运行产物忽略。
+- `docs/evidence/agent-module/evidence-index.md`：本次比赛交付证据、命令、日志和人工截图说明；
+- `docs/demo/agent-module-demo-runbook.md`：正常、一次修订和人工介入三场景演示脚本；
+- `docs/reports/agent-module-ppt-outline.md`：六页比赛 PPT 素材骨架。
 
 **主要 Git 里程碑**
 

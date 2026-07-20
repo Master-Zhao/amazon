@@ -1,0 +1,121 @@
+python.exe : step-0001 task_loaded -> validating_data
+At line:2 char:1
++ & .\.venv\Scripts\python.exe -m amazon_ads_agent examples\repeated-in ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (step-0001 task_loaded -> validating_data:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+step-0002 schema_validated -> analyzing
+step-0003 metrics_calculated -> analyzing
+step-0004 evidence_evaluated -> generating_plan
+step-0005 candidates_generated -> generating_plan
+step-0006 reasoner_provider_selected -> generating_plan
+step-0007 reasoner_completed -> validating_plan
+step-0008 runtime_validation_failed -> retrying [ERR_CANDIDATE_OUT_OF_RANGE]
+step-0009 failure_analyzed -> retrying [ERR_CANDIDATE_OUT_OF_RANGE]
+step-0010 plan_revised -> validating_plan
+step-0011 reasoner_completed -> validating_plan
+step-0012 runtime_validation_failed -> retrying [ERR_CANDIDATE_OUT_OF_RANGE]
+step-0013 failure_analyzed -> manual_intervention_required [ERR_CANDIDATE_OUT_OF_RANGE]
+step-0014 manual_intervention_required -> manual_intervention_required [ERR_CANDIDATE_OUT_OF_RANGE]
+{
+  "agent_output": {
+    "analysis_summary": "�Զ��޶���ֹͣ��ERR_CANDIDATE_OUT_OF_RANGE��suggested value must belong to the immutable Candidate Engine set",
+    "attempt_id": "attempt-0002",
+    "calculated_risk_level": "high",
+    "changes": [],
+    "completion_reason": null,
+    "current_status": "manual_intervention_required",
+    "data_snapshot_id": "snapshot-always-invalid-001",
+    "execution_preflight": null,
+    "generated_at": "2026-07-20T06:28:13+00:00",
+    "human_approval_required": false,
+    "issues": [
+      {
+        "evidence_paths": [
+          "changes[0].suggested_value",
+          "changes[0].candidate_values"
+        ],
+        "issue_id": "issue-manual-intervention",
+        "type": "err_candidate_out_of_range"
+      }
+    ],
+    "manual_intervention_package_id": "mip-7c3fa8d2c30a8558",
+    "plan_digest": null,
+    "plan_version": 2,
+    "retry_count": 1,
+    "rule_set_version": "poc-rules-v0.1",
+    "run_id": "run-always-invalid-001",
+    "runtime_validation": {
+      "error_code": "ERR_CANDIDATE_OUT_OF_RANGE",
+      "failed_rule_ids": [
+        "BR-022"
+      ],
+      "passed": false
+    },
+    "schema_version": "2.0",
+    "task_id": "task-always-invalid-001"
+  },
+  "manual_intervention_package": {
+    "attempt_history": [
+      {
+        "attempt_id": "attempt-0001",
+        "correctable": true,
+        "error_code": "ERR_CANDIDATE_OUT_OF_RANGE",
+        "error_fingerprint": "sha256:836eb456eb2cd84ba17158e638998170b9e67e2ce9f55fcc1ff01bbea801801b",
+        "occurred_at": "2026-07-20T06:28:13+00:00",
+        "plan_version": 1
+      },
+      {
+        "attempt_id": "attempt-0002",
+        "correctable": true,
+        "error_code": "ERR_CANDIDATE_OUT_OF_RANGE",
+        "error_fingerprint": "sha256:836eb456eb2cd84ba17158e638998170b9e67e2ce9f55fcc1ff01bbea801801b",
+        "occurred_at": "2026-07-20T06:28:13+00:00",
+        "plan_version": 2
+      }
+    ],
+    "audit_event_ids": [
+      "event-471dda3c51da4d1aa5d4070cf4bf8bc0",
+      "event-438cd7ef07b24b6a89969ba22d7e7572",
+      "event-61313065c14042bcab0edbdf706b6d6a",
+      "event-bbc29317f60842848ec2c7663b996877",
+      "event-656fc64c59e1456b87753ec416eecbbf",
+      "event-d87603ee1aa0408d98e43c097a2d9229",
+      "event-45d0e6997aa84dac89e78857a5e1d3fa",
+      "event-52f58e23a05f45f7a21bb4f99f1bc15f",
+      "event-c27489aa7dcf4323a968872bef4aaf6f",
+      "event-7c52b5a05cba450db4725e595f667a6a",
+      "event-02d9fd23af8f4aa4b87c8417ba9b1c00",
+      "event-2b468530b3f449288293951d2ca45212",
+      "event-9f6bafa4c2c24f3fb57b78830bebc118",
+      "event-4de78341e990405489a3b6e417ea5bb9"
+    ],
+    "created_at": "2026-07-20T06:28:13+00:00",
+    "data_snapshot_id": "snapshot-always-invalid-001",
+    "last_error_code": "ERR_CANDIDATE_OUT_OF_RANGE",
+    "last_error_fingerprint": "sha256:836eb456eb2cd84ba17158e638998170b9e67e2ce9f55fcc1ff01bbea801801b",
+    "last_error_message": "suggested value must belong to the immutable Candidate Engine set",
+    "latest_attempt_id": "attempt-0002",
+    "latest_plan_version": 2,
+    "manual_intervention_package_id": "mip-7c3fa8d2c30a8558",
+    "original_run_terminal": true,
+    "production_write_called": false,
+    "recovery_constraints": {
+      "automatic_replay_forbidden": true,
+      "failed_plan_reuse_forbidden": true,
+      "human_explicit_recovery_required": true,
+      "input_and_config_revalidation_required": true,
+      "new_run_id_required": true,
+      "old_approval_reuse_forbidden": true
+    },
+    "retry_count": 1,
+    "run_id": "run-always-invalid-001",
+    "same_error_consecutive_count": 2,
+    "schema_version": "2.0.1",
+    "stop_reason": "same_error_repeated",
+    "task_id": "task-always-invalid-001"
+  }
+}
+
+exit_code=3

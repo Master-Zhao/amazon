@@ -1,0 +1,10 @@
+0d8da52 (HEAD -> master) docs: add competition sections for agent implementation
+d8d7ce7 docs: scope progress summary to first two days
+f9df310 docs: add weekly agent poc progress summary
+6ae7e8c test: verify poc-02 offline agent workflow
+8ac3bf8 feat: add real model transport and evaluation
+eaf35c6 feat: add deterministic reasoner evaluation framework
+3365156 feat: add reasoner prompt and structured output contract
+5bc3e7d feat: add configurable reasoner provider abstraction
+f755555 (tag: poc-01-verified) fix: harden poc-01 verification and manual intervention protocol
+0a99fbb feat: initialize amazon ads agent poc

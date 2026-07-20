@@ -1,0 +1,100 @@
+python.exe : step-0001 task_loaded -> validating_data
+At line:2 char:1
++ & .\.venv\Scripts\python.exe -m amazon_ads_agent examples\invalid-rea ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (step-0001 task_loaded -> validating_data:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+step-0002 schema_validated -> analyzing
+step-0003 metrics_calculated -> analyzing
+step-0004 evidence_evaluated -> generating_plan
+step-0005 candidates_generated -> generating_plan
+step-0006 reasoner_provider_selected -> generating_plan
+step-0007 reasoner_completed -> validating_plan
+step-0008 runtime_validation_failed -> retrying [ERR_CANDIDATE_OUT_OF_RANGE]
+step-0009 failure_analyzed -> retrying [ERR_CANDIDATE_OUT_OF_RANGE]
+step-0010 plan_revised -> validating_plan
+step-0011 reasoner_completed -> validating_plan
+step-0012 runtime_validation_passed -> preflighting
+step-0013 preflight_passed -> waiting_for_approval
+step-0014 waiting_for_approval -> waiting_for_approval
+{
+  "agent_output": {
+    "analysis_summary": "ACoS 0.350000 ����Ŀ�� 0.250000��Reasoner Stub ѡ��ȷ���Ժ�ѡ�����е��м�ֵ�� �Ѹ��������ڷ�������ѡ��",
+    "attempt_id": "attempt-0002",
+    "calculated_risk_level": "medium",
+    "changes": [
+      {
+        "action": "update_bid",
+        "candidate_values": [
+          "1.02",
+          "1.08",
+          "1.14"
+        ],
+        "change_id": "chg-209558d88ae2aeaf",
+        "change_ratio": "-0.100000000000",
+        "change_risk_level": "medium",
+        "confidence": "0.600000",
+        "evidence": [
+          {
+            "path": "entity_metrics[0].spend",
+            "value": "315.00"
+          },
+          {
+            "path": "entity_metrics[0].sales",
+            "value": "900.00"
+          },
+          {
+            "path": "target_acos",
+            "value": "0.250000"
+          }
+        ],
+        "expected_current_value": "1.20",
+        "expected_object_version": "etag-synthetic-v1",
+        "object_id": "kw-invalid-once-001",
+        "object_type": "keyword",
+        "reason": "ACoS 0.350000 ����Ŀ�� 0.250000��Reasoner Stub ѡ��ȷ���Ժ�ѡ�����е��м�ֵ�� �Ѹ��������ڷ�������ѡ��",
+        "suggested_value": "1.08"
+      }
+    ],
+    "completion_reason": null,
+    "current_status": "waiting_for_approval",
+    "data_snapshot_id": "snapshot-invalid-once-001",
+    "execution_preflight": {
+      "mode": "dry_run",
+      "passed": true,
+      "preflight_id": "preflight-68c0089d64cac4cd",
+      "production_write_called": false,
+      "request_digest": "sha256:68c0089d64cac4cda202018355012e4e563cf66a19d59feee8d6542290061578"
+    },
+    "generated_at": "2026-07-20T06:28:13+00:00",
+    "human_approval_required": true,
+    "issues": [
+      {
+        "evidence_paths": [
+          "entity_metrics[0].spend",
+          "entity_metrics[0].sales",
+          "target_acos"
+        ],
+        "issue_id": "issue-acos-above-target",
+        "type": "acos_above_target"
+      }
+    ],
+    "manual_intervention_package_id": null,
+    "plan_digest": "sha256:a7aa29ac102cf030a2fa7ba4d2259634a9a360a1d0286f1d5d7cac70bf5d4e98",
+    "plan_version": 2,
+    "retry_count": 1,
+    "rule_set_version": "poc-rules-v0.1",
+    "run_id": "run-invalid-once-001",
+    "runtime_validation": {
+      "error_code": null,
+      "failed_rule_ids": [],
+      "passed": true
+    },
+    "schema_version": "2.0",
+    "task_id": "task-invalid-once-001"
+  },
+  "manual_intervention_package": null
+}
+
+exit_code=0

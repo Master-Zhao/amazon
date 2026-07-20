@@ -1,0 +1,96 @@
+python.exe : step-0001 task_loaded -> validating_data
+At line:2 char:1
++ & .\.venv\Scripts\python.exe -m amazon_ads_agent examples\high-acos-k ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (step-0001 task_loaded -> validating_data:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+step-0002 schema_validated -> analyzing
+step-0003 metrics_calculated -> analyzing
+step-0004 evidence_evaluated -> generating_plan
+step-0005 candidates_generated -> generating_plan
+step-0006 reasoner_provider_selected -> generating_plan
+step-0007 reasoner_completed -> validating_plan
+step-0008 runtime_validation_passed -> preflighting
+step-0009 preflight_passed -> waiting_for_approval
+step-0010 waiting_for_approval -> waiting_for_approval
+{
+  "agent_output": {
+    "analysis_summary": "ACoS 0.350000 ����Ŀ�� 0.250000��Reasoner Stub ѡ��ȷ���Ժ�ѡ�����е��м�ֵ��",
+    "attempt_id": "attempt-0001",
+    "calculated_risk_level": "medium",
+    "changes": [
+      {
+        "action": "update_bid",
+        "candidate_values": [
+          "1.02",
+          "1.08",
+          "1.14"
+        ],
+        "change_id": "chg-933d8cb4c9debb21",
+        "change_ratio": "-0.100000000000",
+        "change_risk_level": "medium",
+        "confidence": "0.600000",
+        "evidence": [
+          {
+            "path": "entity_metrics[0].spend",
+            "value": "315.00"
+          },
+          {
+            "path": "entity_metrics[0].sales",
+            "value": "900.00"
+          },
+          {
+            "path": "target_acos",
+            "value": "0.250000"
+          }
+        ],
+        "expected_current_value": "1.20",
+        "expected_object_version": "etag-synthetic-v1",
+        "object_id": "kw-high-acos-001",
+        "object_type": "keyword",
+        "reason": "ACoS 0.350000 ����Ŀ�� 0.250000��Reasoner Stub ѡ��ȷ���Ժ�ѡ�����е��м�ֵ��",
+        "suggested_value": "1.08"
+      }
+    ],
+    "completion_reason": null,
+    "current_status": "waiting_for_approval",
+    "data_snapshot_id": "snapshot-high-acos-001",
+    "execution_preflight": {
+      "mode": "dry_run",
+      "passed": true,
+      "preflight_id": "preflight-4d3176b7e8f92520",
+      "production_write_called": false,
+      "request_digest": "sha256:4d3176b7e8f925205d747d56af17de0813a2349adb3177557bd69d7d73f9fd16"
+    },
+    "generated_at": "2026-07-20T06:28:13+00:00",
+    "human_approval_required": true,
+    "issues": [
+      {
+        "evidence_paths": [
+          "entity_metrics[0].spend",
+          "entity_metrics[0].sales",
+          "target_acos"
+        ],
+        "issue_id": "issue-acos-above-target",
+        "type": "acos_above_target"
+      }
+    ],
+    "manual_intervention_package_id": null,
+    "plan_digest": "sha256:07512a7adea9bc910499688c1be444e2995a1b20b37da2c3a35874355aca6d68",
+    "plan_version": 1,
+    "retry_count": 0,
+    "rule_set_version": "poc-rules-v0.1",
+    "run_id": "run-high-acos-001",
+    "runtime_validation": {
+      "error_code": null,
+      "failed_rule_ids": [],
+      "passed": true
+    },
+    "schema_version": "2.0",
+    "task_id": "task-high-acos-001"
+  },
+  "manual_intervention_package": null
+}
+
+exit_code=0

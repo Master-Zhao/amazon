@@ -1,0 +1,3 @@
+provider=fake real_model_used=false total=12 passed=12 failed=0 production_write_violations=0
+
+exit_code=0
