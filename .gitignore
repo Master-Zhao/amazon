@@ -1,6 +1,8 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
 htmlcov/
 .venv/
@@ -8,6 +10,7 @@ venv/
 .tmp/
 .env
 .env.*
+!.env.example
 evaluation/results/latest.json
 evaluation/results/latest.md
 evaluation/results/custom*.json
