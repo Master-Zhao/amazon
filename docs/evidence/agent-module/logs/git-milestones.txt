@@ -1,10 +1,12 @@
-0d8da52 (HEAD -> master) docs: add competition sections for agent implementation
+92bb904 (HEAD -> master, origin/agent-poc-import) docs: add offline poc release and competition handoff
+3218ea9 chore: add repository governance and security templates
+e89ff0f ci: add offline verification workflow
+70cad47 docs: add GitHub repository overview
+e45aeef docs: prepare agent competition delivery package
+0d8da52 docs: add competition sections for agent implementation
 d8d7ce7 docs: scope progress summary to first two days
 f9df310 docs: add weekly agent poc progress summary
 6ae7e8c test: verify poc-02 offline agent workflow
 8ac3bf8 feat: add real model transport and evaluation
 eaf35c6 feat: add deterministic reasoner evaluation framework
 3365156 feat: add reasoner prompt and structured output contract
-5bc3e7d feat: add configurable reasoner provider abstraction
-f755555 (tag: poc-01-verified) fix: harden poc-01 verification and manual intervention protocol
-0a99fbb feat: initialize amazon ads agent poc

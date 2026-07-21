@@ -4,8 +4,8 @@
 
 | 项目 | 当前事实 |
 |---|---|
-| 证据生成日期 | 2026-07-20 |
-| 生成基线 | `0d8da52` |
+| 证据生成日期 | 2026-07-21 |
+| 生成基线 | `3218ea9`（业务代码与测试基线未改变） |
 | Python | 3.12.4 |
 | 全量测试 | 565 passed，失败 0，跳过 0 |
 | 固定评估 | 12/12 passed |
@@ -23,11 +23,11 @@
 
 | 编号 | 证据 | 实际命令 | 证明内容 | 对应比赛章节 | 是否真实模型 | 敏感信息 | 文件 |
 |---|---|---|---|---|---|---|---|
-| E-01 | 全量 pytest | `.venv/Scripts/python.exe -m pytest -q` | 565 项测试全部通过，失败 0、跳过 0，耗时 49.11 秒 | 6.1、6.2 | 否 | 无 | `docs/evidence/agent-module/logs/pytest-full.txt` |
-| E-02 | 全量 Fake 评估 | `.venv/Scripts/python.exe evaluation/run_evaluation.py` | provider=fake、12/12 通过、`real_model_used=false`、生产写入违规 0 | 5.2、6.1、6.2 | 否 | 无 | `docs/evidence/agent-module/logs/evaluation-all.txt` |
-| E-03 | 高 ACoS 正常路径 | `.venv/Scripts/python.exe -m amazon_ads_agent examples/high-acos-keyword.json` | 建议值 1.08；`plan_version=1`；终态 waiting；必须人工确认；dry-run 且生产写入 false | 4.2、4.3、6.2 | 否，ReasonerStub | 无 | `docs/evidence/agent-module/logs/high-acos.txt` |
-| E-04 | 首次错误后修订 | `.venv/Scripts/python.exe -m amazon_ads_agent examples/invalid-reasoner-output.json --reasoner-mode invalid_once` | 首次候选越界被拒绝；新 attempt 和 plan version；第二次成功；最终 waiting；生产写入 false | 4.3、5.2、6.2 | 否，ReasonerStub 故障注入 | 无 | `docs/evidence/agent-module/logs/invalid-once.txt` |
-| E-05 | 连续错误后人工介入 | `.venv/Scripts/python.exe -m amazon_ads_agent examples/repeated-invalid-output.json --reasoner-mode always_invalid` | Reasoner 两次；同一错误连续两次；无第三次调用；无 Preflight；生成人工介入包；退出码 3；生产写入 false | 4.3、5.2、5.3、6.2 | 否，ReasonerStub 故障注入 | 无 | `docs/evidence/agent-module/logs/always-invalid.txt` |
+| E-01 | 全量 pytest | `python -m pytest -q` | 565 项测试全部通过，失败 0、跳过 0，耗时 55.83 秒 | 6.1、6.2 | 否 | 无 | `docs/evidence/agent-module/logs/pytest-full.txt` |
+| E-02 | 全量 Fake 评估 | `python evaluation/run_evaluation.py --provider fake` | provider=fake、12/12 通过、`real_model_used=false`、生产写入违规 0 | 5.2、6.1、6.2 | 否 | 无 | `docs/evidence/agent-module/logs/evaluation-all.txt` |
+| E-03 | 高 ACoS 正常路径 | `python -m amazon_ads_agent examples/high-acos-keyword.json` | 建议值 1.08；`plan_version=1`；终态 waiting；必须人工确认；dry-run 且生产写入 false | 4.2、4.3、6.2 | 否，ReasonerStub | 无 | `docs/evidence/agent-module/logs/high-acos.txt` |
+| E-04 | 首次错误后修订 | `python -m amazon_ads_agent examples/invalid-reasoner-output.json --reasoner-mode invalid_once` | 首次候选越界被拒绝；新 attempt 和 plan version；第二次成功；最终 waiting；生产写入 false | 4.3、5.2、6.2 | 否，ReasonerStub 故障注入 | 无 | `docs/evidence/agent-module/logs/invalid-once.txt` |
+| E-05 | 连续错误后人工介入 | `python -m amazon_ads_agent examples/repeated-invalid-output.json --reasoner-mode always_invalid` | Reasoner 两次；同一错误连续两次；无第三次调用；无 Preflight；生成人工介入包；退出码 3；生产写入 false | 4.3、5.2、5.3、6.2 | 否，ReasonerStub 故障注入 | 无 | `docs/evidence/agent-module/logs/always-invalid.txt` |
 | E-06 | Git 里程碑 | `git log --oneline --decorate -12` | 当前 HEAD、PoC 初始化、协议加固、Provider、Prompt、评估、HTTP Transport 和离线验收里程碑 | 5.1、6.1 | 否 | 无 | `docs/evidence/agent-module/logs/git-milestones.txt` |
 
 ## 3. 关键结果定位
@@ -37,7 +37,7 @@
 日志末尾应保留：
 
 ```text
-565 passed in 49.11s
+565 passed in 55.83s
 exit_code=0
 ```
 
@@ -129,3 +129,4 @@ Get-Content docs/evidence/agent-module/logs/git-milestones.txt
 - 未运行真实模型，未读取或配置 API Key。
 - 未调用 Amazon Ads API，未创建生产 Adapter，未发生广告生产写入。
 - `poc-02-verified` 未创建。
+- GitHub Actions `Offline Verification` Run `29796371771` 已成功；工作流验证全量测试、Fake 评估和离线安全断言。
