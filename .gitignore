@@ -17,6 +17,8 @@ evaluation/results/custom*.json
 evaluation/results/custom*.md
 evaluation/results/real-model-*.json
 evaluation/results/real-model-*.md
+evaluation/results/ci-evaluation.json
+evaluation/results/ci-evaluation.md
 dist/
 build/
 *.egg-info/

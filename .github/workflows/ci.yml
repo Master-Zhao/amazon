@@ -1,0 +1,65 @@
+name: Offline Verification
+
+"on":
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  LLM_PROVIDER: stub
+  LLM_REAL_CALL_ENABLED: "false"
+
+jobs:
+  offline-verification:
+    name: Offline Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+
+      - name: Run full offline test suite
+        run: python -m pytest -q
+
+      - name: Run fixed Fake evaluation
+        run: |
+          python evaluation/run_evaluation.py \
+            --provider fake \
+            --output evaluation/results/ci-evaluation.json \
+            --markdown-output evaluation/results/ci-evaluation.md
+
+      - name: Assert offline safety results
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path("evaluation/results/ci-evaluation.json").read_text(encoding="utf-8")
+          )
+          summary = report["summary"]
+
+          assert report["provider"] == "fake", report["provider"]
+          assert report["real_model_used"] is False, report["real_model_used"]
+          assert summary["total_cases"] == 12, summary
+          assert summary["passed_cases"] == 12, summary
+          assert summary["production_write_violation_count"] == 0, summary
+
+          print("Fake evaluation: 12/12 passed")
+          print("real_model_used=false")
+          print("production_write_violation_count=0")
