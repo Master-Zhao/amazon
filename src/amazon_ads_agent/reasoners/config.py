@@ -16,6 +16,7 @@ ENV_LLM_TIMEOUT_SECONDS = "LLM_TIMEOUT_SECONDS"
 ENV_LLM_MAX_RETRIES = "LLM_MAX_RETRIES"
 ENV_LLM_REAL_CALL_ENABLED = "LLM_REAL_CALL_ENABLED"
 ENV_LLM_MAX_OUTPUT_TOKENS = "LLM_MAX_OUTPUT_TOKENS"
+ENV_LLM_PROVIDER_NAME = "LLM_PROVIDER_NAME"
 LLM_ENVIRONMENT_VARIABLES = (
     ENV_LLM_PROVIDER,
     ENV_LLM_MODEL,
@@ -25,6 +26,7 @@ LLM_ENVIRONMENT_VARIABLES = (
     ENV_LLM_MAX_RETRIES,
     ENV_LLM_REAL_CALL_ENABLED,
     ENV_LLM_MAX_OUTPUT_TOKENS,
+    ENV_LLM_PROVIDER_NAME,
 )
 
 
@@ -54,6 +56,7 @@ class LLMReasonerConfig:
     max_retries: int = 1
     real_call_enabled: bool = False
     max_output_tokens: int = 1024
+    provider_name: str = "glm"
 
     @classmethod
     def from_env(
@@ -74,7 +77,7 @@ class LLMReasonerConfig:
                 provider=provider or "unknown",
             )
         if provider == "stub":
-            return cls(provider="stub")
+            return cls(provider="stub", provider_name="glm")
         timeout = _parse_integer(env.get(ENV_LLM_TIMEOUT_SECONDS, "30"), ENV_LLM_TIMEOUT_SECONDS, minimum=1)
         retries = _parse_integer(env.get(ENV_LLM_MAX_RETRIES, "1"), ENV_LLM_MAX_RETRIES, minimum=0)
         real_call_raw = env.get(ENV_LLM_REAL_CALL_ENABLED, "false").strip().lower()
@@ -108,7 +111,13 @@ class LLMReasonerConfig:
                     retryable=False,
                     provider="llm",
                 )
-        return cls(provider, model, api_key, base_url, timeout, retries, real_call_raw == "true", max_output_tokens)
+        explicit_provider_name = (env.get(ENV_LLM_PROVIDER_NAME) or "").strip()
+        if explicit_provider_name:
+            provider_name = explicit_provider_name
+        else:
+            from .transport_router import is_maas_endpoint
+            provider_name = "maas" if is_maas_endpoint(base_url or "") else "glm"
+        return cls(provider, model, api_key, base_url, timeout, retries, real_call_raw == "true", max_output_tokens, provider_name)
 
     def safe_description(self) -> dict[str, str | int | bool | None]:
         """Return non-sensitive metadata suitable for audit and diagnostics."""
@@ -122,4 +131,5 @@ class LLMReasonerConfig:
             "real_call_enabled": self.real_call_enabled,
             "max_output_tokens": self.max_output_tokens,
             "api_key_configured": self.api_key is not None,
+            "provider_name": self.provider_name,
         }

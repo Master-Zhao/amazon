@@ -256,7 +256,7 @@ def test_real_cli_contract_runs_with_injected_http_mock(monkeypatch: pytest.Monk
 
     transport = OpenAICompatibleHTTPTransport(_config(), client=Client([_provider()]))
     monkeypatch.setattr(run_evaluation, "load_real_reasoner_config", lambda **kwargs: _config())
-    monkeypatch.setattr(run_evaluation, "OpenAICompatibleHTTPTransport", lambda *args, **kwargs: transport)
+    monkeypatch.setattr(run_evaluation, "create_transport", lambda *args, **kwargs: transport)
     monkeypatch.setattr(run_evaluation.RealEvaluationConfig, "from_env", lambda: RealEvaluationConfig(repetitions=1))
     json_path = RESULTS_ROOT / "real-model-contract-cli.json"
     md_path = RESULTS_ROOT / "real-model-contract-cli.md"

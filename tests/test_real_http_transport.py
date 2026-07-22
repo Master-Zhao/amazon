@@ -78,7 +78,7 @@ def test_200_extracts_body_request_id_usage_and_metadata() -> None:
     assert result.status_code == 200 and result.body == _reasoner_content()
     assert result.request_id == "provider-request-1"
     assert result.usage == {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
-    assert result.provider == "openai_compatible" and result.model == "test-model"
+    assert result.provider == "glm" and result.model == "test-model"
 
 
 def test_missing_usage_is_preserved_as_none() -> None:

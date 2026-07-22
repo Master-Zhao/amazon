@@ -8,7 +8,7 @@ import platform
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 from urllib.parse import urlsplit
 
 from amazon_ads_agent.config_loader import load_config
@@ -23,14 +23,25 @@ REPO_ROOT = EVALUATION_ROOT.parent
 PROMPT_ROOT = REPO_ROOT / "prompts"
 SCHEMA_PATH = REPO_ROOT / "schemas" / "reasoner-output.schema.json"
 
+_ALLOWED_SUBPROCESS_COMMANDS: frozenset[tuple[str, ...]] = frozenset({
+    ("git", "rev-parse"),
+})
 
-def _git_commit() -> str:
+
+def _safe_subprocess_run(command: Sequence[str], allowed_commands: frozenset[tuple[str, ...]]) -> str:
+    cmd_tuple = tuple(command)
+    if cmd_tuple[:2] not in allowed_commands:
+        raise ValueError(f"Subprocess command not in whitelist: {command[0]}")
     try:
         return subprocess.run(
-            ["git", "rev-parse", "HEAD"], check=True, capture_output=True, text=True, timeout=5
+            list(command), check=True, capture_output=True, text=True, timeout=5
         ).stdout.strip() or "unknown"
     except (OSError, subprocess.SubprocessError):
         return "unknown"
+
+
+def _git_commit() -> str:
+    return _safe_subprocess_run(["git", "rev-parse", "HEAD"], _ALLOWED_SUBPROCESS_COMMANDS)
 
 
 def _hashes() -> dict[str, str]:
@@ -56,6 +67,7 @@ def build_real_report(
     smoke_passed: bool,
     full_evaluation_executed: bool,
     generated_at: str | None = None,
+    provider_name: str = "openai_compatible",
 ) -> dict[str, Any]:
     real_model_used = int(summary["actual_request_count"]) > 0
     acceptance = evaluate_acceptance(summary, executed=real_model_used)
@@ -64,8 +76,8 @@ def build_real_report(
         "generated_at": generated_at or datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "git_commit": _git_commit(),
         "python_version": platform.python_version(),
-        "provider": "openai_compatible",
-        "model": model,
+        "provider": provider_name,
+        "model": f"MaaS-{model}" if provider_name == "maas" else model,
         "base_url_host": urlsplit(base_url).netloc.rsplit("@", 1)[-1],
         "real_model_used": real_model_used,
         "prompt_version": PromptBuilder.TEMPLATE_VERSION,

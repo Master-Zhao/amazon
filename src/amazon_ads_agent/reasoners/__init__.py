@@ -3,12 +3,15 @@
 from .base import Reasoner, ReasonerInput, ReasonerResult, adapt_reasoner
 from .config import LLMReasonerConfig
 from .llm import LLMReasoner
+from .maas_response_adapter import adapt_maas_response
+from .maas_transport import MaaSHTTPTransport
 from .output_schema import load_reasoner_output_schema, validate_reasoner_output
 from .prompt_builder import PromptBuilder, ReasonerPromptBuilder
 from .prompt_loader import load_prompt
 from .provider import create_reasoner, load_reasoner_config
 from .stub import ReasonerStub
 from .transport import FakeTransport, LLMTransport, LLMTransportRequest, LLMTransportResponse
+from .transport_router import create_transport, is_maas_endpoint
 
 __all__ = [
     "FakeTransport",
@@ -17,14 +20,18 @@ __all__ = [
     "LLMTransport",
     "LLMTransportRequest",
     "LLMTransportResponse",
+    "MaaSHTTPTransport",
     "PromptBuilder",
     "Reasoner",
     "ReasonerInput",
     "ReasonerResult",
     "ReasonerPromptBuilder",
     "ReasonerStub",
+    "adapt_maas_response",
     "adapt_reasoner",
     "create_reasoner",
+    "create_transport",
+    "is_maas_endpoint",
     "load_reasoner_config",
     "load_prompt",
     "load_reasoner_output_schema",

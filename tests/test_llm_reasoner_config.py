@@ -86,5 +86,27 @@ def test_api_key_is_absent_from_repr_and_safe_description() -> None:
 def test_environment_names_are_centralized() -> None:
     assert set(LLM_ENVIRONMENT_VARIABLES) == {
         "LLM_PROVIDER", "LLM_MODEL", "LLM_API_KEY", "LLM_BASE_URL", "LLM_TIMEOUT_SECONDS", "LLM_MAX_RETRIES",
-        "LLM_REAL_CALL_ENABLED", "LLM_MAX_OUTPUT_TOKENS",
+        "LLM_REAL_CALL_ENABLED", "LLM_MAX_OUTPUT_TOKENS", "LLM_PROVIDER_NAME",
     }
+
+
+def test_llm_provider_name_defaults_to_glm() -> None:
+    config = LLMReasonerConfig.from_env(_llm_env())
+    assert config.provider_name == "glm"
+
+
+def test_llm_provider_name_from_env() -> None:
+    config = LLMReasonerConfig.from_env(_llm_env(LLM_PROVIDER_NAME="custom_provider"))
+    assert config.provider_name == "custom_provider"
+
+
+def test_stub_provider_name_defaults_to_glm() -> None:
+    config = LLMReasonerConfig.from_env({"LLM_PROVIDER": "stub"})
+    assert config.provider_name == "glm"
+
+
+def test_safe_description_includes_provider_name() -> None:
+    config = LLMReasonerConfig.from_env(_llm_env())
+    desc = config.safe_description()
+    assert "provider_name" in desc
+    assert desc["provider_name"] == "glm"

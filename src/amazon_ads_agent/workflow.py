@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from copy import deepcopy
 from typing import Any
 
@@ -14,10 +13,10 @@ from .evidence import evaluate_evidence
 from .failure_analyzer import analyze_failure
 from .manual_intervention import build_manual_agent_output, build_manual_intervention_package
 from .metrics import calculate_metrics
-from .models import ReasonerOutput, ValidationIssue, WorkflowResult
+from .models import ValidationIssue, WorkflowResult
 from .post_processor import build_completed, build_plan
 from .preflight import run_preflight
-from .reasoners.base import Reasoner, ReasonerInput, ReasonerResult, adapt_reasoner
+from .reasoners.base import Reasoner, adapt_reasoner
 from .reasoners.config import LLMReasonerConfig
 from .reasoners.errors import ReasonerError
 from .reasoners.llm import LLMReasoner
@@ -25,87 +24,7 @@ from .reasoners.provider import create_reasoner, load_reasoner_config
 from .reasoners.transport import LLMTransport
 from .runtime_validator import validate_runtime
 from .schema_loader import validate_agent_output, validate_task_input
-
-_INDEXED_PATH = re.compile(r"^entity_metrics\[([0-9]+)\]\.([A-Za-z_][A-Za-z0-9_]*)$")
-
-
-def _resolve_evidence_value(task: dict[str, Any], metrics: Any, path: str) -> Any:
-    if path in {"target_acos", "task_context.target_acos"}:
-        return task["target_acos"]
-    if path.startswith("calculated_metrics."):
-        field = path.removeprefix("calculated_metrics.")
-        value = getattr(metrics, field, None)
-        return None if value is None else decimal_to_string(value, places=6)
-    if path.startswith("entity_metrics."):
-        return task["entity_metrics"][0].get(path.removeprefix("entity_metrics."))
-    match = _INDEXED_PATH.fullmatch(path)
-    if match:
-        try:
-            return task["entity_metrics"][int(match.group(1))][match.group(2)]
-        except (IndexError, KeyError):
-            return None
-    return None
-
-
-def _reasoner_input(
-    task: dict[str, Any],
-    metrics: Any,
-    acos: str,
-    candidates: Any,
-    rules: dict[str, Any],
-    plan_version: int,
-    previous_failure: dict[str, Any] | None,
-) -> ReasonerInput:
-    entity = task["entity_metrics"][0]
-    return ReasonerInput.create(
-        task_id=task["task_id"],
-        run_id=task["run_id"],
-        attempt_id=task["attempt_id"],
-        data_snapshot_id=task["data_snapshot_id"],
-        plan_version=plan_version,
-        object_type=entity["entity_type"],
-        object_id=entity["entity_id"],
-        optimization_goal=task["optimization_goal"],
-        requested_risk_profile=task["requested_risk_profile"],
-        entity_metrics=task["entity_metrics"],
-        calculated_metrics={
-            "acos": acos,
-            "ctr": None if metrics.ctr is None else decimal_to_string(metrics.ctr, places=6),
-            "cpc": None if metrics.cpc is None else decimal_to_string(metrics.cpc, places=6),
-            "cvr": None if metrics.cvr is None else decimal_to_string(metrics.cvr, places=6),
-            "roas": None if metrics.roas is None else decimal_to_string(metrics.roas, places=6),
-        },
-        candidate_values=candidates.values,
-        constraints={
-            "rule_set_version": task["rule_set_version"],
-            "target_acos": task["target_acos"],
-            "confidence": str(require_config(rules, "analysis.confidence_threshold")),
-            "max_decrease_ratio": str(require_config(rules, "keyword_bid.max_decrease_ratio")),
-            "max_increase_ratio": str(require_config(rules, "keyword_bid.max_increase_ratio")),
-            "min_bid": str(require_config(rules, "keyword_bid.min_bid")),
-            "max_bid": str(require_config(rules, "keyword_bid.max_bid")),
-            "bid_step": str(require_config(rules, "keyword_bid.bid_step")),
-            "requested_risk_profile": task["requested_risk_profile"],
-            "human_approval_required": True,
-        },
-        previous_failure=previous_failure,
-    )
-
-
-def _legacy_output(
-    task: dict[str, Any], metrics: Any, result: ReasonerResult, rules: dict[str, Any]
-) -> ReasonerOutput:
-    risk = result.risk_summary if result.risk_summary in {"low", "medium", "high"} else "medium"
-    return ReasonerOutput(
-        suggested_value=result.selected_value,
-        reason=result.reason,
-        evidence=tuple(
-            {"path": path, "value": _resolve_evidence_value(task, metrics, path)}
-            for path in result.evidence_paths
-        ),
-        confidence=str(require_config(rules, "analysis.confidence_threshold")),
-        risk_summary=risk,
-    )
+from .workflow_shared import build_reasoner_input, legacy_output
 
 
 def _manual_result(
@@ -186,14 +105,17 @@ def run_workflow(
         active_reasoner: Reasoner = adapt_reasoner(reasoner)
         if isinstance(active_reasoner, LLMReasoner):
             provider_name = "llm"
+            provider_display_name = getattr(active_reasoner.config, "provider_name", "llm")
             model_name = active_reasoner.config.model
         else:
             provider_name = "injected"
+            provider_display_name = "injected"
             model_name = type(reasoner).__name__
     else:
         provider_config = reasoner_config or load_reasoner_config(provider_override=reasoner_provider)
         active_reasoner = create_reasoner(provider_config, transport=transport, stub_mode=selected_mode)
         provider_name = provider_config.provider
+        provider_display_name = getattr(provider_config, "provider_name", provider_name) if provider_name == "llm" else provider_name
         model_name = provider_config.model if provider_config.provider == "llm" else str(require_config(rules, "reasoner.model_config_id"))
     audit.record(
         "reasoner_provider_selected",
@@ -202,7 +124,7 @@ def run_workflow(
         "Configured Reasoner Provider selected.",
         plan_version=1,
         metadata={
-            "provider": provider_name,
+            "provider": provider_display_name,
             "model": model_name,
             "transport_retry_count": 0,
             "agent_revision_count": 0,
@@ -225,7 +147,7 @@ def run_workflow(
             )
         try:
             result = active_reasoner.reason(
-                _reasoner_input(working_task, metrics, acos_text, candidates, rules, plan_version, feedback)
+                build_reasoner_input(working_task, metrics, acos_text, candidates, rules, plan_version, feedback)
             )
         except ReasonerError as error:
             transport_retries = int(getattr(active_reasoner, "last_transport_retry_count", 0))
@@ -369,7 +291,7 @@ def run_workflow(
             working_task,
             metrics,
             candidates,
-            _legacy_output(working_task, metrics, result, rules),
+            legacy_output(working_task, metrics, result, rules),
             plan_version,
             retry_count,
         )

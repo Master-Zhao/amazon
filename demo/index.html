@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Amazon Ads Agent PoC 的关键词竞价优化实体验收样例。"
+    />
+    <title>关键词竞价优化 · 实体验收样例</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="主导航">
+        <a class="brand" href="#top" aria-label="广告智能体首页">
+          <span class="brand-mark" aria-hidden="true">A</span>
+          <span class="brand-copy"><b>AD PILOT</b><small>智能投放实验室</small></span>
+        </a>
+
+        <nav class="main-nav">
+          <a class="nav-item active" href="#top" aria-current="page">
+            <span class="nav-icon" aria-hidden="true">◫</span>
+            智能体工作台
+          </a>
+          <a class="nav-item" href="#decision-flow">
+            <span class="nav-icon" aria-hidden="true">↳</span>
+            决策链路
+          </a>
+          <a class="nav-item" href="#acceptance">
+            <span class="nav-icon" aria-hidden="true">✓</span>
+            验收清单
+          </a>
+        </nav>
+
+        <div class="sidebar-note">
+          <span class="pulse-dot" aria-hidden="true"></span>
+          <div>
+            <strong>离线演示</strong>
+            <span>仅使用合成数据</span>
+          </div>
+        </div>
+      </aside>
+
+      <main id="top" class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">AMAZON ADS AGENT · POC</p>
+            <h1>关键词竞价优化</h1>
+          </div>
+          <div class="topbar-actions">
+            <span class="status-chip"><i aria-hidden="true"></i>等待人工确认</span>
+            <button class="button secondary" type="button" data-testid="show-protocol">
+              查看原始协议
+            </button>
+          </div>
+        </header>
+
+        <section class="run-strip" aria-label="运行信息">
+          <div>
+            <span>运行编号</span>
+            <strong>run-high-acos-001</strong>
+          </div>
+          <div>
+            <span>数据窗口</span>
+            <strong>2026-07-01 — 07-14</strong>
+          </div>
+          <div>
+            <span>规则版本</span>
+            <strong>poc-rules-v0.1</strong>
+          </div>
+          <div class="safety-flag">
+            <span>生产写入</span>
+            <strong>已关闭 · 0 次调用</strong>
+          </div>
+        </section>
+
+        <section class="entity-card" aria-labelledby="entity-title">
+          <div class="entity-main">
+            <div class="entity-type" aria-hidden="true">KW</div>
+            <div>
+              <div class="section-kicker">本次被分析的广告实体</div>
+              <h2 id="entity-title">synthetic wireless travel mouse</h2>
+              <div class="entity-path">
+                <span>广告活动 <code>campaign-synthetic-001</code></span>
+                <b aria-hidden="true">/</b>
+                <span>广告组 <code>adgroup-synthetic-001</code></span>
+              </div>
+            </div>
+          </div>
+          <div class="entity-meta">
+            <div><span>实体类型</span><strong>Keyword</strong></div>
+            <div><span>实体 ID</span><strong>kw-high-acos-001</strong></div>
+            <div><span>对象版本</span><strong>etag-synthetic-v1</strong></div>
+          </div>
+        </section>
+
+        <section class="metrics-grid" aria-label="核心广告指标">
+          <article class="metric-card alert">
+            <div class="metric-label"><span>实际 ACoS</span><small>消耗 / 销售额</small></div>
+            <div class="metric-value">35.0<span>%</span></div>
+            <div class="metric-foot danger">高于目标 10 个百分点</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label"><span>目标 ACoS</span><small>优化目标</small></div>
+            <div class="metric-value">25.0<span>%</span></div>
+            <div class="metric-foot">规则配置值</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label"><span>广告消耗</span><small>14 天</small></div>
+            <div class="metric-value"><span>$</span>315.00</div>
+            <div class="metric-foot">420 次点击 · CPC $0.75</div>
+          </article>
+          <article class="metric-card">
+            <div class="metric-label"><span>广告销售额</span><small>30 个订单</small></div>
+            <div class="metric-value"><span>$</span>900.00</div>
+            <div class="metric-foot positive">ROAS 2.86</div>
+          </article>
+        </section>
+
+        <section class="content-grid">
+          <article class="recommendation-card" aria-labelledby="recommendation-title">
+            <div class="card-heading">
+              <div>
+                <p class="section-kicker">智能体建议</p>
+                <h2 id="recommendation-title">将关键词竞价下调 10%</h2>
+              </div>
+              <span class="risk-pill">中风险</span>
+            </div>
+
+            <div class="bid-change" aria-label="竞价从 1.20 美元调整为 1.08 美元">
+              <div>
+                <span>当前竞价</span>
+                <strong>$1.20</strong>
+              </div>
+              <div class="change-arrow" aria-hidden="true">
+                <span>−10%</span>
+                <b>→</b>
+              </div>
+              <div class="suggested-bid">
+                <span>建议竞价</span>
+                <strong>$1.08</strong>
+              </div>
+            </div>
+
+            <div class="candidate-block">
+              <div class="candidate-title">
+                <span>确定性候选集合</span>
+                <small>模型只能从这三个值中选择</small>
+              </div>
+              <div class="candidate-row" aria-label="候选竞价集合">
+                <span>$1.02 <small>−15%</small></span>
+                <span class="selected">$1.08 <small>−10% · 已选</small></span>
+                <span>$1.14 <small>−5%</small></span>
+              </div>
+            </div>
+
+            <div class="reason-box">
+              <span class="reason-icon" aria-hidden="true">i</span>
+              <p>
+                ACoS <strong>35%</strong> 高于目标 <strong>25%</strong>；数据达到最小天数、点击量和订单量要求。
+                Reasoner Stub 选择合法候选集合中的中间值 <strong>$1.08</strong>。
+              </p>
+            </div>
+
+            <button class="text-button" type="button" data-testid="toggle-evidence" aria-expanded="false">
+              展开计算证据 <span aria-hidden="true">↓</span>
+            </button>
+            <div class="evidence-panel" data-testid="evidence-panel" hidden>
+              <div><span>spend</span><code>315.00</code></div>
+              <div><span>sales</span><code>900.00</code></div>
+              <div><span>target_acos</span><code>0.250000</code></div>
+              <div><span>计算公式</span><code>315.00 / 900.00 = 0.350000</code></div>
+            </div>
+          </article>
+
+          <aside class="acceptance-card" id="acceptance" aria-labelledby="acceptance-title">
+            <div class="acceptance-head">
+              <div class="shield" aria-hidden="true">✓</div>
+              <div>
+                <p class="section-kicker">样例验收结论</p>
+                <h2 id="acceptance-title">方案已通过全部安全校验</h2>
+              </div>
+            </div>
+
+            <ul class="check-list">
+              <li><i aria-hidden="true">✓</i><span><b>输入 Schema 合法</b><small>未知字段默认拒绝</small></span></li>
+              <li><i aria-hidden="true">✓</i><span><b>建议值属于候选集合</b><small>$1.08 ∈ [$1.02, $1.08, $1.14]</small></span></li>
+              <li><i aria-hidden="true">✓</i><span><b>运行期业务校验通过</b><small>对象、版本、比例和证据均一致</small></span></li>
+              <li><i aria-hidden="true">✓</i><span><b>Dry-run 预检通过</b><small>production_write_called = false</small></span></li>
+            </ul>
+
+            <div class="approval-gate">
+              <span class="gate-label">当前停点</span>
+              <strong>等待人工确认</strong>
+              <p>PoC 不提供正式审批与执行服务，因此样例不会继续写入广告账户。</p>
+            </div>
+
+            <div class="acceptance-actions">
+              <button class="button primary" type="button" data-testid="accept-sample">标记样例符合预期</button>
+              <span class="local-only">仅标记当前页面，不提交任何数据</span>
+            </div>
+          </aside>
+        </section>
+
+        <section class="flow-card" id="decision-flow" aria-labelledby="flow-title">
+          <div class="card-heading">
+            <div>
+              <p class="section-kicker">可审计决策链</p>
+              <h2 id="flow-title">从数据加载到等待确认</h2>
+            </div>
+            <span class="trace-count">10 条审计事件</span>
+          </div>
+
+          <ol class="flow-list">
+            <li class="done"><span>01</span><div><b>加载实体快照</b><small>snapshot-high-acos-001</small></div></li>
+            <li class="done"><span>02</span><div><b>Schema 校验</b><small>输入结构合法</small></div></li>
+            <li class="done"><span>03</span><div><b>指标计算</b><small>ACoS = 0.350000</small></div></li>
+            <li class="done"><span>04</span><div><b>生成候选</b><small>$1.02 · $1.08 · $1.14</small></div></li>
+            <li class="done"><span>05</span><div><b>运行期校验</b><small>全部规则通过</small></div></li>
+            <li class="current"><span>06</span><div><b>等待人工确认</b><small>自动流程在此停止</small></div></li>
+          </ol>
+        </section>
+
+        <footer class="page-footer">
+          <span>Amazon Ads Agent PoC · 实体验收样例</span>
+          <span>合成数据 · 离线运行 · 无生产写入能力</span>
+        </footer>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" data-testid="protocol-modal" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-head">
+          <div>
+            <p class="section-kicker">机器可读结果</p>
+            <h2 id="modal-title">AgentOutput 协议摘录</h2>
+          </div>
+          <button class="icon-button" type="button" data-testid="close-protocol" aria-label="关闭协议窗口">×</button>
+        </div>
+        <pre><code>{
+  "task_id": "task-high-acos-001",
+  "run_id": "run-high-acos-001",
+  "current_status": "waiting_for_approval",
+  "calculated_risk_level": "medium",
+  "changes": [{
+    "object_type": "keyword",
+    "object_id": "kw-high-acos-001",
+    "action": "update_bid",
+    "expected_current_value": "1.20",
+    "candidate_values": ["1.02", "1.08", "1.14"],
+    "suggested_value": "1.08",
+    "change_ratio": "-0.100000000000"
+  }],
+  "runtime_validation": { "passed": true },
+  "execution_preflight": {
+    "mode": "dry_run",
+    "passed": true,
+    "production_write_called": false
+  },
+  "human_approval_required": true
+}</code></pre>
+      </section>
+    </div>
+
+    <div class="toast" role="status" data-testid="acceptance-toast" hidden>
+      <span aria-hidden="true">✓</span>
+      已在本地标记：样例符合预期
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

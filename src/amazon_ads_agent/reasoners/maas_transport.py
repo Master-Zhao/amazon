@@ -1,23 +1,22 @@
-"""Explicitly enabled OpenAI-compatible JSON HTTP transport."""
+"""Explicitly enabled Huawei Cloud ModelArts MaaS HTTP transport."""
 
 from __future__ import annotations
 
-from ._http_types import HTTPClient, HTTPResponse, UrllibHTTPClient, _validate_endpoint
 from .base_http_transport import BaseHTTPTransport
 from .config import LLMReasonerConfig
-from .response_adapter import adapt_openai_compatible_response
+from .maas_response_adapter import adapt_maas_response
 from .transport import LLMTransportRequest, LLMTransportResponse
 
 
-class OpenAICompatibleHTTPTransport(BaseHTTPTransport):
-    """One explicit chat-completions protocol; no provider guessing or fallback."""
+class MaaSHTTPTransport(BaseHTTPTransport):
+    """Huawei Cloud ModelArts MaaS API transport; no provider guessing or fallback."""
 
     def __init__(self, config: LLMReasonerConfig, **kwargs) -> None:
-        super().__init__(config, default_provider_name="openai_compatible", **kwargs)
+        super().__init__(config, default_provider_name="maas", **kwargs)
 
     def __repr__(self) -> str:
         return (
-            f"OpenAICompatibleHTTPTransport(model={self._config.model!r}, "
+            f"MaaSHTTPTransport(model={self._config.model!r}, "
             f"base_url_configured=True, max_requests={self._max_requests})"
         )
 
@@ -26,12 +25,11 @@ class OpenAICompatibleHTTPTransport(BaseHTTPTransport):
             "model": request.model,
             "messages": request.payload.get("messages"),
             "temperature": 0,
-            "response_format": {"type": "json_object"},
             "max_tokens": self._config.max_output_tokens,
         }
 
     def _adapt_response(self, raw, elapsed: int, request: LLMTransportRequest) -> LLMTransportResponse:
-        return adapt_openai_compatible_response(
+        return adapt_maas_response(
             raw.body, raw.headers, status_code=raw.status_code, model=request.model, latency_ms=elapsed,
             provider_name=self._provider_name,
         )

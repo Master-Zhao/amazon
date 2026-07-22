@@ -21,7 +21,7 @@ from evaluation.real_evaluator import evaluate_real_cases
 from evaluation.real_metrics import calculate_real_summary
 from evaluation.real_report import build_real_report, write_real_reports
 from amazon_ads_agent.reasoners.errors import ReasonerError
-from amazon_ads_agent.reasoners.http_transport import OpenAICompatibleHTTPTransport
+from amazon_ads_agent.reasoners.transport_router import create_transport
 from amazon_ads_agent.reasoners.provider import load_real_reasoner_config
 
 RESULTS_ROOT = EVALUATION_ROOT / "results"
@@ -66,7 +66,9 @@ def _run_real(args: argparse.Namespace) -> int:
     budget = RealEvaluationConfig.from_env()
     budget.validate_transport_retries(reasoner_config.max_retries)
     json_path, markdown_path = _real_output_paths(args.output, args.markdown_output)
-    transport = OpenAICompatibleHTTPTransport(reasoner_config, max_requests=budget.max_requests)
+    transport = create_transport(
+        reasoner_config, max_requests=budget.max_requests,
+    )
     if args.case_id:
         selected = [load_case(args.case_id)]
         runs = evaluate_real_cases(
@@ -115,11 +117,12 @@ def _run_real(args: argparse.Namespace) -> int:
         smoke_case_ids=smoke_ids,
         smoke_passed=smoke_passed,
         full_evaluation_executed=full_executed,
+        provider_name=reasoner_config.provider_name,
     )
     write_real_reports(report, json_path, markdown_path)
     acceptance = report["acceptance"]
     print(
-        f"provider=openai_compatible real_model_used={str(report['real_model_used']).lower()} total_runs={summary['total_runs']} "
+        f"provider={reasoner_config.provider_name} real_model_used={str(report['real_model_used']).lower()} total_runs={summary['total_runs']} "
         f"passed_runs={summary['passed_runs']} requests={summary['actual_request_count']} "
         f"conclusion={acceptance['conclusion']}"
     )

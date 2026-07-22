@@ -15,8 +15,8 @@ _REQUEST_ID = re.compile(r"[A-Za-z0-9._:-]{1,128}")
 _USAGE_KEYS = ("prompt_tokens", "completion_tokens", "total_tokens")
 
 
-def _error(code: str, message: str) -> ReasonerResponseError:
-    return ReasonerResponseError(code, message, retryable=False, provider="openai_compatible")
+def _error(code: str, message: str, *, provider_name: str = "openai_compatible") -> ReasonerResponseError:
+    return ReasonerResponseError(code, message, retryable=False, provider=provider_name)
 
 
 def _request_id(document: Mapping[str, Any], headers: Mapping[str, str]) -> str:
@@ -45,32 +45,33 @@ def adapt_openai_compatible_response(
     status_code: int,
     model: str,
     latency_ms: int,
+    provider_name: str = "openai_compatible",
 ) -> LLMTransportResponse:
     """Extract exactly one assistant content string without repairing it."""
 
     if not raw_body:
-        raise _error("ERR_LLM_PROVIDER_RESPONSE_EMPTY", "model provider returned an empty response")
+        raise _error("ERR_LLM_PROVIDER_RESPONSE_EMPTY", "model provider returned an empty response", provider_name=provider_name)
     try:
         document = json.loads(raw_body.decode("utf-8"))
     except (UnicodeError, json.JSONDecodeError) as exc:
-        raise _error("ERR_LLM_PROVIDER_RESPONSE_INVALID", "model provider response is not valid JSON") from exc
+        raise _error("ERR_LLM_PROVIDER_RESPONSE_INVALID", "model provider response is not valid JSON", provider_name=provider_name) from exc
     if not isinstance(document, dict):
-        raise _error("ERR_LLM_PROVIDER_RESPONSE_INVALID", "model provider response must be an object")
+        raise _error("ERR_LLM_PROVIDER_RESPONSE_INVALID", "model provider response must be an object", provider_name=provider_name)
     choices = document.get("choices")
     if not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict):
-        raise _error("ERR_LLM_PROVIDER_RESPONSE_INVALID", "model provider must return exactly one choice")
+        raise _error("ERR_LLM_PROVIDER_RESPONSE_INVALID", "model provider must return exactly one choice", provider_name=provider_name)
     message = choices[0].get("message")
     content = message.get("content") if isinstance(message, dict) else None
     if not isinstance(content, str):
-        raise _error("ERR_LLM_PROVIDER_RESPONSE_INVALID", "model provider response content path is missing")
+        raise _error("ERR_LLM_PROVIDER_RESPONSE_INVALID", "model provider response content path is missing", provider_name=provider_name)
     if not content.strip():
-        raise _error("ERR_LLM_PROVIDER_RESPONSE_EMPTY", "model provider returned empty assistant content")
+        raise _error("ERR_LLM_PROVIDER_RESPONSE_EMPTY", "model provider returned empty assistant content", provider_name=provider_name)
     return LLMTransportResponse(
         request_id=_request_id(document, headers),
         status_code=status_code,
         body=content,
         usage=_usage(document.get("usage")),
         latency_ms=latency_ms,
-        provider="openai_compatible",
+        provider=provider_name,
         model=model,
     )
