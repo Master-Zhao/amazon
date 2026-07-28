@@ -1,11 +1,13 @@
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 
+from apps.core.case_conversion import to_camel_case
 from apps.actions.models import (
     ActionPreview,
     ActionPreviewVersion,
     ApprovalDecision,
     ApprovalRecord,
+    EffectEvaluation,
     ExecutionOutcome,
     ExecutionRecord,
 )
@@ -37,8 +39,29 @@ class ApprovalRecordSerializer(serializers.ModelSerializer):
         )
 
 
+class EffectEvaluationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EffectEvaluation
+        fields = (
+            "id",
+            "status",
+            "baseline_start",
+            "baseline_end",
+            "observation_start",
+            "observation_end",
+            "idempotency_key",
+            "result",
+            "reason_code",
+            "error_message",
+            "created_at",
+            "started_at",
+            "finished_at",
+        )
+
+
 class ExecutionRecordSerializer(serializers.ModelSerializer):
     recorded_by_email = serializers.EmailField(source="recorded_by.email")
+    effect_evaluations = EffectEvaluationSerializer(many=True, read_only=True)
 
     class Meta:
         model = ExecutionRecord
@@ -49,6 +72,7 @@ class ExecutionRecordSerializer(serializers.ModelSerializer):
             "executed_at",
             "note",
             "evidence_metadata",
+            "effect_evaluations",
             "recorded_by_email",
             "created_at",
         )
@@ -60,6 +84,11 @@ class ActionPreviewSerializer(serializers.ModelSerializer):
     )
     action_type = serializers.CharField(
         source="recommendation_revision.action_type"
+    )
+    created_by_email = serializers.EmailField(source="created_by.email")
+    submitted_by_email = serializers.EmailField(
+        source="submitted_by.email",
+        allow_null=True,
     )
     current_version = serializers.SerializerMethodField()
     approvals = ApprovalRecordSerializer(
@@ -96,6 +125,8 @@ class ActionPreviewSerializer(serializers.ModelSerializer):
             "status",
             "campaign_name",
             "action_type",
+            "created_by_email",
+            "submitted_by_email",
             "current_version_number",
             "current_version",
             "approvals",
@@ -117,4 +148,18 @@ class ManualExecutionRequestSerializer(serializers.Serializer):
     executed_at = serializers.DateTimeField()
     note = serializers.CharField(required=False, allow_blank=True, max_length=1000)
     evidence_metadata = serializers.JSONField(required=False)
+    evidence_file = serializers.FileField(required=False)
     idempotency_key = serializers.CharField(max_length=128)
+
+
+class ReturnedVersionRequestSerializer(serializers.Serializer):
+    action_payload = serializers.JSONField()
+
+    def validate_action_payload(self, value):
+        return to_camel_case(value)
+
+
+class EffectEvaluationRequestSerializer(serializers.Serializer):
+    execution_record_id = serializers.CharField()
+    observed = serializers.JSONField(required=False)
+    evaluation_key = serializers.CharField(max_length=128)

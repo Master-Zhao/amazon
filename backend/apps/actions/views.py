@@ -6,13 +6,19 @@ from apps.actions.selectors import action_previews_for_profile
 from apps.actions.serializers import (
     ActionPreviewSerializer,
     ApprovalDecisionRequestSerializer,
+    EffectEvaluationRequestSerializer,
+    EffectEvaluationSerializer,
     ManualExecutionRequestSerializer,
+    ReturnedVersionRequestSerializer,
 )
 from apps.actions.services import (
+    create_returned_preview_version,
     create_action_preview,
     decide_action_preview,
+    evaluate_action_preview_effect,
     record_manual_execution,
     submit_action_preview,
+    withdraw_action_preview,
 )
 from apps.core.responses import api_response
 
@@ -82,6 +88,54 @@ class ActionPreviewSubmitView(APIView):
         )
 
 
+class ActionPreviewWithdrawView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Withdraw a creator-owned Action Preview",
+        request=None,
+        responses={200: ActionPreviewSerializer},
+        tags=["actions"],
+    )
+    def post(self, request, tenant_id, preview_id):
+        preview = withdraw_action_preview(
+            request=request,
+            tenant_id=tenant_id,
+            preview_id=preview_id,
+        )
+        return api_response(
+            request,
+            data=ActionPreviewSerializer(preview).data,
+            message="Action Preview withdrawn.",
+        )
+
+
+class ReturnedPreviewVersionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Append a revised immutable version after RETURNED",
+        request=ReturnedVersionRequestSerializer,
+        responses={201: ActionPreviewSerializer},
+        tags=["actions"],
+    )
+    def post(self, request, tenant_id, preview_id):
+        serializer = ReturnedVersionRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        preview = create_returned_preview_version(
+            request=request,
+            tenant_id=tenant_id,
+            preview_id=preview_id,
+            **serializer.validated_data,
+        )
+        return api_response(
+            request,
+            data=ActionPreviewSerializer(preview).data,
+            message="Action Preview version created.",
+            status=201,
+        )
+
+
 class ActionPreviewDecisionView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -132,5 +186,33 @@ class ManualExecutionView(APIView):
             request,
             data=ActionPreviewSerializer(preview).data,
             message="Manual execution result recorded.",
+            status=201,
+        )
+
+
+class EffectEvaluationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Append a basic post-execution effect evaluation",
+        request=EffectEvaluationRequestSerializer,
+        responses={201: EffectEvaluationSerializer},
+        tags=["executions"],
+    )
+    def post(self, request, tenant_id, preview_id):
+        serializer = EffectEvaluationRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        values = dict(serializer.validated_data)
+        values.setdefault("observed", {})
+        evaluation = evaluate_action_preview_effect(
+            request=request,
+            tenant_id=tenant_id,
+            preview_id=preview_id,
+            **values,
+        )
+        return api_response(
+            request,
+            data=EffectEvaluationSerializer(evaluation).data,
+            message="Effect evaluation recorded.",
             status=201,
         )

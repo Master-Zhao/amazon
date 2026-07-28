@@ -620,6 +620,21 @@ def evaluate_metric_anomalies(metric: CampaignDailyMetric) -> list[AnomalyRecord
     return records
 
 
+@transaction.atomic
+def recalculate_profile_anomalies(profile_id) -> int:
+    metrics = CampaignDailyMetric.objects.filter(
+        profile_id=profile_id,
+    ).select_related(
+        "campaign__profile__store_marketplace__store__tenant",
+        "source_batch",
+    )
+    processed = 0
+    for metric in metrics.iterator():
+        evaluate_metric_anomalies(metric)
+        processed += 1
+    return processed
+
+
 def _metric_values(metric: CampaignDailyMetric) -> dict[str, object]:
     return {
         "currency_code": metric.currency_code,

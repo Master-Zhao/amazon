@@ -16,9 +16,16 @@ class RecommendationStatus(models.TextChoices):
 
 class ActionType(models.TextChoices):
     UPDATE_CAMPAIGN_BUDGET = "UPDATE_CAMPAIGN_BUDGET", "Update Campaign budget"
+    ENABLE_CAMPAIGN = "ENABLE_CAMPAIGN", "Enable Campaign"
+    PAUSE_CAMPAIGN = "PAUSE_CAMPAIGN", "Pause Campaign"
     SET_CAMPAIGN_STATE = "SET_CAMPAIGN_STATE", "Pause or enable Campaign"
     UPDATE_KEYWORD_BID = "UPDATE_KEYWORD_BID", "Update Keyword bid"
+    ENABLE_KEYWORD = "ENABLE_KEYWORD", "Enable Keyword"
+    PAUSE_KEYWORD = "PAUSE_KEYWORD", "Pause Keyword"
     SET_KEYWORD_STATE = "SET_KEYWORD_STATE", "Pause or enable Keyword"
+    UPDATE_TARGET_BID = "UPDATE_TARGET_BID", "Update Target bid"
+    ENABLE_TARGET = "ENABLE_TARGET", "Enable Target"
+    PAUSE_TARGET = "PAUSE_TARGET", "Pause Target"
     UPDATE_PRODUCT_TARGET_BID = (
         "UPDATE_PRODUCT_TARGET_BID",
         "Update Product Target bid",
@@ -27,8 +34,13 @@ class ActionType(models.TextChoices):
         "SET_PRODUCT_TARGET_STATE",
         "Pause or enable Product Target",
     )
-    CREATE_KEYWORD = "CREATE_KEYWORD", "Create Keyword"
-    CREATE_NEGATIVE_KEYWORD = "CREATE_NEGATIVE_KEYWORD", "Create Negative Keyword"
+    ADD_KEYWORD = "ADD_KEYWORD", "Add Keyword"
+    CREATE_KEYWORD = "CREATE_KEYWORD", "Create Keyword (legacy)"
+    ADD_NEGATIVE_KEYWORD = "ADD_NEGATIVE_KEYWORD", "Add Negative Keyword"
+    CREATE_NEGATIVE_KEYWORD = (
+        "CREATE_NEGATIVE_KEYWORD",
+        "Create Negative Keyword (legacy)",
+    )
 
 
 class Recommendation(models.Model):

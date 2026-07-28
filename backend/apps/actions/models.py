@@ -23,7 +23,8 @@ class ApprovalDecision(models.TextChoices):
 
 
 class ExecutionOutcome(models.TextChoices):
-    SUCCESS = "SUCCESS", "Success"
+    SUCCEEDED = "SUCCEEDED", "Succeeded"
+    SUCCESS = "SUCCESS", "Success (legacy)"
     FAILED = "FAILED", "Failed"
     SKIPPED = "SKIPPED", "Skipped"
 
@@ -162,5 +163,62 @@ class ExecutionRecord(AppendOnlyModel):
             models.UniqueConstraint(
                 fields=["preview", "preview_version"],
                 name="action_execution_preview_version_uniq",
+            )
+        ]
+
+
+class EffectEvaluation(AppendOnlyModel):
+    execution_record = models.ForeignKey(
+        ExecutionRecord,
+        on_delete=models.PROTECT,
+        related_name="effect_evaluations",
+    )
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="effect_evaluations",
+    )
+    profile = models.ForeignKey(
+        AdvertisingProfile,
+        on_delete=models.PROTECT,
+        related_name="effect_evaluations",
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="effect_evaluations",
+    )
+    status = models.CharField(max_length=32)
+    baseline_start = models.DateField()
+    baseline_end = models.DateField()
+    observation_start = models.DateField()
+    observation_end = models.DateField()
+    celery_task_id = models.CharField(max_length=128, unique=True)
+    idempotency_key = models.CharField(max_length=128, unique=True)
+    result = models.JSONField(default=dict)
+    reason_code = models.CharField(max_length=96, blank=True)
+    error_message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "action_effect_evaluation"
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "execution_record",
+                    "baseline_start",
+                    "baseline_end",
+                    "observation_start",
+                    "observation_end",
+                ],
+                name="action_effect_window_uniq",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["tenant", "profile", "status", "created_at"],
+                name="action_effect_scope_status_idx",
             )
         ]

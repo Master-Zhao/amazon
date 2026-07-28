@@ -25,8 +25,9 @@ def action_previews_for_profile(*, user, tenant_id, profile_id):
         )
         .prefetch_related(
             "versions",
-            "approval_records",
-            "execution_records",
+            "approval_records__decided_by",
+            "execution_records__recorded_by",
+            "execution_records__effect_evaluations",
         )
         .order_by("-created_at")
     )

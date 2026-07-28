@@ -5,7 +5,10 @@ from apps.actions.views import (
     ActionPreviewDecisionView,
     ActionPreviewListView,
     ActionPreviewSubmitView,
+    ActionPreviewWithdrawView,
+    EffectEvaluationView,
     ManualExecutionView,
+    ReturnedPreviewVersionView,
 )
 
 urlpatterns = [
@@ -25,6 +28,16 @@ urlpatterns = [
         name="action-preview-submit",
     ),
     path(
+        "tenants/<str:tenant_id>/previews/<str:preview_id>/withdraw",
+        ActionPreviewWithdrawView.as_view(),
+        name="action-preview-withdraw",
+    ),
+    path(
+        "tenants/<str:tenant_id>/previews/<str:preview_id>/versions",
+        ReturnedPreviewVersionView.as_view(),
+        name="action-preview-version-create",
+    ),
+    path(
         "tenants/<str:tenant_id>/previews/<str:preview_id>/decision",
         ActionPreviewDecisionView.as_view(),
         name="action-preview-decision",
@@ -33,5 +46,10 @@ urlpatterns = [
         "tenants/<str:tenant_id>/previews/<str:preview_id>/executions",
         ManualExecutionView.as_view(),
         name="manual-execution-create",
+    ),
+    path(
+        "tenants/<str:tenant_id>/previews/<str:preview_id>/evaluations",
+        EffectEvaluationView.as_view(),
+        name="effect-evaluation-create",
     ),
 ]

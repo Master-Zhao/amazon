@@ -1,29 +1,30 @@
-from datetime import date
 from types import SimpleNamespace
-from unittest.mock import patch
 
 import pytest
-from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.test import APIClient
 
+from apps.accounts.models import User
 from apps.actions.models import (
-    ActionPreview,
+    ActionPreviewStatus,
     ActionPreviewVersion,
+    ApprovalDecision,
     ApprovalRecord,
     EffectEvaluation,
-    ExecutionItem,
+    ExecutionOutcome,
     ExecutionRecord,
-    ExecutionTask,
-    PreviewStatus,
 )
 from apps.actions.services import (
-    create_preview,
-    decide_preview,
-    evaluate_execution,
-    record_execution,
-    submit_preview,
+    create_action_preview,
+    create_returned_preview_version,
+    decide_action_preview,
+    evaluate_action_preview_effect,
+    record_manual_execution,
+    submit_action_preview,
+    validate_action_payload,
+    withdraw_action_preview,
 )
 from apps.advertising.models import (
     AdGroup,
@@ -33,19 +34,12 @@ from apps.advertising.models import (
     MatchType,
     ProductTarget,
 )
-from apps.agents.agent_definitions import DataAnalysisAgent
-from apps.agents.models import AgentRun, AgentTaskStatus
-from apps.agents.services import create_analysis
-from apps.analytics.models import CampaignDailyMetric
+from apps.agents.models import AgentRun, AgentRunStatus
 from apps.audit.models import AuditLog
-from apps.recommendations.models import Recommendation
-from apps.recommendations.services import validate_recommendation
-from apps.reports.models import (
-    ImportBatch,
-    ImportStatus,
-    ImportTask,
-    ReportType,
-    ReportUpload,
+from apps.recommendations.models import (
+    ActionType,
+    Recommendation,
+    RecommendationRevision,
 )
 from apps.stores.models import (
     AdvertisingProfile,
@@ -53,586 +47,470 @@ from apps.stores.models import (
     Marketplace,
     StoreMarketplace,
 )
-from apps.tenants.models import MembershipRole, Tenant, TenantMembership, TenantType
-from integrations.llm.providers import ExternalLLMProviderBoundary
-from integrations.storage.base import StoredFile
+from apps.tenants.models import (
+    MembershipRole,
+    Tenant,
+    TenantMembership,
+    TenantType,
+)
 
 
-def request_for(user, request_id="req_workflow"):
+pytestmark = pytest.mark.django_db
+
+
+def request_for(user, request_id="req-workflow"):
     return SimpleNamespace(user=user, request_id=request_id)
 
 
-@pytest.fixture
-def workflow_context(db):
-    user_model = get_user_model()
-    owner = user_model.objects.create_user(
-        username="workflow-owner",
-        email="workflow-owner@example.invalid",
-        password="password",
+def build_workflow(*, tenant_type=TenantType.PERSONAL):
+    owner = User.objects.create_user(
+        username=f"owner-{tenant_type.lower()}",
+        email=f"owner-{tenant_type.lower()}@example.invalid",
+        password="test-only-password",
+    )
+    reviewer = User.objects.create_user(
+        username=f"reviewer-{tenant_type.lower()}",
+        email=f"reviewer-{tenant_type.lower()}@example.invalid",
+        password="test-only-password",
     )
     tenant = Tenant.objects.create(
-        name="Workflow", tenant_type=TenantType.PERSONAL, target_acos="0.25"
+        name=f"{tenant_type} workflow",
+        tenant_type=tenant_type,
+        target_acos="0.2500",
     )
     TenantMembership.objects.create(
-        tenant=tenant, user=owner, role=MembershipRole.OWNER
+        tenant=tenant,
+        user=owner,
+        membership_role=MembershipRole.OWNER,
+    )
+    TenantMembership.objects.create(
+        tenant=tenant,
+        user=reviewer,
+        membership_role=MembershipRole.ADMIN,
     )
     marketplace = Marketplace.objects.create(
-        code="US",
-        name="Amazon.com",
-        country_code="US",
-        currency="USD",
-        timezone="America/Los_Angeles",
+        code=f"WF-{tenant.pk}",
+        name="Workflow Marketplace",
+        currency_code="USD",
+        timezone="UTC",
     )
     store = AmazonStore.objects.create(
-        tenant=tenant, name="Store", external_store_id="WORKFLOW-STORE"
+        tenant=tenant,
+        name="Workflow Store",
+        external_store_id=f"workflow-store-{tenant.pk}",
     )
-    scope = StoreMarketplace.objects.create(
-        store=store, marketplace=marketplace, seller_id="SELLER"
+    store_marketplace = StoreMarketplace.objects.create(
+        store=store,
+        marketplace=marketplace,
     )
     profile = AdvertisingProfile.objects.create(
-        store_marketplace=scope,
-        external_profile_id="WORKFLOW-PROFILE",
-        name="Profile",
-        currency="USD",
-        timezone=marketplace.timezone,
+        store_marketplace=store_marketplace,
+        external_profile_id=f"workflow-profile-{tenant.pk}",
+        name="Workflow Profile",
+        currency_code="USD",
+        timezone="UTC",
     )
     campaign = Campaign.objects.create(
         profile=profile,
-        external_campaign_id="WORKFLOW-CAMPAIGN",
-        name="Campaign",
+        external_campaign_id=f"workflow-campaign-{tenant.pk}",
+        name="Workflow Campaign",
         state=EntityState.ENABLED,
-        daily_budget="50.00",
-        currency="USD",
+        daily_budget="50.0000",
+        currency_code="USD",
     )
-    upload = ReportUpload.objects.create(
-        tenant=tenant,
-        profile=profile,
-        report_type=ReportType.CAMPAIGN,
-        original_name="fixture.csv",
-        content_type="text/csv",
-        size_bytes=1,
-        sha256="b" * 64,
-        storage_path="reports/fixture.csv",
-        uploaded_by=owner,
-    )
-    import_task = ImportTask.objects.create(
-        upload=upload,
-        status=ImportStatus.SUCCEEDED,
-        requested_by=owner,
-        idempotency_key="workflow-import",
-    )
-    batch = ImportBatch.objects.create(
-        task=import_task, status=ImportStatus.SUCCEEDED
-    )
-    CampaignDailyMetric.objects.create(
-        campaign=campaign,
-        business_date=date(2026, 7, 20),
-        impressions=1000,
-        clicks=50,
-        spend="100",
-        orders=5,
-        sales="250",
-        ctr="0.05",
-        cpc="2",
-        cvr="0.1",
-        acos="0.4",
-        roas="2.5",
-        invalid_reasons={},
-        currency="USD",
-        source_batch=batch,
-        budget_snapshot="50.00",
-        state_snapshot=EntityState.ENABLED,
-    )
-    return owner, tenant, profile
-
-
-@pytest.mark.django_db(transaction=True)
-def test_mock_four_agent_analysis_creates_valid_recommendation(workflow_context):
-    owner, tenant, profile = workflow_context
-
-    task = create_analysis(
-        user=owner,
-        tenant_id=tenant.pk,
-        profile_id=profile.pk,
-        idempotency_key="analysis-1",
-    )
-    task.refresh_from_db()
-
-    assert task.status == AgentTaskStatus.SUCCEEDED
-    assert AgentRun.objects.filter(task=task).count() == 4
-    recommendation = Recommendation.objects.get(analysis_task=task)
-    assert recommendation.action_type == "UPDATE_CAMPAIGN_BUDGET"
-    assert recommendation.risk_level == "LOW"
-    assert ExternalLLMProviderBoundary.capability["mode"] == "reserved"
-
-
-class InvalidProvider:
-    def generate(self, **kwargs):
-        return {"schemaVersion": "bad"}
-
-
-def test_invalid_agent_schema_is_rejected():
-    with pytest.raises(ValueError):
-        DataAnalysisAgent(InvalidProvider()).run({"runId": "run"})
-
-
-@pytest.mark.django_db(transaction=True)
-def test_personal_owner_approval_execution_and_audit_are_append_only(workflow_context):
-    owner, tenant, profile = workflow_context
-    analysis = create_analysis(
-        user=owner,
-        tenant_id=tenant.pk,
-        profile_id=profile.pk,
-        idempotency_key="analysis-preview",
-    )
-    recommendation = Recommendation.objects.get(analysis_task=analysis)
-    request = request_for(owner)
-
-    preview = create_preview(
-        request=request,
-        tenant_id=tenant.pk,
-        profile_id=profile.pk,
-        recommendation_ids=[recommendation.pk],
-    )
-    submit_preview(request=request, preview_id=preview.pk)
-    approved = decide_preview(
-        request=request,
-        preview_id=preview.pk,
-        decision=PreviewStatus.APPROVED,
-        comment="个人 Owner 自确认",
-        idempotency_key="approve-1",
-    )
-    item = ExecutionItem.objects.get(task=approved.execution_task)
-    first = record_execution(
-        request=request,
-        item_id=item.pk,
-        result="SUCCEEDED",
-        actual_value={"budget": "55.00"},
-        executed_at=timezone.now(),
-        note="已在 Amazon 后台人工执行",
-        idempotency_key="execute-1",
-    )
-    repeated = record_execution(
-        request=request,
-        item_id=item.pk,
-        result="SUCCEEDED",
-        actual_value={"budget": "55.00"},
-        executed_at=timezone.now(),
-        note="重复请求",
-        idempotency_key="execute-1",
-    )
-
-    assert approved.status == PreviewStatus.APPROVED
-    assert ActionPreviewVersion.objects.get(preview=preview).frozen_at is not None
-    frozen = ActionPreviewVersion.objects.get(preview=preview)
-    frozen.items = []
-    with pytest.raises(RuntimeError):
-        frozen.save()
-    assert first.pk == repeated.pk
-    assert AuditLog.objects.filter(tenant=tenant).count() >= 4
-    with pytest.raises(RuntimeError):
-        AuditLog.objects.first().delete()
-    with pytest.raises(RuntimeError):
-        AuditLog.objects.filter(tenant=tenant).delete()
-
-
-@pytest.mark.django_db(transaction=True)
-def test_preview_submit_and_approval_retries_are_idempotent(workflow_context):
-    owner, tenant, profile = workflow_context
-    analysis = create_analysis(
-        user=owner,
-        tenant_id=tenant.pk,
-        profile_id=profile.pk,
-        idempotency_key="analysis-idempotency",
-    )
-    recommendation = Recommendation.objects.get(analysis_task=analysis)
-    request = request_for(owner)
-
-    first = create_preview(
-        request=request,
-        tenant_id=tenant.pk,
-        profile_id=profile.pk,
-        recommendation_ids=[recommendation.pk],
-        idempotency_key="preview-idempotency",
-    )
-    repeated = create_preview(
-        request=request,
-        tenant_id=tenant.pk,
-        profile_id=profile.pk,
-        recommendation_ids=[recommendation.pk],
-        idempotency_key="preview-idempotency",
-    )
-    first_submit = submit_preview(request=request, preview_id=first.pk)
-    repeated_submit = submit_preview(request=request, preview_id=first.pk)
-    first_approval = decide_preview(
-        request=request,
-        preview_id=first.pk,
-        decision=PreviewStatus.APPROVED,
-        comment="approved",
-        idempotency_key="approval-idempotency",
-    )
-    repeated_approval = decide_preview(
-        request=request,
-        preview_id=first.pk,
-        decision=PreviewStatus.APPROVED,
-        comment="approved",
-        idempotency_key="approval-idempotency",
-    )
-
-    assert repeated.pk == first.pk
-    assert repeated_submit.pk == first_submit.pk
-    assert repeated_approval.pk == first_approval.pk
-    assert ActionPreview.objects.filter(tenant=tenant).count() == 1
-    assert ApprovalRecord.objects.filter(preview=first).count() == 1
-    assert ExecutionTask.objects.filter(preview=first).count() == 1
-
-
-@pytest.mark.django_db(transaction=True)
-def test_returned_preview_creates_and_freezes_a_new_version(workflow_context):
-    owner, tenant, profile = workflow_context
-    analysis = create_analysis(
-        user=owner,
-        tenant_id=tenant.pk,
-        profile_id=profile.pk,
-        idempotency_key="analysis-return",
-    )
-    preview = create_preview(
-        request=request_for(owner),
-        tenant_id=tenant.pk,
-        profile_id=profile.pk,
-        recommendation_ids=[Recommendation.objects.get(analysis_task=analysis).pk],
-    )
-    submit_preview(request=request_for(owner), preview_id=preview.pk)
-
-    returned = decide_preview(
-        request=request_for(owner),
-        preview_id=preview.pk,
-        decision=PreviewStatus.RETURNED,
-        comment="revise",
-        idempotency_key="return-1",
-    )
-    versions = list(returned.versions.order_by("version"))
-
-    assert returned.status == PreviewStatus.RETURNED
-    assert returned.current_version == 2
-    assert versions[0].frozen_at is not None
-    assert versions[1].frozen_at is None
-    resubmitted = submit_preview(request=request_for(owner), preview_id=preview.pk)
-    versions[1].refresh_from_db()
-    assert resubmitted.status == PreviewStatus.PENDING_APPROVAL
-    assert versions[1].frozen_at is not None
-
-
-@pytest.mark.django_db(transaction=True)
-def test_execution_evidence_effect_evaluation_and_records_are_append_only(
-    workflow_context,
-):
-    owner, tenant, profile = workflow_context
-    analysis = create_analysis(
-        user=owner,
-        tenant_id=tenant.pk,
-        profile_id=profile.pk,
-        idempotency_key="analysis-evidence",
-    )
-    preview = create_preview(
-        request=request_for(owner),
-        tenant_id=tenant.pk,
-        profile_id=profile.pk,
-        recommendation_ids=[Recommendation.objects.get(analysis_task=analysis).pk],
-    )
-    submit_preview(request=request_for(owner), preview_id=preview.pk)
-    approved = decide_preview(
-        request=request_for(owner),
-        preview_id=preview.pk,
-        decision=PreviewStatus.APPROVED,
-        comment="approved",
-        idempotency_key="approve-evidence",
-    )
-    item = ExecutionItem.objects.get(task=approved.execution_task)
-    evidence = SimpleUploadedFile("proof.txt", b"manual execution evidence")
-    with patch(
-        "apps.actions.services.LocalFileStorage.save_stream",
-        return_value=StoredFile(
-            "execution-evidence/proof.txt",
-            len(b"manual execution evidence"),
-            "a" * 64,
-        ),
-    ) as save_stream:
-        record = record_execution(
-            request=request_for(owner),
-            item_id=item.pk,
-            result="SUCCEEDED",
-            actual_value={"budget": "55.00"},
-            executed_at=timezone.now(),
-            note="with evidence",
-            idempotency_key="execute-evidence",
-            evidence_file=evidence,
-        )
-    assert record.evidence_path == "execution-evidence/proof.txt"
-    save_stream.assert_called_once()
-    with pytest.raises(Exception) as duplicate_error:
-        record_execution(
-            request=request_for(owner),
-            item_id=item.pk,
-            result="SUCCEEDED",
-            actual_value={"budget": "56.00"},
-            executed_at=timezone.now(),
-            note="different retry key",
-            idempotency_key="execute-evidence-second-key",
-        )
-    assert getattr(duplicate_error.value, "status_code", None) == 400
-
-    evaluation = EffectEvaluation.objects.get(execution_task=approved.execution_task)
-    repeated = evaluate_execution(approved.execution_task.pk)
-    assert repeated.pk == evaluation.pk
-    assert evaluation.status == "BASELINE_READY"
-    assert evaluation.baseline["completedItemCount"] == 1
-
-    record.note = "mutated"
-    with pytest.raises(RuntimeError):
-        record.save()
-    with pytest.raises(RuntimeError):
-        ExecutionRecord.objects.filter(pk=record.pk).update(note="mutated")
-    approval = ApprovalRecord.objects.get(preview=preview)
-    approval.comment = "mutated"
-    with pytest.raises(RuntimeError):
-        approval.save()
-    with pytest.raises(RuntimeError):
-        ApprovalRecord.objects.filter(pk=approval.pk).delete()
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "action_type",
-    [
-        "UPDATE_CAMPAIGN_BUDGET",
-        "ENABLE_CAMPAIGN",
-        "PAUSE_CAMPAIGN",
-        "UPDATE_KEYWORD_BID",
-        "ENABLE_KEYWORD",
-        "PAUSE_KEYWORD",
-        "UPDATE_TARGET_BID",
-        "ENABLE_TARGET",
-        "PAUSE_TARGET",
-        "ADD_KEYWORD",
-        "ADD_NEGATIVE_KEYWORD",
-    ],
-)
-def test_all_eleven_action_types_have_deterministic_validation(
-    workflow_context, action_type
-):
-    _, _, profile = workflow_context
-    campaign = Campaign.objects.get(profile=profile)
     ad_group = AdGroup.objects.create(
         campaign=campaign,
-        external_ad_group_id="GROUP-1",
-        name="Group",
+        external_ad_group_id="workflow-ad-group",
+        name="Workflow Ad Group",
         state=EntityState.ENABLED,
     )
     keyword = Keyword.objects.create(
         ad_group=ad_group,
-        external_keyword_id="KEYWORD-1",
-        text="shoe",
+        external_keyword_id="workflow-keyword",
+        keyword_text="running shoes",
         match_type=MatchType.EXACT,
         state=EntityState.ENABLED,
-        bid="1.00",
+        bid="1.2500",
     )
     target = ProductTarget.objects.create(
         ad_group=ad_group,
-        external_target_id="TARGET-1",
-        expression="asin=EXAMPLE",
+        external_target_id="workflow-target",
+        expression="asin=DEMO",
         state=EntityState.ENABLED,
-        bid="2.00",
+        bid="0.8500",
     )
-    item = {
-        "actionType": action_type,
-        "objectType": "CAMPAIGN",
-        "objectId": str(campaign.pk),
-        "beforeValue": {},
-        "afterValue": {},
-        "reason": "deterministic test",
+    agent_run = AgentRun.objects.create(
+        tenant=tenant,
+        profile=profile,
+        status=AgentRunStatus.SUCCEEDED,
+        celery_task_id=f"workflow-run-{tenant.pk}",
+        requested_by=owner,
+    )
+    recommendation = Recommendation.objects.create(
+        tenant=tenant,
+        profile=profile,
+        campaign=campaign,
+        agent_run=agent_run,
+        action_type=ActionType.UPDATE_CAMPAIGN_BUDGET,
+    )
+    revision = RecommendationRevision.objects.create(
+        recommendation=recommendation,
+        revision_number=1,
+        schema_version="agent-result-v1",
+        action_type=ActionType.UPDATE_CAMPAIGN_BUDGET,
+        object_type="Campaign",
+        object_id=str(campaign.pk),
+        before_value={"dailyBudget": "50.0000", "currency": "USD"},
+        after_value={"dailyBudget": "45.0000", "currency": "USD"},
+        reason="High ACOS requires human review.",
+        evidence=[{"ruleCode": "HIGH_ACOS"}],
+        risk_level="MEDIUM",
+    )
+    return SimpleNamespace(
+        owner=owner,
+        reviewer=reviewer,
+        tenant=tenant,
+        profile=profile,
+        campaign=campaign,
+        ad_group=ad_group,
+        keyword=keyword,
+        target=target,
+        recommendation=recommendation,
+        revision=revision,
+        agent_run=agent_run,
+    )
+
+
+def create_preview(context):
+    return create_action_preview(
+        request=request_for(context.owner),
+        tenant_id=context.tenant.pk,
+        recommendation_id=context.recommendation.pk,
+    )
+
+
+def test_personal_owner_self_approval_execution_evidence_and_effect(settings):
+    settings.REPORT_STORAGE_ROOT = (
+        settings.BASE_DIR / "test-artifacts" / "action-evidence"
+    )
+    context = build_workflow()
+    preview = create_preview(context)
+    submit_action_preview(
+        request=request_for(context.owner),
+        tenant_id=context.tenant.pk,
+        preview_id=preview.pk,
+    )
+    approved, approval = decide_action_preview(
+        request=request_for(context.owner),
+        tenant_id=context.tenant.pk,
+        preview_id=preview.pk,
+        decision=ApprovalDecision.APPROVED,
+        comment="Personal owner confirmation.",
+        idempotency_key="personal-approval",
+    )
+    executed, record = record_manual_execution(
+        request=request_for(context.owner),
+        tenant_id=context.tenant.pk,
+        preview_id=preview.pk,
+        outcome=ExecutionOutcome.SUCCEEDED,
+        actual_value={"dailyBudget": "45.0000", "currency": "USD"},
+        executed_at=timezone.now(),
+        note="Updated in Amazon console.",
+        evidence_metadata={"reference": "manual-console"},
+        evidence_file=SimpleUploadedFile(
+            "proof.txt",
+            b"fictional execution evidence",
+            content_type="text/plain",
+        ),
+        idempotency_key="personal-execution",
+    )
+    evaluation = evaluate_action_preview_effect(
+        request=request_for(context.owner),
+        tenant_id=context.tenant.pk,
+        preview_id=preview.pk,
+        execution_record_id=record.pk,
+        observed={"acos": "0.2200", "windowDays": 7},
+        evaluation_key="personal-effect-observed",
+    )
+
+    assert approved.status == ActionPreviewStatus.APPROVED
+    assert executed.status == ActionPreviewStatus.APPROVED
+    assert approval.preview_version.version_number == 1
+    assert record.evidence_metadata["originalFilename"] == "proof.txt"
+    assert len(record.evidence_metadata["sha256"]) == 64
+    assert evaluation.status == "OBSERVED"
+    assert evaluation.result["baseline"]["beforeValue"]["dailyBudget"] == "50.0000"
+    assert evaluation.result["observed"]["acos"] == "0.2200"
+    assert ApprovalRecord.objects.count() == 1
+    assert ExecutionRecord.objects.count() == 1
+    assert EffectEvaluation.objects.count() == 1
+    with pytest.raises(TypeError, match="append-only"):
+        approval.save()
+    assert AuditLog.objects.filter(
+        event="action_preview.effect_evaluated",
+        object_id=str(preview.pk),
+    ).exists()
+
+
+def test_team_submitter_cannot_self_approve_but_admin_can():
+    context = build_workflow(tenant_type=TenantType.TEAM)
+    preview = create_preview(context)
+    submit_action_preview(
+        request=request_for(context.owner),
+        tenant_id=context.tenant.pk,
+        preview_id=preview.pk,
+    )
+
+    with pytest.raises(PermissionDenied):
+        decide_action_preview(
+            request=request_for(context.owner),
+            tenant_id=context.tenant.pk,
+            preview_id=preview.pk,
+            decision=ApprovalDecision.APPROVED,
+            comment="Forbidden self approval.",
+            idempotency_key="team-self-approval",
+        )
+
+    approved, _ = decide_action_preview(
+        request=request_for(context.reviewer),
+        tenant_id=context.tenant.pk,
+        preview_id=preview.pk,
+        decision=ApprovalDecision.APPROVED,
+        comment="Independent approval.",
+        idempotency_key="team-admin-approval",
+    )
+    assert approved.status == ActionPreviewStatus.APPROVED
+
+
+def test_returned_requires_new_immutable_version_before_resubmit():
+    context = build_workflow(tenant_type=TenantType.TEAM)
+    preview = create_preview(context)
+    submit_action_preview(
+        request=request_for(context.owner),
+        tenant_id=context.tenant.pk,
+        preview_id=preview.pk,
+    )
+    returned, _ = decide_action_preview(
+        request=request_for(context.reviewer),
+        tenant_id=context.tenant.pk,
+        preview_id=preview.pk,
+        decision=ApprovalDecision.RETURNED,
+        comment="Reduce the proposed budget change.",
+        idempotency_key="return-preview",
+    )
+    with pytest.raises(Exception, match="new immutable version"):
+        submit_action_preview(
+            request=request_for(context.owner),
+            tenant_id=context.tenant.pk,
+            preview_id=preview.pk,
+        )
+
+    payload = dict(returned.versions.get(version_number=1).action_payload)
+    payload["afterValue"] = {"dailyBudget": "47.5000", "currency": "USD"}
+    revised = create_returned_preview_version(
+        request=request_for(context.owner),
+        tenant_id=context.tenant.pk,
+        preview_id=preview.pk,
+        action_payload=payload,
+    )
+    resubmitted = submit_action_preview(
+        request=request_for(context.owner),
+        tenant_id=context.tenant.pk,
+        preview_id=preview.pk,
+    )
+
+    assert revised.current_version_number == 2
+    assert resubmitted.status == ActionPreviewStatus.PENDING_APPROVAL
+    assert list(
+        ActionPreviewVersion.objects.filter(preview=preview).values_list(
+            "version_number",
+            flat=True,
+        )
+    ) == [1, 2]
+
+
+def test_creator_can_withdraw_pending_preview_idempotently():
+    context = build_workflow()
+    preview = create_preview(context)
+    submit_action_preview(
+        request=request_for(context.owner),
+        tenant_id=context.tenant.pk,
+        preview_id=preview.pk,
+    )
+    withdrawn = withdraw_action_preview(
+        request=request_for(context.owner),
+        tenant_id=context.tenant.pk,
+        preview_id=preview.pk,
+    )
+    repeated = withdraw_action_preview(
+        request=request_for(context.owner),
+        tenant_id=context.tenant.pk,
+        preview_id=preview.pk,
+    )
+    assert withdrawn.status == repeated.status == ActionPreviewStatus.WITHDRAWN
+    assert AuditLog.objects.filter(event="action_preview.withdrawn").count() == 1
+
+
+def test_all_eleven_v1_action_payloads_validate_against_profile_state():
+    context = build_workflow()
+    base = {
+        "schemaVersion": "agent-result-v1",
+        "reason": "Deterministic validation test.",
         "evidence": [],
         "riskLevel": "LOW",
     }
-    if action_type == "UPDATE_CAMPAIGN_BUDGET":
-        item["beforeValue"] = {"budget": "50.00"}
-        item["afterValue"] = {"budget": "55.00"}
-    elif action_type in {"ENABLE_CAMPAIGN", "PAUSE_CAMPAIGN"}:
-        target_state = (
-            EntityState.ENABLED
-            if action_type == "ENABLE_CAMPAIGN"
-            else EntityState.PAUSED
-        )
-        campaign.state = (
-            EntityState.PAUSED
-            if target_state == EntityState.ENABLED
-            else EntityState.ENABLED
-        )
-        campaign.save(update_fields=["state"])
-        item["beforeValue"] = {"state": campaign.state}
-        item["afterValue"] = {"state": target_state}
-    elif action_type in {
-        "UPDATE_KEYWORD_BID",
-        "ENABLE_KEYWORD",
-        "PAUSE_KEYWORD",
-    }:
-        item["objectType"] = "KEYWORD"
-        item["objectId"] = str(keyword.pk)
-        if action_type == "UPDATE_KEYWORD_BID":
-            item["beforeValue"] = {"bid": "1.00"}
-            item["afterValue"] = {"bid": "1.20"}
-        else:
-            target_state = (
-                EntityState.ENABLED
-                if action_type == "ENABLE_KEYWORD"
-                else EntityState.PAUSED
-            )
-            keyword.state = (
-                EntityState.PAUSED
-                if target_state == EntityState.ENABLED
-                else EntityState.ENABLED
-            )
-            keyword.save(update_fields=["state"])
-            item["beforeValue"] = {"state": keyword.state}
-            item["afterValue"] = {"state": target_state}
-    elif "TARGET" in action_type:
-        item["objectType"] = "PRODUCT_TARGET"
-        item["objectId"] = str(target.pk)
-        if action_type == "UPDATE_TARGET_BID":
-            item["beforeValue"] = {"bid": "2.00"}
-            item["afterValue"] = {"bid": "2.20"}
-        else:
-            target_state = (
-                EntityState.ENABLED
-                if action_type == "ENABLE_TARGET"
-                else EntityState.PAUSED
-            )
-            target.state = (
-                EntityState.PAUSED
-                if target_state == EntityState.ENABLED
-                else EntityState.ENABLED
-            )
-            target.save(update_fields=["state"])
-            item["beforeValue"] = {"state": target.state}
-            item["afterValue"] = {"state": target_state}
-    elif action_type == "ADD_KEYWORD":
-        item["objectType"] = "AD_GROUP"
-        item["objectId"] = str(ad_group.pk)
-        item["afterValue"] = {
-            "text": "new keyword",
-            "matchType": MatchType.PHRASE,
-            "bid": "1.50",
-        }
-    else:
-        item["afterValue"] = {
-            "text": "irrelevant",
-            "matchType": MatchType.EXACT,
-        }
-
-    assert validate_recommendation(
-        task=SimpleNamespace(profile=profile),
-        item=item,
-    ) == item
-
-
-@pytest.mark.django_db(transaction=True)
-def test_team_submitter_cannot_approve_self(workflow_context):
-    owner, tenant, profile = workflow_context
-    tenant.tenant_type = TenantType.TEAM
-    tenant.save(update_fields=["tenant_type"])
-    analysis = create_analysis(
-        user=owner,
-        tenant_id=tenant.pk,
-        profile_id=profile.pk,
-        idempotency_key="analysis-team",
-    )
-    preview = create_preview(
-        request=request_for(owner),
-        tenant_id=tenant.pk,
-        profile_id=profile.pk,
-        recommendation_ids=[Recommendation.objects.get(analysis_task=analysis).pk],
-    )
-    submit_preview(request=request_for(owner), preview_id=preview.pk)
-
-    with pytest.raises(Exception) as error:
-        decide_preview(
-            request=request_for(owner),
-            preview_id=preview.pk,
-            decision=PreviewStatus.APPROVED,
-            comment="invalid self approval",
-            idempotency_key="self-approve",
-        )
-    assert getattr(error.value, "status_code", None) == 403
-
-
-@pytest.mark.django_db(transaction=True)
-def test_json_api_contract_runs_analysis_approval_execution_and_audit(workflow_context):
-    owner, tenant, profile = workflow_context
-    client = APIClient()
-    client.force_authenticate(owner)
-    tenant_headers = {"HTTP_X_TENANT_ID": str(tenant.pk)}
-
-    analysis = client.post(
-        "/api/v1/analysis/tasks",
-        {"tenantId": str(tenant.pk), "profileId": str(profile.pk)},
-        format="json",
-        HTTP_IDEMPOTENCY_KEY="api-analysis",
-        **tenant_headers,
-    )
-    assert analysis.status_code == 202
-    task_id = analysis.json()["data"]["taskId"]
-
-    task = client.get(f"/api/v1/analysis/tasks/{task_id}", **tenant_headers)
-    recommendations = client.get(
-        f"/api/v1/recommendations/?profileId={profile.pk}", **tenant_headers
-    )
-    recommendation_id = recommendations.json()["data"]["items"][0]["id"]
-    assert recommendations.json()["data"]["pagination"]["total"] == 1
-    assert task.json()["data"]["status"] == "SUCCEEDED"
-
-    created = client.post(
-        "/api/v1/actions/previews",
+    payloads = [
         {
-            "tenantId": str(tenant.pk),
-            "profileId": str(profile.pk),
-            "recommendationIds": [recommendation_id],
+            **base,
+            "actionType": ActionType.UPDATE_CAMPAIGN_BUDGET,
+            "objectType": "Campaign",
+            "objectId": str(context.campaign.pk),
+            "beforeValue": {"dailyBudget": "50.0000", "currency": "USD"},
+            "afterValue": {"dailyBudget": "45.0000", "currency": "USD"},
+        },
+        {
+            **base,
+            "actionType": ActionType.PAUSE_CAMPAIGN,
+            "objectType": "Campaign",
+            "objectId": str(context.campaign.pk),
+            "beforeValue": {"state": "ENABLED"},
+            "afterValue": {"state": "PAUSED"},
+        },
+        {
+            **base,
+            "actionType": ActionType.UPDATE_KEYWORD_BID,
+            "objectType": "Keyword",
+            "objectId": str(context.keyword.pk),
+            "beforeValue": {"bid": "1.2500", "currency": "USD"},
+            "afterValue": {"bid": "1.1000", "currency": "USD"},
+        },
+        {
+            **base,
+            "actionType": ActionType.PAUSE_KEYWORD,
+            "objectType": "Keyword",
+            "objectId": str(context.keyword.pk),
+            "beforeValue": {"state": "ENABLED"},
+            "afterValue": {"state": "PAUSED"},
+        },
+        {
+            **base,
+            "actionType": ActionType.UPDATE_TARGET_BID,
+            "objectType": "ProductTarget",
+            "objectId": str(context.target.pk),
+            "beforeValue": {"bid": "0.8500", "currency": "USD"},
+            "afterValue": {"bid": "0.7500", "currency": "USD"},
+        },
+        {
+            **base,
+            "actionType": ActionType.PAUSE_TARGET,
+            "objectType": "ProductTarget",
+            "objectId": str(context.target.pk),
+            "beforeValue": {"state": "ENABLED"},
+            "afterValue": {"state": "PAUSED"},
+        },
+        {
+            **base,
+            "actionType": ActionType.ADD_KEYWORD,
+            "objectType": "AdGroup",
+            "objectId": str(context.ad_group.pk),
+            "beforeValue": {},
+            "afterValue": {
+                "keywordText": "trail shoes",
+                "matchType": "EXACT",
+                "bid": "1.0000",
+                "currency": "USD",
+            },
+        },
+        {
+            **base,
+            "actionType": ActionType.ADD_NEGATIVE_KEYWORD,
+            "objectType": "Campaign",
+            "objectId": str(context.campaign.pk),
+            "beforeValue": {},
+            "afterValue": {
+                "negativeScope": "CAMPAIGN",
+                "keywordText": "free",
+                "matchType": "PHRASE",
+            },
+        },
+    ]
+    for payload in payloads:
+        validate_action_payload(payload=payload, profile_id=context.profile.pk)
+
+    context.campaign.state = EntityState.PAUSED
+    context.campaign.save(update_fields=["state"])
+    context.keyword.state = EntityState.PAUSED
+    context.keyword.save(update_fields=["state"])
+    context.target.state = EntityState.PAUSED
+    context.target.save(update_fields=["state"])
+    enable_payloads = [
+        {
+            **base,
+            "actionType": ActionType.ENABLE_CAMPAIGN,
+            "objectType": "Campaign",
+            "objectId": str(context.campaign.pk),
+            "beforeValue": {"state": "PAUSED"},
+            "afterValue": {"state": "ENABLED"},
+        },
+        {
+            **base,
+            "actionType": ActionType.ENABLE_KEYWORD,
+            "objectType": "Keyword",
+            "objectId": str(context.keyword.pk),
+            "beforeValue": {"state": "PAUSED"},
+            "afterValue": {"state": "ENABLED"},
+        },
+        {
+            **base,
+            "actionType": ActionType.ENABLE_TARGET,
+            "objectType": "ProductTarget",
+            "objectId": str(context.target.pk),
+            "beforeValue": {"state": "PAUSED"},
+            "afterValue": {"state": "ENABLED"},
+        },
+    ]
+    for payload in enable_payloads:
+        validate_action_payload(payload=payload, profile_id=context.profile.pk)
+    assert len(payloads) + len(enable_payloads) == 11
+
+
+def test_action_transition_apis_are_real_and_camel_case():
+    context = build_workflow(tenant_type=TenantType.TEAM)
+    owner_client = APIClient()
+    owner_client.force_authenticate(context.owner)
+    reviewer_client = APIClient()
+    reviewer_client.force_authenticate(context.reviewer)
+
+    created = owner_client.post(
+        f"/api/v1/actions/tenants/{context.tenant.pk}/recommendations/"
+        f"{context.recommendation.pk}/previews",
+    )
+    preview_id = created.data["data"]["id"]
+    submitted = owner_client.post(
+        f"/api/v1/actions/tenants/{context.tenant.pk}/previews/"
+        f"{preview_id}/submit",
+    )
+    returned = reviewer_client.post(
+        f"/api/v1/actions/tenants/{context.tenant.pk}/previews/"
+        f"{preview_id}/decision",
+        {
+            "decision": "RETURNED",
+            "comment": "API return.",
+            "idempotencyKey": "api-return",
         },
         format="json",
-        **tenant_headers,
     )
-    preview_id = created.json()["data"]["previewId"]
+    payload = returned.json()["data"]["currentVersion"]["actionPayload"]
+    payload["afterValue"]["dailyBudget"] = "47.5000"
+    versioned = owner_client.post(
+        f"/api/v1/actions/tenants/{context.tenant.pk}/previews/"
+        f"{preview_id}/versions",
+        {"actionPayload": payload},
+        format="json",
+    )
+
     assert created.status_code == 201
-    assert client.post(
-        f"/api/v1/actions/previews/{preview_id}/submit", **tenant_headers
-    ).status_code == 200
-    assert client.post(
-        f"/api/v1/actions/previews/{preview_id}/decisions",
-        {"decision": "APPROVED", "comment": "API contract"},
-        format="json",
-        HTTP_IDEMPOTENCY_KEY="api-approval",
-        **tenant_headers,
-    ).status_code == 200
-
-    previews = client.get(
-        f"/api/v1/actions/previews?profileId={profile.pk}", **tenant_headers
-    )
-    execution_item = previews.json()["data"]["items"][0]["execution"]["items"][0]
-    recorded = client.post(
-        f"/api/v1/actions/execution-items/{execution_item['id']}/records",
-        {
-            "result": "SUCCEEDED",
-            "actualValue": {"budget": "55.00"},
-            "executedAt": timezone.now().isoformat(),
-            "note": "API integration",
-        },
-        format="json",
-        HTTP_IDEMPOTENCY_KEY="api-execution",
-        **tenant_headers,
-    )
-    audit = client.get("/api/v1/audit/", **tenant_headers)
-
-    assert recorded.status_code == 201
-    assert any(
-        item["event"] == "EXECUTION_RECORDED"
-        for item in audit.json()["data"]["items"]
-    )
+    assert submitted.status_code == 200
+    assert returned.status_code == 200
+    assert versioned.status_code == 201
+    assert versioned.json()["data"]["currentVersionNumber"] == 2

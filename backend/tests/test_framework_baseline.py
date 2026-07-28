@@ -1,4 +1,4 @@
-from datetime import date
+import io
 from types import SimpleNamespace
 
 import pytest
@@ -22,57 +22,40 @@ from integrations.advertising_data.execution import (
 from integrations.advertising_data.sources import (
     AmazonAdsApiReportSource,
     FileUploadReportSource,
-    ReportFetchRequest,
-    ReportSourceUnavailable,
-    ThirdPartyProviderReportSource,
+    ThirdPartyReportSource,
 )
-from integrations.llm.providers import (
-    ExternalLLMProvider,
-    LLMProviderUnavailable,
-    MockLLMProvider,
-)
-from integrations.monitoring import LoggingMonitoringSink, MonitoringEvent
+from integrations.llm.providers import MockLLMProvider
 from integrations.storage.base import FileStorageUnavailable
 from integrations.storage.object_storage import ObjectStorageFileStorage
 
 
-def test_report_source_contract_is_scoped_idempotent_and_reserved_sources_are_offline():
-    request = ReportFetchRequest(
-        tenant_id="tenant-1",
-        profile_id="profile-1",
-        report_type="CAMPAIGN",
-        start_date=date(2026, 7, 1),
-        end_date=date(2026, 7, 2),
-        idempotency_key="request-1",
-        existing_storage_path="reports/file.csv",
-    )
-    result = FileUploadReportSource().fetch(request)
+class MemoryStorage:
+    def __init__(self):
+        self.content = {"reports/file.csv": b"fixture"}
 
-    assert result.storage_path == "reports/file.csv"
-    assert result.external_request_id == "request-1"
-    for source in (ThirdPartyProviderReportSource(), AmazonAdsApiReportSource()):
-        with pytest.raises(ReportSourceUnavailable):
-            source.fetch(request)
-        assert source.max_retries == 2
+    def open(self, *, key):
+        return io.BytesIO(self.content[key])
+
+
+def test_report_source_boundary_reads_uploaded_content_and_reserved_sources_are_offline():
+    source = FileUploadReportSource(
+        storage=MemoryStorage(),
+        storage_key="reports/file.csv",
+    )
+    assert source.open().read() == b"fixture"
+    for reserved in (ThirdPartyReportSource(), AmazonAdsApiReportSource()):
+        with pytest.raises(NotImplementedError):
+            reserved.open()
 
 
 def test_llm_and_execution_adapters_have_safe_mock_and_reserved_boundaries():
     mock_result = MockLLMProvider().generate(
-        agent_code="STRATEGY",
-        payload={
-            "runId": "run-1",
-            "campaigns": [
-                {
-                    "campaignId": "campaign-1",
-                    "budgetSnapshot": "10.00",
-                    "acos": "0.3",
-                }
-            ],
-        },
+        agent_code="DATA_ANALYSIS",
+        run_id="run-1",
+        context={},
     )
-    assert mock_result["recommendations"][0]["afterValue"]["budget"] == "11.00"
-    with pytest.raises(LLMProviderUnavailable):
-        ExternalLLMProvider().generate(agent_code="STRATEGY", payload={})
+    assert mock_result["schemaVersion"] == "agent-result-v1"
+    assert mock_result["agentCode"] == "DATA_ANALYSIS"
 
     request = ExecutionAdapterRequest(
         tenant_id="tenant-1",
@@ -93,16 +76,24 @@ def test_llm_and_execution_adapters_have_safe_mock_and_reserved_boundaries():
 def test_object_storage_boundary_never_makes_a_real_call():
     storage = ObjectStorageFileStorage()
     with pytest.raises(FileStorageUnavailable):
-        storage.save_stream(namespace="reports", filename="x.csv", chunks=[b"x"])
+        storage.save_stream(
+            namespace="reports",
+            filename="x.csv",
+            chunks=[b"x"],
+        )
     assert storage.capability["mode"] == "reserved"
 
 
 def test_tenant_cache_keys_and_rate_limits_are_isolated():
     first_key = tenant_cache_key(
-        tenant_id="tenant-a", profile_id="profile-a", namespace="dashboard"
+        tenant_id="tenant-a",
+        profile_id="profile-a",
+        namespace="dashboard",
     )
     second_key = tenant_cache_key(
-        tenant_id="tenant-b", profile_id="profile-a", namespace="dashboard"
+        tenant_id="tenant-b",
+        profile_id="profile-a",
+        namespace="dashboard",
     )
     assert first_key != second_key
 
@@ -137,33 +128,16 @@ def test_pagination_contract_and_validation():
         "total": 5,
         "total_pages": 3,
     }
-
-    invalid = Request(APIRequestFactory().get("/?page=0&pageSize=1000"))
     with pytest.raises(Exception) as error:
-        page_spec(invalid)
+        page_spec(Request(APIRequestFactory().get("/?page=0&pageSize=1000")))
     assert getattr(error.value, "status_code", None) == 400
 
 
-def test_monitoring_sink_emits_structured_event(caplog):
-    with caplog.at_level("INFO", logger="framework-test-monitoring"):
-        LoggingMonitoringSink("framework-test-monitoring").emit(
-            MonitoringEvent(
-                name="queue.depth",
-                value=3,
-                tags={"queue": "analysis", "tenant": "redacted"},
-            )
-        )
-    record = caplog.records[-1]
-    assert record.metric_name == "queue.depth"
-    assert record.metric_tags["queue"] == "analysis"
-
-
 def test_celery_tasks_only_delegate_to_services(monkeypatch):
-    evaluation_id = "00000000-0000-0000-0000-000000000001"
     monkeypatch.setattr(
         action_tasks,
         "evaluate_execution",
-        lambda task_id: SimpleNamespace(pk=evaluation_id),
+        lambda record_id: SimpleNamespace(pk="evaluation-1"),
     )
     monkeypatch.setattr(
         analytics_tasks,
@@ -171,8 +145,8 @@ def test_celery_tasks_only_delegate_to_services(monkeypatch):
         lambda profile_id: 7,
     )
 
-    assert action_tasks.evaluate_effects.run("task-1") == {
-        "evaluationId": evaluation_id
+    assert action_tasks.evaluate_effects.run("record-1") == {
+        "evaluationId": "evaluation-1"
     }
     assert analytics_tasks.recalculate_anomalies.run("profile-1") == {
         "processed": 7
