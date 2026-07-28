@@ -16,6 +16,7 @@ from apps.actions.services import (
     record_execution,
     submit_preview,
 )
+from apps.core.pagination import page_spec, paginate_queryset
 from apps.core.responses import api_response
 from apps.actions.models import ActionPreview, ExecutionTask
 from apps.permissions.services import authorize
@@ -44,7 +45,7 @@ class PreviewCreateView(APIView):
 
             raise NotFound("广告 Profile 不存在") from exc
         authorize(user=request.user, tenant_id=tenant_id, profile=profile)
-        previews = (
+        previews_query = (
             ActionPreview.objects.filter(
                 tenant_id=tenant_id, profile=profile
             )
@@ -55,11 +56,15 @@ class PreviewCreateView(APIView):
                 "execution_task__items__records",
                 "execution_task__evaluations",
             )
-            .order_by("-created_at")[:100]
+            .order_by("-created_at")
         )
+        previews, pagination = paginate_queryset(previews_query, page_spec(request))
         return api_response(
             request,
-            data={"items": [_preview_payload(item) for item in previews]},
+            data={
+                "items": [_preview_payload(item) for item in previews],
+                "pagination": pagination,
+            },
         )
 
     @extend_schema(request=PreviewCreateSerializer, responses={201: OpenApiResponse()}, tags=["actions"])
@@ -120,6 +125,7 @@ class ExecutionRecordView(APIView):
                 "actual_value": serializer.validated_data["actual_value"],
                 "executed_at": serializer.validated_data["executed_at"],
                 "note": serializer.validated_data["note"],
+                "evidence_file": serializer.validated_data.get("evidence"),
             },
         )
         return api_response(request, data={"record_id": str(record.pk)}, status=status.HTTP_201_CREATED)
@@ -177,6 +183,7 @@ def _preview_payload(preview):
                                 "actual_value": record.actual_value,
                                 "executed_at": record.executed_at,
                                 "note": record.note,
+                                "evidence_path": record.evidence_path,
                             }
                             for record in item.records.all()
                         ],

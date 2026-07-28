@@ -93,9 +93,16 @@ export async function createAndSubmitPreview(input: {
     },
     { headers: { 'Idempotency-Key': crypto.randomUUID() } },
   )
+  const submitted = await submitExistingPreview(created.data.data.previewId)
+  return submitted
+}
+
+export async function submitExistingPreview(
+  previewId: string,
+): Promise<{ previewId: string; status: string }> {
   const submitted = await httpClient.post<
     ApiEnvelope<{ previewId: string; status: string }>
-  >(`/api/v1/actions/previews/${created.data.data.previewId}/submit`)
+  >(`/api/v1/actions/previews/${previewId}/submit`)
   return {
     previewId: submitted.data.data.previewId,
     status: submitted.data.data.status,

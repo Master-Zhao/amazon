@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.audit.models import AuditLog
+from apps.core.pagination import page_spec, paginate_queryset
 from apps.core.responses import api_response
 from apps.permissions.services import authorize
 
@@ -19,9 +20,12 @@ class AuditLogListView(APIView):
         authorize(
             user=request.user, tenant_id=tenant_id, permission_code="audit.view"
         )
-        logs = AuditLog.objects.filter(tenant_id=tenant_id).select_related("actor").order_by(
+        logs_query = AuditLog.objects.filter(tenant_id=tenant_id).select_related("actor").order_by(
             "-created_at"
-        )[:200]
+        )
+        logs, pagination = paginate_queryset(
+            logs_query, page_spec(request, default_page_size=100, max_page_size=200)
+        )
         return api_response(
             request,
             data={
@@ -38,7 +42,7 @@ class AuditLogListView(APIView):
                         "created_at": item.created_at,
                     }
                     for item in logs
-                ]
+                ],
+                "pagination": pagination,
             },
         )
-

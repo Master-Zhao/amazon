@@ -645,12 +645,6 @@ paths:
       - reports
       requestBody:
         content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ReportUploadRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ReportUploadRequest'
           multipart/form-data:
             schema:
               $ref: '#/components/schemas/ReportUploadRequest'
@@ -829,6 +823,10 @@ components:
           minLength: 1
           default: ''
           maxLength: 500
+        evidence:
+          type: string
+          format: binary
+          writeOnly: true
       required:
       - executed_at
       - result

@@ -1,6 +1,11 @@
 # Isolated directory: never inspect, modify, or track.
 /amazon-ads-operations-0.1.1/
 
+# User-owned artifacts outside this delivery baseline: never stage or inspect.
+/.arts/
+/亚马逊广告智能投放平台需求分析与系统构成.docx
+/亚马逊广告智能投放系统——项目定位与核心痛点分析.docx
+
 # Secrets and local environment
 .env
 .env.*

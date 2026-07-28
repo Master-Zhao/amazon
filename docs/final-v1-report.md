@@ -25,14 +25,32 @@ M0—M6 已按授权完成并停止扩展。系统可以用虚构 fixtures 和 `
 - Docker：local/test/prod 静态校验 PASS；test Compose 7 服务 healthy，8081 live/ready/前端 PASS。
 - 性能：10 RPS × 5 秒只读烟雾 50/50；正式容量目标 NOT VERIFIED。
 
+## Framework Baseline 收口
+
+在不改写 M0—M6 和 `demo-milestone` 的前提下，本次补充统一分页、Tenant/User
+限流、Tenant 缓存键、监控 Sink、正式 Adapter、流式规范化输出、11 类动作
+确定性校验、RETURNED 新版本、附件证据、基础效果评估和开发者文档。
+
+Framework Baseline 全量结果：后端 103 passed / 25 warnings；前端
+10 files / 33 tests；lint、typecheck、production build、OpenAPI validate、
+类型生成、核心 Chrome E2E 1 passed 和三套 Compose 静态检查通过。Compose 文件
+未变化，未重复完整拉取/构建，运行证据继续引用 M6 的 MySQL 8.4 全量测试和
+test Compose 7 服务 healthy。
+
 ## Requirement Coverage Matrix
 
-共 60 项：`IMPLEMENTED_AND_TESTED` 36、`IMPLEMENTED_NOT_FULLY_VERIFIED` 13、`RESERVED_BY_CONFIRMED_SCOPE` 7、`BLOCKED_BY_REAL_SAMPLE` 3、`NOT_IMPLEMENTED` 1。唯一 `NOT_IMPLEMENTED` 是最小 M6 未加入的 API 限流、业务缓存与生产监控；requestId、结构化日志、健康检查、队列隔离已经实现。
+共 60 项：`IMPLEMENTED_AND_TESTED` 44、`IMPLEMENTED_NOT_FULLY_VERIFIED` 6、
+`RESERVED_BY_CONFIRMED_SCOPE` 7、`BLOCKED_BY_REAL_SAMPLE` 3、
+`NOT_IMPLEMENTED` 0。原唯一 `PERF-004` 已增加真实限流、缓存隔离键和监控扩展
+接口，因多实例/生产 exporter/告警未验证而保持 `IMPLEMENTED_NOT_FULLY_VERIFIED`。
 
 ## 明确边界
 
 - `RESERVED_BY_CONFIRMED_SCOPE`：第三方/Amazon 报表 Adapter、Sponsored Brands/Display、CRITICAL 规则、跨 Marketplace/币种汇总、真实 LLM、库存/采购/物流/财务。
 - `BLOCKED_BY_REAL_SAMPLE`：Campaign、Targeting、Search Term 三类真实 Amazon 脱敏导出验证。
-- 未充分验证：全部 11 类 Recommendation 的端到端分支、退回 UI、附件证据上传、效果评估完整闭环、正式 TLS/监控/备份恢复、5×100,000 行及 200 RPS 容量。
+- 未充分验证：所有页面失败状态的逐项浏览器覆盖、正式规模查询基线、多实例
+  限流/缓存/监控、完整效果归因、正式 TLS/备份恢复、5×100,000 行及
+  300 用户/200 RPS/10 分钟容量。11 类 Service 校验、退回基础 UI 和附件上传已
+  自动测试；11 类逐项浏览器 E2E 仍列正式 backlog。
 
 未知 `.arts/` 和两份 DOCX 始终未读取、修改或纳入提交；隔离目录、Node/build/E2E/coverage/临时数据库/上传文件和真实环境文件均未纳入交付。

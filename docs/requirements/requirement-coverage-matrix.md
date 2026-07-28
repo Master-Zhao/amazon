@@ -1,6 +1,6 @@
 # V1 需求覆盖矩阵
 
-状态只使用 `IMPLEMENTED_AND_TESTED`、`IMPLEMENTED_NOT_FULLY_VERIFIED`、`RESERVED_BY_CONFIRMED_SCOPE`、`BLOCKED_BY_REAL_SAMPLE`、`NOT_IMPLEMENTED`。本矩阵随 M0—M6 更新；“测试”列只记录实际证据。
+状态只使用 `IMPLEMENTED_AND_TESTED`、`IMPLEMENTED_NOT_FULLY_VERIFIED`、`RESERVED_BY_CONFIRMED_SCOPE`、`BLOCKED_BY_REAL_SAMPLE`、`NOT_IMPLEMENTED`。本矩阵已随 Framework Baseline 复核；“测试”列只记录实际证据。最终统计：`IMPLEMENTED_AND_TESTED=44`、`IMPLEMENTED_NOT_FULLY_VERIFIED=6`、`RESERVED_BY_CONFIRMED_SCOPE=7`、`BLOCKED_BY_REAL_SAMPLE=3`、`NOT_IMPLEMENTED=0`，共 60 项。
 
 | ID | 需求 | 来源 | 模块 | 实现/迁移/API/页面 | 测试与文档 | 状态 | 验证证据与风险 |
 |---|---|---|---|---|---|---|---|
@@ -21,7 +21,7 @@
 | PERM-004 | 认证∩Membership∩功能∩Store∩Profile | 主规格 8 | permissions | authorize service | 404/403 tests | IMPLEMENTED_AND_TESTED | 跨范围 404、范围内缺动作 403 |
 | ADS-001 | Sponsored Products 广告层级 | 主规格 9 | advertising | models/migrations/API | report tests | IMPLEMENTED_AND_TESTED | Brands/Display 仅扩展枚举 |
 | ADS-002 | Keyword/ProductTarget/SearchTerm 与匹配类型 | 主规格 9 | advertising | models/import/selectors | targeting/search fixtures | IMPLEMENTED_AND_TESTED | 真实自然键待样例 |
-| ADS-003 | Campaign/AdGroup 级 Negative Keyword | 主规格 9 | advertising | NegativeKeyword model | 后续动作测试 | IMPLEMENTED_NOT_FULLY_VERIFIED | M4 新增动作验证 |
+| ADS-003 | Campaign/AdGroup 级 Negative Keyword | 主规格 9 | advertising | NegativeKeyword model + validator | 11 类动作参数化 Service 测试 | IMPLEMENTED_AND_TESTED | `test_all_eleven_action_types_have_deterministic_validation` |
 | PROD-001 | Product/CatalogItem/Listing 关系与唯一键 | 主规格 9 | products | models/0001 | 迁移约束 | IMPLEMENTED_NOT_FULLY_VERIFIED | D-109；真实 SKU 待样例 |
 | REPORT-001 | Campaign CSV/Excel 上传异步导入 | 主规格 10 | reports | upload/task/parser | CSV/XLSX tests | BLOCKED_BY_REAL_SAMPLE | fixture 通过，真实导出待验证 |
 | REPORT-002 | Targeting CSV/Excel 上传异步导入 | 主规格 10 | reports | upload/task/parser | targeting fixture | BLOCKED_BY_REAL_SAMPLE | fixture 通过，真实导出待验证 |
@@ -37,22 +37,22 @@
 | ANOM-001 | 版本化异常规则、风险、数据不足 | 主规格 11 | analytics | rule version/evaluator | anomaly tests | IMPLEMENTED_AND_TESTED | CRITICAL 仅预留 |
 | AGENT-001 | 四 Agent、Orchestrator、统一 Schema | 主规格 12 | agents | task/run/schema/API | `test_optimization_workflow.py` | IMPLEMENTED_AND_TESTED | 四 Run 与非法 Schema 已验证 |
 | AGENT-002 | LLMProvider 与 MockLLMProvider | 主规格 12 | integrations.llm | Provider 端口/Mock/保留边界 | provider workflow test | IMPLEMENTED_AND_TESTED | 真实 Provider 仅预留且不可用 |
-| AGENT-003 | 最小授权输入与后端确定性校验 | 主规格 12 | agents/recommendations | ScopeSnapshot/Service | Profile/before/金额校验 | IMPLEMENTED_NOT_FULLY_VERIFIED | 主演示预算动作已测；全部动作分支安全矩阵未覆盖 |
-| REC-001 | 11 类 Recommendation 动作 | 主规格 13 | recommendations | model/revision/validator/API | Mock 预算动作测试 | IMPLEMENTED_NOT_FULLY_VERIFIED | 11 类已列入白名单；仅主演示动作端到端覆盖 |
+| AGENT-003 | 最小授权输入与后端确定性校验 | 主规格 12 | agents/recommendations | `AnalysisTask.scope_snapshot`/Service | Profile/before/金额和 11 类动作校验 | IMPLEMENTED_AND_TESTED | Agent schema 拒绝 + 11 类确定性 Service 测试 |
+| REC-001 | 11 类 Recommendation 动作 | 主规格 13 | recommendations | model/revision/validator/API | 11 类动作参数化 Service 测试 | IMPLEMENTED_AND_TESTED | 全 11 类 validator 覆盖；浏览器逐类演示另列 backlog |
 | ACTION-001 | Preview 不可变版本与漂移校验 | 主规格 13 | actions | version/hash/freeze/locks | 冻结更新拒绝测试 | IMPLEMENTED_AND_TESTED | beforeValue 在建议落库前校验 |
 | ACTION-002 | PERSONAL 自确认及 TEAM/COMPANY 职责分离 | 主规格 13 | actions | approval service | 两类审批测试 | IMPLEMENTED_AND_TESTED | COMPANY 与 TEAM 共用守卫 |
-| ACTION-003 | 只追加 ApprovalRecord 与退回新版本 | 主规格 13 | actions | approval/version models | 状态/重复审批测试 | IMPLEMENTED_NOT_FULLY_VERIFIED | 批准链路与幂等已测；退回 UI 未端到端覆盖 |
-| ACTION-004 | 人工执行清单、部分回填与证据 | 主规格 13 | actions | task/item/record API/UI | 回填幂等/E2E | IMPLEMENTED_NOT_FULLY_VERIFIED | 文本证据已实现；附件证据上传 UI 未实现 |
-| ACTION-005 | 效果评估基础任务与结果 | 主规格 13 | actions | EffectEvaluation/task | 模型随迁移验证 | IMPLEMENTED_NOT_FULLY_VERIFIED | 当前只建立 baseline |
-| KNOW-001 | 轻量只读知识中心 | 主规格 14 | knowledge | seed/API/UI | build/typecheck | IMPLEMENTED_NOT_FULLY_VERIFIED | M5 补页面状态测试 |
+| ACTION-003 | 只追加 ApprovalRecord 与退回新版本 | 主规格 13 | actions | append-only model + RETURNED version + UI | 冻结/退回/重提交/重复审批测试 | IMPLEMENTED_AND_TESTED | `test_returned_preview_creates_and_freezes_a_new_version`；基础 UI 已提供 |
+| ACTION-004 | 人工执行清单、部分回填与证据 | 主规格 13 | actions | task/item/record API + multipart FileStorage + UI | 证据适配、限制、路径、幂等、只追加测试 | IMPLEMENTED_AND_TESTED | `test_execution_evidence_effect_evaluation_and_records_are_append_only` |
+| ACTION-005 | 效果评估基础任务与结果 | 主规格 13 | actions | EffectEvaluation + Task → Service | 创建/重复调用幂等/Task 委托测试 | IMPLEMENTED_AND_TESTED | baseline 基础范围完成；完整归因明确列后续 backlog |
+| KNOW-001 | 轻量只读知识中心 | 主规格 14 | knowledge | seed/API/UI | API 认证/只返回 published + 前端 build | IMPLEMENTED_AND_TESTED | `test_knowledge_center_requires_authentication_and_returns_only_published_articles` |
 | UI-001 | 七个一级菜单与真实业务页面 | 主规格 15 | frontend | 权限菜单/业务页面/API | unit/Playwright E2E | IMPLEMENTED_AND_TESTED | Chrome 主链路已验证 |
 | UI-002 | loading/normal/empty/partial/failure/forbidden | 主规格 15 | frontend | 页面状态与统一错误 | unit/API 权限/E2E | IMPLEMENTED_NOT_FULLY_VERIFIED | 非法分支主要由后端测试覆盖 |
-| API-001 | 统一信封、camelCase、字符串 ID、Decimal+currency | 主规格 16 | core | Phase 1+各模块 | core/OpenAPI tests | IMPLEMENTED_NOT_FULLY_VERIFIED | 基础已验证，业务模型持续检查 |
+| API-001 | 统一信封、camelCase、字符串 ID、Decimal+currency | 主规格 16 | core | renderer/parser/serialization + OpenAPI | case conversion/identifier/analytics tests | IMPLEMENTED_AND_TESTED | `test_case_conversion.py`、`test_identifier_fields.py`、`test_analytics.py` |
 | AUDIT-001 | 关键业务 AuditLog 只追加和查询 | 主规格 17 | audit | model/service/API/UI | 实例/批量删除拒绝测试 | IMPLEMENTED_AND_TESTED | M5 扩大事件覆盖 |
 | PERF-001 | 队列隔离、超时、有限重试 | 主规格 18 | config/tasks | 四队列、软/硬超时、两次退避重试 | 配置/任务测试与 Docker Worker | IMPLEMENTED_AND_TESTED | 生产积压告警未接入 |
 | PERF-002 | 幂等、锁、唯一约束与防重复状态转换 | 主规格 18 | all services | Import/Analysis/Preview/Approval/Execution | 事务、重复审批/执行测试 | IMPLEMENTED_AND_TESTED | Preview 新增 tenant+key 唯一约束 |
 | PERF-003 | 分页、索引、Selector 与 N+1 防护 | 主规格 18 | API/selectors | 列表上限、scope 索引、select/prefetch | SQLite/MySQL/API/E2E | IMPLEMENTED_NOT_FULLY_VERIFIED | 未在正式数据规模采集 EXPLAIN/查询数基线 |
-| PERF-004 | 限流、背压、缓存隔离、可观测性 | 主规格 18 | core/config | requestId、结构化日志、队列隔离 | 健康/日志测试 | NOT_IMPLEMENTED | 最小 M6 未新增 API 限流、业务缓存或生产监控 |
+| PERF-004 | 限流、背压、缓存隔离、可观测性 | 主规格 18 | core/config/integrations | TenantUserRateThrottle、tenant_cache_key、队列隔离、MonitoringSink | 隔离/限流/结构化事件测试 | IMPLEMENTED_NOT_FULLY_VERIFIED | 框架边界已实现；多实例精度、生产 exporter/告警及背压容量未在生产等价环境验证 |
 | PERF-005 | 可重复压测脚本与计划 | 主规格 18 | tests/performance | `load_smoke.py` 与计划 | 10 RPS × 5 秒，50/50 成功 | IMPLEMENTED_NOT_FULLY_VERIFIED | 300 用户、200 RPS、10 分钟未执行 |
 | DEPLOY-001 | local/test/prod Compose 与健康检查 | 主规格 19 | infra | Phase 1/M6 | 三套静态校验；test 7 服务 healthy | IMPLEMENTED_AND_TESTED | local 8000 按要求未启动；test 8081 已验证 |
 | TEST-001 | 后端/前端/OpenAPI/Compose/E2E 验收 | 主规格 20 | tests | M0—M6 | SQLite/MySQL 82；前端 31；E2E 1 | IMPLEMENTED_AND_TESTED | 正式性能与真实样例另列未验证 |
@@ -64,3 +64,31 @@
 | RESERVED-005 | 跨 Marketplace/币种汇总 | 主规格 4、11 | analytics | 无 | 隔离测试 | RESERVED_BY_CONFIRMED_SCOPE | V1 禁止 |
 | RESERVED-006 | 真实 LLM Provider | 主规格 4、12 | integrations.llm | M4 接口 | contract tests | RESERVED_BY_CONFIRMED_SCOPE | 演示只用 Mock |
 | RESERVED-007 | 库存/采购/物流/财务 | 主规格 4、9 | 无 | 无 | 范围文档 | RESERVED_BY_CONFIRMED_SCOPE | 不属于 V1 |
+
+## Framework Baseline 复核记录
+
+唯一原 `NOT_IMPLEMENTED` 为 `PERF-004`。它属于 V1 框架范围，不能改成保留项；
+本次增加 `TenantUserRateThrottle`、Tenant/Profile cache key、Redis cache 配置、
+`MonitoringSink` 与自动测试，因此转为 `IMPLEMENTED_NOT_FULLY_VERIFIED`。生产
+多实例限流、监控 exporter/告警和容量背压仍需生产等价环境验证。
+
+原 13 项复核：
+
+| ID | 结果 | 证据/保留原因 |
+|---|---|---|
+| ADS-003 | 升级 AND_TESTED | 11 类动作参数化测试包含 Negative Keyword |
+| PROD-001 | 保留 NOT_FULLY | 迁移唯一约束存在；需真实 SKU/ASIN 样例验证 |
+| REPORT-007 | 保留 NOT_FULLY | 流式 gzip 与分块写入测试通过；5×100,000 行未执行 |
+| AGENT-003 | 升级 AND_TESTED | schema 拒绝、Profile/before/Decimal、11 类校验 |
+| REC-001 | 升级 AND_TESTED | 11 类 Service validator 全覆盖 |
+| ACTION-003 | 升级 AND_TESTED | RETURNED 新版本、冻结、重提交和只追加测试 |
+| ACTION-004 | 升级 AND_TESTED | multipart、FileStorage、证据路径和只追加测试 |
+| ACTION-005 | 升级 AND_TESTED | 基础评估创建、幂等和 Task → Service；完整归因另列 backlog |
+| KNOW-001 | 升级 AND_TESTED | 认证、published 过滤、前端 build |
+| UI-002 | 保留 NOT_FULLY | 核心 E2E 通过，但所有页面的全部失败分支未逐一浏览器验证 |
+| API-001 | 升级 AND_TESTED | envelope、case、字符串 ID、Decimal/currency 自动测试 |
+| PERF-003 | 保留 NOT_FULLY | 分页/索引/Selector 已实现；正式规模 EXPLAIN/查询数未采集 |
+| PERF-005 | 保留 NOT_FULLY | 脚本与 10 RPS 烟雾存在；正式容量场景未执行 |
+
+复现命令见 `docs/development/testing-a-change.md`；性能与真实样例命令/条件见
+`docs/testing/performance-test-plan.md` 和 `docs/requirements/framework-backlog.md`。

@@ -46,15 +46,17 @@ export async function recordExecution(input: {
   result: 'SUCCEEDED' | 'FAILED' | 'SKIPPED'
   actualValue?: Record<string, unknown>
   note: string
+  evidence?: File
 }): Promise<string> {
+  const form = new FormData()
+  form.append('result', input.result)
+  form.append('actualValue', JSON.stringify(input.actualValue ?? {}))
+  form.append('executedAt', new Date().toISOString())
+  form.append('note', input.note)
+  if (input.evidence) form.append('evidence', input.evidence)
   const response = await httpClient.post<ApiEnvelope<{ recordId: string }>>(
     `/api/v1/actions/execution-items/${input.itemId}/records`,
-    {
-      result: input.result,
-      actualValue: input.actualValue ?? {},
-      executedAt: new Date().toISOString(),
-      note: input.note,
-    },
+    form,
     { headers: { 'Idempotency-Key': crypto.randomUUID() } },
   )
   return response.data.data.recordId

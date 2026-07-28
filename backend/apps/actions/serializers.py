@@ -19,3 +19,4 @@ class ExecutionRecordSerializer(serializers.Serializer):
     actual_value = serializers.JSONField(required=False, default=dict)
     executed_at = serializers.DateTimeField()
     note = serializers.CharField(max_length=500, required=False, default="")
+    evidence = serializers.FileField(required=False, allow_empty_file=False, write_only=True)

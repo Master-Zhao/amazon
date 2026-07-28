@@ -8,7 +8,8 @@
 - 健康检查：`/health/live`、`/health/ready`
 - 仓库契约快照：`openapi/schema.yaml`
 
-Phase 1 的 `/api/v1/` 继续只返回平台版本和 `businessCapabilities: "not_implemented"`。Phase 2A 新增 `/api/v1/auth/*`，仅证明全局 User 身份，不返回 Tenant、角色、Store 或 Profile。
+`/api/v1/` 包含认证、四级上下文、权限、报表、广告、分析、Recommendation、
+Action、知识和审计接口。真实 Amazon/第三方/LLM 不在可调用路径中。
 
 ## 响应信封
 
@@ -27,6 +28,8 @@ HTTP 状态表达传输结果，`code` 表达稳定的应用结果。错误详�
 
 - Python、数据库和内部服务使用 `snake_case`。
 - JSON 请求字段通过公共 Parser 递归转为 `snake_case`。
+- multipart 请求通过 `CamelCaseMultiPartParser` 转换字段；历史报表上传 Serializer
+  直接声明 camelCase wire 字段并使用 DRF `MultiPartParser`。
 - JSON 响应通过公共 Renderer 递归转为 `camelCase`。
 - 转换覆盖嵌套对象、数组、元组、分页结构与错误结构；Serializer 不手工转换。
 
@@ -47,15 +50,21 @@ HTTP 状态表达传输结果，`code` 表达稳定的应用结果。错误详�
 - Decimal 序列化为十进制字符串。
 - `date` / `datetime` 使用 ISO 8601。
 - UUID 序列化为字符串。
-- 金额业务接口未来必须同时提供 currency，Phase 1 未定义金额接口。
+- 金额业务接口同时提供 Profile/Marketplace 的 currency，不跨币种直接汇总。
 
-`GET /api/v1/auth/me` 和登录响应把真实 `User.BigAutoField` 主键序列化为字符串。当前仍没有业务 ID API。
+`GET /api/v1/auth/me`、业务 UUID 和外部广告 ID 均输出字符串。
 
 ## 客户端
 
 前端统一通过 `shared/api/httpClient.ts` 调用。Access Token 由 Pinia 认证 Store 仅保存在内存，并以 `Authorization: Bearer <token>` 注入。Refresh Token 由浏览器作为 HttpOnly Cookie 管理，Vue 不读取其值。
 
-受保护请求收到 401 时，客户端最多刷新一次；并发 401 合并为同一个刷新请求。登录、刷新和退出接口不触发自动刷新，防止循环。刷新失败会清空认证内存态并跳转登录页。Tenant 请求头和选择器不属于 Phase 2A。
+受保护请求收到 401 时，客户端最多刷新一次；并发 401 合并为同一个刷新请求。
+登录、刷新和退出接口不触发自动刷新，防止循环。刷新失败会清空认证内存态并
+跳转登录页。当前 Tenant 通过 `X-Tenant-ID` 发送，Store/Marketplace/Profile
+通过路径或查询/请求字段传递；客户端上下文不能替代后端对象归属校验。
+
+集合分页与异步轮询见 `pagination-and-tasks.md`；认证细节见
+`authentication.md`。
 
 ## 认证接口与 Cookie
 

@@ -11,6 +11,9 @@ _SAFE_SUFFIX = re.compile(r"^\.[a-zA-Z0-9]{1,8}$")
 
 
 class LocalFileStorage:
+    timeout_seconds = 0
+    max_retries = 0
+
     def __init__(self, root: Path | None = None):
         self.root = Path(root or settings.MEDIA_ROOT).resolve()
 
@@ -29,13 +32,17 @@ class LocalFileStorage:
         target = self._path(namespace, Path(relative).name)
         digest = hashlib.sha256()
         size = 0
-        with target.open("wb") as handle:
-            for chunk in chunks:
-                if not chunk:
-                    continue
-                handle.write(chunk)
-                digest.update(chunk)
-                size += len(chunk)
+        try:
+            with target.open("wb") as handle:
+                for chunk in chunks:
+                    if not chunk:
+                        continue
+                    handle.write(chunk)
+                    digest.update(chunk)
+                    size += len(chunk)
+        except Exception:
+            target.unlink(missing_ok=True)
+            raise
         return StoredFile(relative, size, digest.hexdigest())
 
     def open_binary(self, path: str):
@@ -48,4 +55,3 @@ class LocalFileStorage:
         target = self._path(namespace, filename)
         target.write_bytes(content)
         return f"{namespace}/{filename}"
-

@@ -1,5 +1,7 @@
 from pathlib import Path
 from io import BytesIO
+import gzip
+import json
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -21,6 +23,7 @@ from integrations.advertising_data.sources import (
     FileUploadReportSource,
     ThirdPartyProviderReportSource,
 )
+from integrations.storage.local import LocalFileStorage
 
 FIXTURES = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "reports"
 
@@ -90,6 +93,12 @@ def test_campaign_upload_returns_202_and_imports_fixture(report_context):
     assert task.batch.succeeded_rows == 2
     assert Campaign.objects.filter(profile=profile).count() == 2
     assert isinstance(response.json()["data"]["taskId"], str)
+    with LocalFileStorage().open_binary(task.batch.normalized_rows_path) as handle:
+        normalized = [
+            json.loads(line)
+            for line in gzip.decompress(handle.read()).splitlines()
+        ]
+    assert len(normalized) == 2
 
 
 @pytest.mark.django_db(transaction=True)

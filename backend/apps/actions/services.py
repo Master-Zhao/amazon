@@ -1,7 +1,9 @@
 import hashlib
 import json
 import uuid
+from pathlib import Path
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
@@ -21,6 +23,7 @@ from apps.permissions.models import ProfileAccessLevel
 from apps.permissions.services import authorize
 from apps.recommendations.models import Recommendation
 from apps.tenants.models import MembershipRole, TenantType
+from integrations.storage.local import LocalFileStorage
 
 
 def _hash(items):
@@ -121,8 +124,9 @@ def submit_preview(*, request, preview_id):
         raise ValidationError("当前状态不可提交")
     if preview.status == PreviewStatus.PENDING_APPROVAL:
         return preview
-    if preview.status != PreviewStatus.DRAFT:
+    if preview.status not in {PreviewStatus.DRAFT, PreviewStatus.RETURNED}:
         raise ValidationError("当前状态不可提交")
+    before_status = preview.status
     version = preview.versions.get(version=preview.current_version)
     version.frozen_at = timezone.now()
     version.save(update_fields=["frozen_at"])
@@ -135,7 +139,7 @@ def submit_preview(*, request, preview_id):
         event="ACTION_PREVIEW_SUBMITTED",
         object_type="ActionPreview",
         object_id=preview.pk,
-        before={"status": PreviewStatus.DRAFT},
+        before={"status": before_status},
         after={"status": preview.status},
     )
     return preview
@@ -216,7 +220,15 @@ def decide_preview(*, request, preview_id, decision, comment, idempotency_key):
 
 @transaction.atomic
 def record_execution(
-    *, request, item_id, result, actual_value, executed_at, note, idempotency_key
+    *,
+    request,
+    item_id,
+    result,
+    actual_value,
+    executed_at,
+    note,
+    idempotency_key,
+    evidence_file=None,
 ):
     try:
         item = (
@@ -236,11 +248,28 @@ def record_execution(
     )
     if result not in {"SUCCEEDED", "FAILED", "SKIPPED"}:
         raise ValidationError("执行结果无效")
-    existing_record = ExecutionRecord.objects.filter(
-        item=item, idempotency_key=idempotency_key
-    ).first()
+    existing_record = ExecutionRecord.objects.filter(item=item).first()
     if existing_record is not None:
-        return existing_record
+        if existing_record.idempotency_key == idempotency_key:
+            return existing_record
+        raise ValidationError("执行项已有回填记录")
+    evidence_path = ""
+    if evidence_file is not None:
+        if evidence_file.size > settings.ACTION_EVIDENCE_MAX_BYTES:
+            raise ValidationError({"evidence": "执行证据文件超过大小限制"})
+        if Path(evidence_file.name).suffix.lower() not in {
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".pdf",
+            ".txt",
+        }:
+            raise ValidationError({"evidence": "仅支持 JPG、PNG、PDF 或 TXT"})
+        evidence_path = LocalFileStorage().save_stream(
+            namespace=f"execution-evidence/{preview.tenant_id}",
+            filename=evidence_file.name,
+            chunks=evidence_file.chunks(),
+        ).path
     record, created = ExecutionRecord.objects.get_or_create(
         item=item,
         idempotency_key=idempotency_key,
@@ -249,6 +278,7 @@ def record_execution(
             "actual_value": actual_value,
             "executed_at": executed_at,
             "note": note,
+            "evidence_path": evidence_path,
             "actor": request.user,
         },
     )
@@ -260,6 +290,13 @@ def record_execution(
             "COMPLETED" if all(value != "PENDING" for value in statuses) else "PARTIAL"
         )
         item.task.save(update_fields=["status"])
+        if item.task.status == "COMPLETED":
+            from apps.actions.tasks import evaluate_effects
+
+            execution_task_id = str(item.task_id)
+            transaction.on_commit(
+                lambda: evaluate_effects.delay(execution_task_id)
+            )
         append_audit(
             request=request,
             tenant=preview.tenant,
@@ -271,10 +308,27 @@ def record_execution(
     return record
 
 
-def evaluate_execution(execution_task):
-    return EffectEvaluation.objects.create(
+@transaction.atomic
+def evaluate_execution(execution_task_id):
+    try:
+        execution_task = (
+            ExecutionTask.objects.select_for_update()
+            .select_related("version")
+            .get(pk=execution_task_id)
+        )
+    except (ExecutionTask.DoesNotExist, ValueError) as exc:
+        raise NotFound("执行任务不存在") from exc
+    if execution_task.status != "COMPLETED":
+        raise ValidationError("执行任务尚未完成")
+    evaluation, _ = EffectEvaluation.objects.get_or_create(
         execution_task=execution_task,
-        status="BASELINE_READY",
-        baseline={"versionId": execution_task.version_id},
-        observed={},
+        defaults={
+            "status": "BASELINE_READY",
+            "baseline": {
+                "versionId": execution_task.version_id,
+                "completedItemCount": execution_task.items.count(),
+            },
+            "observed": {},
+        },
     )
+    return evaluation

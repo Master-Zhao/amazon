@@ -1,164 +1,140 @@
 # Amazon 广告智能优化系统 V1
 
-当前仓库已完成 M0—M6。稳定演示检查点为 `demo-milestone` 标签；最终收口补齐幂等保护、查询索引、MySQL 8.4 从零迁移、三套 Compose 校验、隔离 Docker 健康验证和交付文档。真实 LLM 与 Amazon Ads 写接口均未接入。
+本仓库是可继续开发的 V1 Framework Baseline。稳定演示检查点为
+`demo-milestone`；真实 Amazon Ads、第三方报表与真实 LLM 均未接入。
+唯一主规格是 `codex_master_goal_amazon_ads_v1.md`。
 
-唯一主规格是 [codex_master_goal_amazon_ads_v1.md](codex_master_goal_amazon_ads_v1.md)。长期规则见 [AGENTS.md](AGENTS.md)，阶段计划见 [PLANS.md](PLANS.md)。
+## 前置条件
 
-## 技术栈
+- Docker Desktop + Compose v2（全容器方式）
+- 或 Python 3.13、uv、Node.js 24、pnpm 11、MySQL 8.4、Redis 7（混合开发）
+- Windows 使用 PowerShell；Linux/macOS 将 `$env:NAME='value'` 改为
+  `export NAME=value`，将 `Remove-Item Env:NAME` 改为 `unset NAME`
 
-- 后端：Python 3.13、Django 5.2 LTS、DRF 3.16、Celery 5.6、Gunicorn。
-- 前端：Node.js 24、Vue 3、TypeScript、Vite 8、Pinia、Axios、pnpm。
-- 数据与部署：MySQL 8.4、Redis 7、Nginx、Docker Compose。
-- 契约：OpenAPI 3 + 自动生成 TypeScript 类型。
+复制 `.env.example` 为本机 `.env`，只在本机设置秘密。不要提交 `.env`。
 
-本机默认 `python` 可能是 3.12；不要降低项目版本。使用 uv 管理的 Python 3.13 或容器。
-
-## 快速启动
-
-以下命令已在 Phase 1 实际验证：
+## 从零全容器启动
 
 ```powershell
-# 1. 校验 Compose
 docker compose -f compose.local.yml config --quiet
-
-# 2. 启动依赖
 docker compose -f compose.local.yml up -d mysql redis
-
-# 3. 独立执行迁移
 docker compose -f compose.local.yml --profile tools run --rm migrate
 
-# 4. 创建本地演示账号（密码只从当前环境传入）
-$env:DEMO_USER_PASSWORD = Read-Host "输入仅用于本机的临时密码"
+$env:DEMO_USER_PASSWORD = Read-Host "输入本机演示密码"
 docker compose -f compose.local.yml run --rm -e DEMO_USER_PASSWORD backend python manage.py seed_demo_context --email demo@example.invalid
 Remove-Item Env:DEMO_USER_PASSWORD
 
-# 5. 启动应用
 docker compose -f compose.local.yml up -d backend celery-worker celery-beat frontend nginx
-
-# 6. 检查
 docker compose -f compose.local.yml ps
 curl.exe http://localhost:8080/health/live
 curl.exe http://localhost:8080/health/ready
-
-# 7. 验证真实 Celery 往返
 docker compose -f compose.local.yml exec backend python manage.py celery_smoke --timeout 30
 ```
 
-访问：
-
-- 首页：`http://localhost:8080/`
-- 登录：`http://localhost:8080/login`
-- 运行诊断：`http://localhost:8080/diagnostics/health`
-- OpenAPI：`http://localhost:8080/api/docs/`
-- Schema：`http://localhost:8080/api/schema/`
-
-停止但保留数据：
+浏览器入口为 `http://localhost:8080/`，OpenAPI UI 为
+`http://localhost:8080/api/docs/`。停止但保留数据：
 
 ```powershell
 docker compose -f compose.local.yml down
 ```
 
-不要在没有确认数据可丢弃时添加 `--volumes`。
+除非确认数据可丢弃，不要添加 `--volumes`。
 
-## 测试与构建
+## 前后端混合开发
 
-后端：
+先用 Compose 启动 MySQL/Redis，再在两个终端运行应用：
 
 ```powershell
+docker compose -f compose.local.yml up -d mysql redis
+$env:DJANGO_SETTINGS_MODULE='config.settings.local'
+$env:DB_HOST='127.0.0.1'
+$env:REDIS_URL='redis://127.0.0.1:6379/0'
+$env:CELERY_BROKER_URL='redis://127.0.0.1:6379/0'
+$env:CELERY_RESULT_BACKEND='redis://127.0.0.1:6379/1'
 uv sync --project backend --frozen
-uv run --project backend python backend/manage.py check
-uv run --project backend python backend/manage.py makemigrations --check --dry-run
-uv run --project backend pytest backend -q
+uv run --project backend python backend/manage.py migrate
+uv run --project backend python backend/manage.py runserver 127.0.0.1:8000
 ```
-
-MySQL 8.4 集成测试：
-
-```powershell
-docker compose -f compose.test.yml up -d mysql redis
-docker compose -f compose.test.yml run --build --rm backend pytest -q
-```
-
-前端：
 
 ```powershell
 pnpm --dir frontend install --frozen-lockfile
+$env:VITE_DEV_PROXY_TARGET='http://127.0.0.1:8000'
+pnpm --dir frontend dev
+```
+
+Worker 与 Beat 使用相同后端环境：
+
+```powershell
+uv run --project backend celery --workdir backend -A config worker --loglevel=INFO --queues=default,imports,analysis,maintenance
+uv run --project backend celery --workdir backend -A config beat --loglevel=INFO
+```
+
+## 数据、fixture 与演示
+
+`seed_demo_context` 可重复执行；密码必须从环境变量传入。脱敏/虚构报表在
+`tests/fixtures/reports/`，核心演示上传
+`tests/fixtures/reports/campaign-anomalous.csv`。完整页面顺序和预期结果见
+`docs/presentation/demo-script.md`。
+
+迁移规则：
+
+```powershell
+uv run --project backend python backend/manage.py makemigrations --check --dry-run
+uv run --project backend python backend/manage.py migrate
+```
+
+已共享迁移只能新增，不能改写。
+
+## 检查、测试和契约
+
+```powershell
+uv run --project backend python backend/manage.py check
+uv run --project backend pytest backend -q
+
+docker compose -f compose.test.yml up -d mysql redis
+docker compose -f compose.test.yml run --build --rm backend pytest -q
+
 pnpm --dir frontend lint
 pnpm --dir frontend typecheck
 pnpm --dir frontend test
 pnpm --dir frontend build
 pnpm --dir frontend test:e2e
-```
 
-契约：
-
-```powershell
 uv run --project backend python backend/manage.py spectacular --file openapi/schema.yaml --validate
 pnpm --dir frontend generate:api
+git diff --exit-code -- openapi/schema.yaml frontend/src/shared/api/generated/schema.d.ts
+
+docker compose -f compose.local.yml config --quiet
+docker compose -f compose.test.yml config --quiet
+docker compose --env-file .env.example -f compose.prod.yml config --quiet
 ```
 
-Phase 1 最终结果：后端 SQLite 25 tests passed；MySQL 8.4 25 tests passed；前端 5 files / 15 tests passed；lint、typecheck、production build、OpenAPI/生成类型差异和三个 Compose 静态校验通过。local 7 服务均 healthy（包含 Worker/Beat）；独立 prod Compose 已实测 Gunicorn、生产静态前端、Nginx 与 requestId，并在验收后停止。
+Playwright 使用隔离的 Django `18000` 与 Vite `15173`，优先使用本机 Chrome，
+不会占用未知的 `8000` 进程。
 
-Phase 2A 的最终命令、测试数量和运行验证见 [Phase 2A 报告](docs/phase-2a-report.md)。
+## 目录和开发入口
 
-Phase 2A 最终结果：后端 SQLite 51 passed、MySQL 8.4 从零迁移 51 passed；前端 8 files / 28 tests passed，lint、typecheck 和 production build 通过；HTTP 登录、me、刷新、退出和旧 Refresh 拒绝均通过。自动浏览器验收为 `NOT VERIFIED`，原因是 Codex 浏览器控制工具初始化和连接失败。
+- `backend/apps/`：领域模块；写入走 Service，复杂读取走 Selector
+- `backend/integrations/`：报表、存储、LLM、执行与监控 Adapter
+- `frontend/src/features/`：业务页面和 API 模块
+- `openapi/schema.yaml`：前后端契约快照
+- `tests/fixtures/reports/`：虚构报表
+- `docs/development/getting-started.md`：开发者入口
+- `docs/acceptance/framework-release-checklist.md`：发布检查结果
+- `docs/requirements/requirement-coverage-matrix.md`：逐项覆盖证据
 
-M6 最终结果：后端 SQLite 与隔离 MySQL 8.4 均为 82 passed；前端 9 files / 31 tests passed，lint、typecheck、production build 通过；OpenAPI/生成类型同步；Playwright 使用已安装 Chrome 在 Django 18000/Vite 15173 完整链路 1 passed；test Compose 7 服务全部 healthy，8081 的 live/ready/前端通过。只读 10 RPS × 5 秒烟雾 50/50 成功，不代表正式容量结论。
+根目录 `amazon-ads-operations-0.1.1` 是隔离目录，禁止读取、修改、扫描或复用。
 
-## API 基础
+## 常见问题
 
-统一响应：
+- Python 版本错误：必须通过 `uv run --project backend` 使用锁定的 3.13。
+- 端口占用：混合开发可更换应用端口；不要终止来源不明的进程。
+- Redis/MySQL readiness 失败：先检查 `docker compose ... ps` 和 `.env` 中主机名；
+  容器内使用 `mysql`/`redis`，宿主进程使用 `127.0.0.1`。
+- E2E 找不到浏览器：安装 Chrome Stable；`playwright.config.ts` 使用
+  `channel: 'chrome'`，不需要下载整套 Playwright 浏览器。
+- OpenAPI 类型有差异：先生成 schema，再运行 `pnpm --dir frontend generate:api`，
+  两个文件应同时提交。
 
-```json
-{
-  "code": "SUCCESS",
-  "message": "操作成功",
-  "data": {},
-  "requestId": "req_xxx"
-}
-```
-
-公共层统一处理 requestId、异常、递归 snake_case/camelCase 转换和 Decimal/日期/UUID 序列化。`/health/live` 只证明进程存活；`/health/ready` 检查 MySQL、Redis 和必需配置。
-
-认证接口为 `/api/v1/auth/login`、`/refresh`、`/logout` 和 `/me`。Access Token 只在响应体和前端内存中使用；Refresh Token 仅通过认证路径下的 HttpOnly Cookie 传输，不进入 JSON、Pinia、localStorage 或 sessionStorage。上下文接口位于 `/api/v1/context`，权限与角色接口位于 `/api/v1/permissions`；所有集合来自数据库授权，不使用假 Tenant 或硬编码广告结果。
-
-## 目录
-
-```text
-backend/                 Django、DRF、Celery、测试与首次 User 迁移
-frontend/                Vue 基础应用、诊断页、Axios/Pinia/Router
-infra/nginx/             local/prod 反向代理配置
-openapi/                 Schema 快照
-docs/architecture/       当前技术设计
-docs/api/                API 与错误码
-docs/deployment/         local/test/prod 运行手册
-docs/testing/            测试策略与验收清单
-```
-
-根目录 `amazon-ads-operations-0.1.1` 是隔离目录，不属于本项目代码基础，禁止读取、修改、扫描或复用。
-
-## 文档入口
-
-- [Phase 1 报告](docs/phase-1-report.md)
-- [Phase 2A 报告](docs/phase-2a-report.md)
-- [认证设计](docs/architecture/authentication-design.md)
-- [技术方案](docs/architecture/technical-solution.md)
-- [模块设计](docs/architecture/module-design.md)
-- [异步任务](docs/architecture/async-task-design.md)
-- [API 约定](docs/api/api-conventions.md)
-- [本地开发](docs/deployment/local-development.md)
-- [生产部署](docs/deployment/production-deployment.md)
-- [环境变量矩阵](docs/deployment/environment-variables.md)
-- [测试策略](docs/testing/test-strategy.md)
-- [验收清单](docs/testing/acceptance-checklist.md)
-- [最终验收报告](docs/testing/final-acceptance-report.md)
-- [性能测试计划](docs/testing/performance-test-plan.md)
-- [备份与恢复](docs/deployment/backup-and-restore.md)
-- [最终 V1 报告](docs/final-v1-report.md)
-- [决策日志](docs/15-decision-log.md)
-- [DEMO-MILESTONE 报告](docs/demo-milestone-report.md)
-- [技术讲解](docs/presentation/technical-presentation.md)
-- [演示脚本](docs/presentation/demo-script.md)
-
-## 当前边界
-
-项目发起人已授权并已完成 M0—M6，现停止扩展。真实 Amazon Ads API、第三方数据服务和真实 LLM 密钥均未接入；真实 Amazon 导出样例、正式 TLS、备份恢复演练和参考环境容量压测仍未完成，不声明 200 RPS、300 用户、延迟、容量或广告收益。
+更多故障处理见 `docs/deployment/troubleshooting.md`。生产 TLS、真实备份恢复、
+300 用户/200 RPS/10 分钟以及 5×100,000 行并发导入尚未在生产等价环境验证。

@@ -1,9 +1,11 @@
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from apps.core.pagination import page_spec, paginate_queryset
 from apps.core.responses import api_response
 from apps.reports.models import ImportTask
 from apps.reports.selectors import task_for_user
@@ -15,6 +17,7 @@ from apps.stores.models import AdvertisingProfile
 
 class ReportUploadView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser]
 
     @extend_schema(
         responses={200: OpenApiResponse(description="导入任务列表")},
@@ -37,13 +40,14 @@ class ReportUploadView(APIView):
             permission_code="reports.view",
             profile=profile,
         )
-        tasks = (
+        tasks_query = (
             ImportTask.objects.filter(
                 upload__tenant_id=tenant_id, upload__profile=profile
             )
             .select_related("upload", "batch")
-            .order_by("-created_at")[:100]
+            .order_by("-created_at")
         )
+        tasks, pagination = paginate_queryset(tasks_query, page_spec(request))
         return api_response(
             request,
             data={
@@ -61,7 +65,8 @@ class ReportUploadView(APIView):
                         and task.batch.failed_rows,
                     }
                     for task in tasks
-                ]
+                ],
+                "pagination": pagination,
             },
         )
 

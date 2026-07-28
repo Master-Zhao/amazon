@@ -28,3 +28,15 @@ MySQL 首次从零测试暴露旧 `SearchTerm` 复合自然键超过 InnoDB 键�
 测试过程中首次 Docker build 因 Docker Hub 匿名令牌请求 EOF 失败，单次重试成功。首次 MySQL 测试在迁移阶段失败；修复索引长度后又发现容器未挂载根目录 fixtures，增加 test Compose 只读 fixture 挂载后最终通过。以上失败均未隐去。
 
 验收结束后已执行 `docker compose -f compose.test.yml down`；未启动 local Compose，未占用或终止宿主 8000 的未知进程。
+
+## Framework Baseline 增量验收
+
+本次代码变更后的实际结果：Django check 0 issues；无迁移差异；受影响测试
+41 passed；后端全量 103 passed / 25 warnings；前端 lint/typecheck PASS，
+10 files / 33 tests PASS，production build PASS（保留 508.92 kB chunk 警告）；
+OpenAPI validate 与 TypeScript 生成 PASS；隔离 18000/15173 的 Chrome 核心 E2E
+1 passed；local/test/prod Compose 静态检查 3/3 PASS；`git diff --check` PASS。
+
+本次未改 Compose，故未重复完整镜像拉取和 7 服务运行验证；继续引用上表 M6
+真实 Docker/MySQL 证据。生产 TLS、监控 exporter、备份恢复、300 用户/
+200 RPS/10 分钟、5×100,000 行并发导入仍为 NOT VERIFIED。

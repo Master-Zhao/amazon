@@ -1,49 +1,35 @@
-# Phase 1 模块设计
+# V1 模块设计
 
-## 后端
+## 后端模块
 
-```text
-backend/
-  config/                  # URL、WSGI/ASGI、Celery、local/test/prod settings
-  api/v1/                  # 版本入口；当前仅平台元数据
-  apps/core/               # 跨模块技术能力
-  apps/accounts/           # 首次自定义 User
-  tests/                   # Phase 1 自动化测试
-```
+| 模块 | 职责 |
+|---|---|
+| `core` | envelope、异常、requestId、case conversion、分页、限流、缓存键、健康 |
+| `accounts` | 全局 User、JWT refresh 轮换和认证审计 |
+| `tenants/stores/permissions` | Membership、四级上下文、RBAC 与数据授权 |
+| `products/advertising` | 商品关系与 Sponsored Products 主数据 |
+| `reports` | 上传、任务、解析、批次、行错误与重处理 |
+| `analytics` | 三类事实、确定性指标、异常规则和 Selector |
+| `agents/recommendations` | Orchestrator、结构化 Agent、修订和动作验证 |
+| `actions` | Preview 版本、审批、人工执行证据和效果评估 |
+| `knowledge/audit` | 只读知识与只追加审计 |
 
-`core` 当前只承担公共技术职责：
+写调用固定为 View → Serializer → Service → ORM；复杂读由 Selector 承担；
+Task 只调用 Service；Agent 不得访问 ORM。权限统一入口是
+`apps.permissions.services.authorize`。
 
-- `middleware.py`：生成、校验、保存并返回 `X-Request-ID`。
-- `responses.py`：统一响应信封。
-- `exceptions.py` / `errors.py`：异常映射与稳定错误码。
-- `parsers.py` / `renderers.py` / `case_conversion.py`：请求 camelCase 转内部 snake_case，响应反向转换，递归处理对象、列表、元组和错误结构。
-- `serialization.py`：Decimal、日期时间、UUID 和 Django Promise 的安全 JSON 序列化。
-- `health.py` / `views.py`：liveness、readiness 和平台入口。
-- `tasks.py`：唯一无业务含义的 Celery smoke task。
-
-`accounts` 仅包含全局 `User(AbstractUser)`、Admin 注册和 `0001_initial`。不得在本模块提前实现 TenantMembership 或完整认证流程。
+`backend/integrations/` 隔离报表来源、文件存储、LLM、Amazon 执行和监控外部
+能力；当前启用 FileUpload、LocalFileStorage、MockLLM 与 ManualExecution，
+其余仅保留稳定接口。
 
 ## 前端
 
-```text
-frontend/src/
-  app/                     # 根组件、Router、应用初始化
-  shared/
-    api/                   # Axios、健康 API、OpenAPI 生成类型
-    layouts/               # 基础布局
-    stores/                # Phase 1 平台上下文扩展点
-    styles/                # 全局样式
-  features/
-    home/                  # 如实说明阶段边界的首页
-    diagnostics/           # live/ready 诊断页
-```
-
-Axios 客户端预留 Access Token、`X-Tenant-ID`、Refresh Token 和 requestId 扩展点，但默认值均为空，不伪造登录或 Tenant。401、403、超时和网络错误统一转为 `ApiClientError`。
+`frontend/src/app` 负责启动、Router 和菜单；`shared` 负责 Axios、生成类型、
+布局与上下文 Store；`features` 按认证、上下文、导入、广告、分析、优化、执行、
+知识和审计组织。调用方向为页面 → feature API → 统一 Axios → Django。
 
 ## 契约
 
-后端通过 `/api/schema/` 暴露契约，仓库快照位于 `openapi/schema.yaml`。前端执行 `pnpm --dir frontend generate:api` 生成 `src/shared/api/generated/schema.d.ts`。生成前后哈希已验证一致。
-
-## Phase 边界
-
-当前只有 `core` 和 `accounts` 两个 Django 应用，以及 `home`、`diagnostics` 两个前端 feature。其余目标目录必须在对应阶段随真实纵向链路按需创建。
+后端以 drf-spectacular 生成 `openapi/schema.yaml`，前端用 openapi-typescript
+生成 `frontend/src/shared/api/generated/schema.d.ts`。schema 与生成类型必须在
+同一变更中同步并通过差异检查。

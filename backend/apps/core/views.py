@@ -9,6 +9,7 @@ from apps.core.responses import api_response
 class LiveHealthView(APIView):
     authentication_classes: list[type] = []
     permission_classes: list[type] = []
+    throttle_classes: list[type] = []
 
     @extend_schema(
         summary="Liveness probe",
@@ -26,6 +27,7 @@ class LiveHealthView(APIView):
 class ReadyHealthView(APIView):
     authentication_classes: list[type] = []
     permission_classes: list[type] = []
+    throttle_classes: list[type] = []
 
     @extend_schema(
         summary="Readiness probe",

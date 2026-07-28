@@ -652,6 +652,8 @@ export interface components {
             executed_at: string;
             /** @default  */
             note: string;
+            /** Format: binary */
+            evidence?: string;
         };
         /**
          * @description * `VIEW` - VIEW
@@ -1597,8 +1599,6 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ReportUploadRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ReportUploadRequest"];
                 "multipart/form-data": components["schemas"]["ReportUploadRequest"];
             };
         };

@@ -1,4 +1,4 @@
-# Phase 1 异步任务设计
+# V1 异步任务设计
 
 ## 运行结构
 
@@ -11,7 +11,12 @@ Celery 与 Django 通过 `config/celery.py` 集成，Broker 为 Redis DB 0，短
 - `analysis`
 - `maintenance`
 
-Phase 1 只注册 `apps.core.tasks.smoke_task`，路由到 `default`。它仅返回 `status`、`request_id` 和 `task_id`，不写业务表，也不代表报表、分析或 AI 能力。
+当前任务包括 `apps.core.tasks.smoke_task`、报表导入、Mock 分析、异常重算和效果
+评估。业务 Task 均只把稳定 ID 传给 Service：`process_import_task` →
+`reports.services.process_task`，`run_analysis_task` →
+`agents.services.run_orchestrator`，`recalculate_anomalies` →
+`analytics.services.recalculate_profile_anomalies`，`evaluate_effects` →
+`actions.services.evaluate_execution`。
 
 ## 可靠性基线
 
@@ -34,6 +39,8 @@ docker compose -f compose.local.yml exec backend python manage.py celery_smoke -
 
 实际由 Django 管理命令发布任务，Redis Broker 传递，Worker 执行，Redis result backend 返回结果。最终收口验证 taskId 为 `6dd14fe1-8108-4383-b141-ee1817a68d21`，命令成功退出；`docker compose ps` 同时确认 Worker 与 Beat 均为 healthy。
 
-## 后续约束
+## 约束
 
-Phase 2—7 的异步入口仍必须是 `Celery Task → Service`。Task 不得直接修改核心状态；事务提交后再派发。Beat 当前没有业务周期任务，不能被解释为导入、分析或清理调度已完成。
+Task 不得直接访问 ORM 或修改核心状态；事务提交后再派发。正式状态保存在
+MySQL，Redis 结果不是唯一事实。幂等键、唯一约束和 Service 内行锁负责重复投递。
+Beat 运行健康不代表任何特定周期业务已经启用。

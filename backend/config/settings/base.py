@@ -104,6 +104,9 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_ROOT = BASE_DIR / "media"
 MEDIA_URL = "/media/"
 FILE_RETENTION_DAYS = env_positive_int("FILE_RETENTION_DAYS", 365)
+ACTION_EVIDENCE_MAX_BYTES = env_positive_int(
+    "ACTION_EVIDENCE_MAX_BYTES", 10 * 1024 * 1024
+)
 REPORT_FIELD_ALIASES = {
     "Campaign ID": "campaign_id",
     "Campaign Name": "campaign_name",
@@ -159,10 +162,18 @@ REST_FRAMEWORK = {
     "DEFAULT_PARSER_CLASSES": [
         "apps.core.parsers.CamelCaseJSONParser",
         "rest_framework.parsers.FormParser",
-        "rest_framework.parsers.MultiPartParser",
+        "apps.core.parsers.CamelCaseMultiPartParser",
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "apps.core.throttling.TenantUserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": env("API_ANON_RATE", "60/min"),
+        "tenant_user": env("API_TENANT_USER_RATE", "600/min"),
+    },
 }
 
 SIMPLE_JWT = {
@@ -191,6 +202,16 @@ SPECTACULAR_SETTINGS = {
 }
 
 REDIS_URL = env("REDIS_URL", "redis://127.0.0.1:6379/0")
+CACHE_URL = env("CACHE_URL", f"{REDIS_URL.rsplit('/', 1)[0]}/2")
+CACHE_KEY_PREFIX = env("CACHE_KEY_PREFIX", "amazon-ads-v1")
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": CACHE_URL,
+        "KEY_PREFIX": CACHE_KEY_PREFIX,
+        "TIMEOUT": env_int("CACHE_DEFAULT_TIMEOUT", 300),
+    }
+}
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", REDIS_URL)
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", "redis://127.0.0.1:6379/1")
 CELERY_TASK_DEFAULT_QUEUE = "default"

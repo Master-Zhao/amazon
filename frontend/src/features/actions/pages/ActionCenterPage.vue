@@ -13,6 +13,10 @@ const items = ref<ActionPreview[]>([])
 const loading = ref(false)
 const busyItem = ref<string | null>(null)
 const error = ref<string | null>(null)
+type EvidenceFile = NonNullable<
+  Parameters<typeof recordExecution>[0]['evidence']
+>
+const evidenceFiles = ref<Record<string, EvidenceFile | undefined>>({})
 
 async function load(): Promise<void> {
   if (!context.selectedProfileId) return
@@ -35,6 +39,7 @@ async function confirm(itemId: string, result: 'SUCCEEDED' | 'FAILED' | 'SKIPPED
       itemId,
       result,
       note: '人工在 Amazon 后台核对后回填',
+      evidence: evidenceFiles.value[itemId],
     })
     await load()
   } catch {
@@ -42,6 +47,13 @@ async function confirm(itemId: string, result: 'SUCCEEDED' | 'FAILED' | 'SKIPPED
   } finally {
     busyItem.value = null
   }
+}
+
+function selectEvidence(itemId: string, event: unknown): void {
+  const target = (
+    event as { target?: { files?: ArrayLike<EvidenceFile> | null } }
+  ).target
+  evidenceFiles.value[itemId] = target?.files?.[0]
 }
 
 onMounted(load)
@@ -85,6 +97,14 @@ watch(() => context.selectedProfileId, load)
             <code>{{ executionItem.action }}</code>
           </span>
           <div v-if="executionItem.status === 'PENDING'" class="button-row">
+            <label>
+              执行证据（可选）
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.pdf,.txt"
+                @change="selectEvidence(executionItem.id, $event)"
+              >
+            </label>
             <button :disabled="busyItem === executionItem.id" @click="confirm(executionItem.id, 'SUCCEEDED')">
               确认成功
             </button>

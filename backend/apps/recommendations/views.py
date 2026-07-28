@@ -3,6 +3,7 @@ from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from apps.core.pagination import page_spec, paginate_queryset
 from apps.core.responses import api_response
 from apps.permissions.services import authorize
 from apps.recommendations.models import Recommendation
@@ -33,9 +34,10 @@ class RecommendationListView(APIView):
             permission_code="recommendations.view",
             profile=profile,
         )
-        items = Recommendation.objects.filter(
+        items_query = Recommendation.objects.filter(
             tenant_id=tenant_id, profile=profile
-        ).order_by("-created_at")[:100]
+        ).order_by("-created_at")
+        items, pagination = paginate_queryset(items_query, page_spec(request))
         return api_response(
             request,
             data={
@@ -52,6 +54,7 @@ class RecommendationListView(APIView):
                         "risk_level": item.risk_level,
                     }
                     for item in items
-                ]
+                ],
+                "pagination": pagination,
             },
         )

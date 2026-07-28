@@ -7,6 +7,7 @@ import {
   fetchAnalysisTasks,
   fetchRecommendations,
   runAnalysis,
+  submitExistingPreview,
   type AnalysisTask,
   type AnalysisTaskSummary,
   type Recommendation,
@@ -95,6 +96,36 @@ async function approve(): Promise<void> {
     busy.value = false
   }
 }
+
+async function returnForRevision(): Promise<void> {
+  if (!preview.value) return
+  busy.value = true
+  error.value = null
+  try {
+    preview.value = await decidePreview(
+      preview.value.previewId,
+      'RETURNED',
+      '退回并创建下一版 Action Preview',
+    )
+  } catch {
+    error.value = '退回失败；请检查审批权限和当前状态。'
+  } finally {
+    busy.value = false
+  }
+}
+
+async function resubmit(): Promise<void> {
+  if (!preview.value) return
+  busy.value = true
+  error.value = null
+  try {
+    preview.value = await submitExistingPreview(preview.value.previewId)
+  } catch {
+    error.value = '退回版本重新提交失败。'
+  } finally {
+    busy.value = false
+  }
+}
 </script>
 
 <template>
@@ -133,6 +164,23 @@ async function approve(): Promise<void> {
           @click="approve"
         >
           审批通过
+        </button>
+        <button
+          v-if="preview.status === 'PENDING_APPROVAL'"
+          class="secondary-button"
+          type="button"
+          :disabled="busy"
+          @click="returnForRevision"
+        >
+          退回并创建新版本
+        </button>
+        <button
+          v-if="preview.status === 'RETURNED'"
+          type="button"
+          :disabled="busy"
+          @click="resubmit"
+        >
+          重新提交当前版本
         </button>
         <p v-if="preview.status === 'APPROVED'">
           已创建人工执行任务；系统不会调用真实 Amazon Ads API。

@@ -26,7 +26,9 @@ flowchart LR
 
 Store 与 Profile 均支持 User 直接授权和 Team 授权，二者取并集。Profile 等级顺序为 VIEW、OPERATE、APPROVE、EXECUTE、MANAGE，同一 Profile 取最高等级。Owner/Admin 对当前 Tenant 所有 Profile 为 MANAGE。V1 无显式 DENY。
 
-## 4. 缓存边界
+## 4. 缓存与限流边界
 
-M1 权限直接查询数据库，尚未启用权限缓存，避免提前引入失效复杂度。M6 若增加缓存，键必须包含 Tenant/User/Profile，设置短 TTL，并在角色、Team 或授权变化后失效。
-
+权限判定仍直接查询数据库，不缓存授权事实。通用缓存通过
+`apps.core.cache_keys.tenant_cache_key` 强制包含 Tenant namespace；API 限流通过
+`TenantUserRateThrottle` 使用 user + `X-Tenant-ID` 键。生产多实例限流精度、
+Redis 故障行为与监控告警仍需生产等价验证。

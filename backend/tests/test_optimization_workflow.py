@@ -1,8 +1,10 @@
 from datetime import date
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -10,23 +12,34 @@ from apps.actions.models import (
     ActionPreview,
     ActionPreviewVersion,
     ApprovalRecord,
+    EffectEvaluation,
     ExecutionItem,
+    ExecutionRecord,
     ExecutionTask,
     PreviewStatus,
 )
 from apps.actions.services import (
     create_preview,
     decide_preview,
+    evaluate_execution,
     record_execution,
     submit_preview,
 )
-from apps.advertising.models import Campaign, EntityState
+from apps.advertising.models import (
+    AdGroup,
+    Campaign,
+    EntityState,
+    Keyword,
+    MatchType,
+    ProductTarget,
+)
 from apps.agents.agent_definitions import DataAnalysisAgent
 from apps.agents.models import AgentRun, AgentTaskStatus
 from apps.agents.services import create_analysis
 from apps.analytics.models import CampaignDailyMetric
 from apps.audit.models import AuditLog
 from apps.recommendations.models import Recommendation
+from apps.recommendations.services import validate_recommendation
 from apps.reports.models import (
     ImportBatch,
     ImportStatus,
@@ -42,6 +55,7 @@ from apps.stores.models import (
 )
 from apps.tenants.models import MembershipRole, Tenant, TenantMembership, TenantType
 from integrations.llm.providers import ExternalLLMProviderBoundary
+from integrations.storage.base import StoredFile
 
 
 def request_for(user, request_id="req_workflow"):
@@ -274,6 +288,254 @@ def test_preview_submit_and_approval_retries_are_idempotent(workflow_context):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_returned_preview_creates_and_freezes_a_new_version(workflow_context):
+    owner, tenant, profile = workflow_context
+    analysis = create_analysis(
+        user=owner,
+        tenant_id=tenant.pk,
+        profile_id=profile.pk,
+        idempotency_key="analysis-return",
+    )
+    preview = create_preview(
+        request=request_for(owner),
+        tenant_id=tenant.pk,
+        profile_id=profile.pk,
+        recommendation_ids=[Recommendation.objects.get(analysis_task=analysis).pk],
+    )
+    submit_preview(request=request_for(owner), preview_id=preview.pk)
+
+    returned = decide_preview(
+        request=request_for(owner),
+        preview_id=preview.pk,
+        decision=PreviewStatus.RETURNED,
+        comment="revise",
+        idempotency_key="return-1",
+    )
+    versions = list(returned.versions.order_by("version"))
+
+    assert returned.status == PreviewStatus.RETURNED
+    assert returned.current_version == 2
+    assert versions[0].frozen_at is not None
+    assert versions[1].frozen_at is None
+    resubmitted = submit_preview(request=request_for(owner), preview_id=preview.pk)
+    versions[1].refresh_from_db()
+    assert resubmitted.status == PreviewStatus.PENDING_APPROVAL
+    assert versions[1].frozen_at is not None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_execution_evidence_effect_evaluation_and_records_are_append_only(
+    workflow_context,
+):
+    owner, tenant, profile = workflow_context
+    analysis = create_analysis(
+        user=owner,
+        tenant_id=tenant.pk,
+        profile_id=profile.pk,
+        idempotency_key="analysis-evidence",
+    )
+    preview = create_preview(
+        request=request_for(owner),
+        tenant_id=tenant.pk,
+        profile_id=profile.pk,
+        recommendation_ids=[Recommendation.objects.get(analysis_task=analysis).pk],
+    )
+    submit_preview(request=request_for(owner), preview_id=preview.pk)
+    approved = decide_preview(
+        request=request_for(owner),
+        preview_id=preview.pk,
+        decision=PreviewStatus.APPROVED,
+        comment="approved",
+        idempotency_key="approve-evidence",
+    )
+    item = ExecutionItem.objects.get(task=approved.execution_task)
+    evidence = SimpleUploadedFile("proof.txt", b"manual execution evidence")
+    with patch(
+        "apps.actions.services.LocalFileStorage.save_stream",
+        return_value=StoredFile(
+            "execution-evidence/proof.txt",
+            len(b"manual execution evidence"),
+            "a" * 64,
+        ),
+    ) as save_stream:
+        record = record_execution(
+            request=request_for(owner),
+            item_id=item.pk,
+            result="SUCCEEDED",
+            actual_value={"budget": "55.00"},
+            executed_at=timezone.now(),
+            note="with evidence",
+            idempotency_key="execute-evidence",
+            evidence_file=evidence,
+        )
+    assert record.evidence_path == "execution-evidence/proof.txt"
+    save_stream.assert_called_once()
+    with pytest.raises(Exception) as duplicate_error:
+        record_execution(
+            request=request_for(owner),
+            item_id=item.pk,
+            result="SUCCEEDED",
+            actual_value={"budget": "56.00"},
+            executed_at=timezone.now(),
+            note="different retry key",
+            idempotency_key="execute-evidence-second-key",
+        )
+    assert getattr(duplicate_error.value, "status_code", None) == 400
+
+    evaluation = EffectEvaluation.objects.get(execution_task=approved.execution_task)
+    repeated = evaluate_execution(approved.execution_task.pk)
+    assert repeated.pk == evaluation.pk
+    assert evaluation.status == "BASELINE_READY"
+    assert evaluation.baseline["completedItemCount"] == 1
+
+    record.note = "mutated"
+    with pytest.raises(RuntimeError):
+        record.save()
+    with pytest.raises(RuntimeError):
+        ExecutionRecord.objects.filter(pk=record.pk).update(note="mutated")
+    approval = ApprovalRecord.objects.get(preview=preview)
+    approval.comment = "mutated"
+    with pytest.raises(RuntimeError):
+        approval.save()
+    with pytest.raises(RuntimeError):
+        ApprovalRecord.objects.filter(pk=approval.pk).delete()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "action_type",
+    [
+        "UPDATE_CAMPAIGN_BUDGET",
+        "ENABLE_CAMPAIGN",
+        "PAUSE_CAMPAIGN",
+        "UPDATE_KEYWORD_BID",
+        "ENABLE_KEYWORD",
+        "PAUSE_KEYWORD",
+        "UPDATE_TARGET_BID",
+        "ENABLE_TARGET",
+        "PAUSE_TARGET",
+        "ADD_KEYWORD",
+        "ADD_NEGATIVE_KEYWORD",
+    ],
+)
+def test_all_eleven_action_types_have_deterministic_validation(
+    workflow_context, action_type
+):
+    _, _, profile = workflow_context
+    campaign = Campaign.objects.get(profile=profile)
+    ad_group = AdGroup.objects.create(
+        campaign=campaign,
+        external_ad_group_id="GROUP-1",
+        name="Group",
+        state=EntityState.ENABLED,
+    )
+    keyword = Keyword.objects.create(
+        ad_group=ad_group,
+        external_keyword_id="KEYWORD-1",
+        text="shoe",
+        match_type=MatchType.EXACT,
+        state=EntityState.ENABLED,
+        bid="1.00",
+    )
+    target = ProductTarget.objects.create(
+        ad_group=ad_group,
+        external_target_id="TARGET-1",
+        expression="asin=EXAMPLE",
+        state=EntityState.ENABLED,
+        bid="2.00",
+    )
+    item = {
+        "actionType": action_type,
+        "objectType": "CAMPAIGN",
+        "objectId": str(campaign.pk),
+        "beforeValue": {},
+        "afterValue": {},
+        "reason": "deterministic test",
+        "evidence": [],
+        "riskLevel": "LOW",
+    }
+    if action_type == "UPDATE_CAMPAIGN_BUDGET":
+        item["beforeValue"] = {"budget": "50.00"}
+        item["afterValue"] = {"budget": "55.00"}
+    elif action_type in {"ENABLE_CAMPAIGN", "PAUSE_CAMPAIGN"}:
+        target_state = (
+            EntityState.ENABLED
+            if action_type == "ENABLE_CAMPAIGN"
+            else EntityState.PAUSED
+        )
+        campaign.state = (
+            EntityState.PAUSED
+            if target_state == EntityState.ENABLED
+            else EntityState.ENABLED
+        )
+        campaign.save(update_fields=["state"])
+        item["beforeValue"] = {"state": campaign.state}
+        item["afterValue"] = {"state": target_state}
+    elif action_type in {
+        "UPDATE_KEYWORD_BID",
+        "ENABLE_KEYWORD",
+        "PAUSE_KEYWORD",
+    }:
+        item["objectType"] = "KEYWORD"
+        item["objectId"] = str(keyword.pk)
+        if action_type == "UPDATE_KEYWORD_BID":
+            item["beforeValue"] = {"bid": "1.00"}
+            item["afterValue"] = {"bid": "1.20"}
+        else:
+            target_state = (
+                EntityState.ENABLED
+                if action_type == "ENABLE_KEYWORD"
+                else EntityState.PAUSED
+            )
+            keyword.state = (
+                EntityState.PAUSED
+                if target_state == EntityState.ENABLED
+                else EntityState.ENABLED
+            )
+            keyword.save(update_fields=["state"])
+            item["beforeValue"] = {"state": keyword.state}
+            item["afterValue"] = {"state": target_state}
+    elif "TARGET" in action_type:
+        item["objectType"] = "PRODUCT_TARGET"
+        item["objectId"] = str(target.pk)
+        if action_type == "UPDATE_TARGET_BID":
+            item["beforeValue"] = {"bid": "2.00"}
+            item["afterValue"] = {"bid": "2.20"}
+        else:
+            target_state = (
+                EntityState.ENABLED
+                if action_type == "ENABLE_TARGET"
+                else EntityState.PAUSED
+            )
+            target.state = (
+                EntityState.PAUSED
+                if target_state == EntityState.ENABLED
+                else EntityState.ENABLED
+            )
+            target.save(update_fields=["state"])
+            item["beforeValue"] = {"state": target.state}
+            item["afterValue"] = {"state": target_state}
+    elif action_type == "ADD_KEYWORD":
+        item["objectType"] = "AD_GROUP"
+        item["objectId"] = str(ad_group.pk)
+        item["afterValue"] = {
+            "text": "new keyword",
+            "matchType": MatchType.PHRASE,
+            "bid": "1.50",
+        }
+    else:
+        item["afterValue"] = {
+            "text": "irrelevant",
+            "matchType": MatchType.EXACT,
+        }
+
+    assert validate_recommendation(
+        task=SimpleNamespace(profile=profile),
+        item=item,
+    ) == item
+
+
+@pytest.mark.django_db(transaction=True)
 def test_team_submitter_cannot_approve_self(workflow_context):
     owner, tenant, profile = workflow_context
     tenant.tenant_type = TenantType.TEAM
@@ -325,6 +587,7 @@ def test_json_api_contract_runs_analysis_approval_execution_and_audit(workflow_c
         f"/api/v1/recommendations/?profileId={profile.pk}", **tenant_headers
     )
     recommendation_id = recommendations.json()["data"]["items"][0]["id"]
+    assert recommendations.json()["data"]["pagination"]["total"] == 1
     assert task.json()["data"]["status"] == "SUCCEEDED"
 
     created = client.post(

@@ -34,6 +34,17 @@ python tests/performance/load_smoke.py --base-url http://localhost:8081 --path /
 python tests/performance/load_smoke.py --base-url http://localhost:8081 --path /api/v1/audit/ --duration 60 --rps 20 --access-token $env:LOAD_ACCESS_TOKEN --tenant-id $env:LOAD_TENANT_ID
 ```
 
+正式只读目标的可复现命令（只能在批准的生产等价隔离环境执行）：
+
+```powershell
+python tests/performance/load_smoke.py --base-url https://test.example.invalid --path /api/v1/audit/ --duration 600 --rps 200 --workers 300 --access-token $env:LOAD_ACCESS_TOKEN --tenant-id $env:LOAD_TENANT_ID
+```
+
+该脚本的 `workers` 是线程上限，不等于 300 个独立浏览器会话；300 用户会话分布需由后续
+负载工具实现并安全注入虚构账号。5×100,000 行文件必须由批准的脱敏/虚构数据
+生成器提供，生成器、文件哈希和并发提交命令纳入同次测试记录，不能重复小 fixture
+冒充大文件。
+
 ## 采集与停止条件
 
 记录提交、时间、环境、命令、原始 JSON、容器资源、MySQL 慢查询/锁等待、Celery 队列长度和错误日志。出现跨租户数据、重复不可变记录、状态回退、秘密泄露、持续 5xx 或资源失控时立即停止。不得通过放宽认证、权限、审批或隔离规则获得更高数字。

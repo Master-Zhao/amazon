@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from apps.agents.models import AnalysisTask
 from apps.agents.serializers import AnalysisCreateSerializer
 from apps.agents.services import create_analysis
+from apps.core.pagination import page_spec, paginate_queryset
 from apps.core.responses import api_response
 from apps.permissions.services import authorize
 from apps.stores.models import AdvertisingProfile
@@ -37,9 +38,10 @@ class AnalysisCreateView(APIView):
             permission_code="analytics.view",
             profile=profile,
         )
-        tasks = AnalysisTask.objects.filter(
+        tasks_query = AnalysisTask.objects.filter(
             tenant_id=tenant_id, profile=profile
-        ).order_by("-created_at")[:100]
+        ).order_by("-created_at")
+        tasks, pagination = paginate_queryset(tasks_query, page_spec(request))
         return api_response(
             request,
             data={
@@ -52,7 +54,8 @@ class AnalysisCreateView(APIView):
                         "completed_at": task.completed_at,
                     }
                     for task in tasks
-                ]
+                ],
+                "pagination": pagination,
             },
         )
 

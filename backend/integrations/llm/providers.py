@@ -1,13 +1,32 @@
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Protocol
 
 
+class LLMProviderError(RuntimeError):
+    retryable = False
+
+
+class LLMProviderUnavailable(LLMProviderError):
+    pass
+
+
+class LLMProviderTimeout(LLMProviderError):
+    retryable = True
+
+
 class LLMProvider(Protocol):
+    timeout_seconds: int
+    max_retries: int
+
     def generate(self, *, agent_code: str, payload: dict) -> dict: ...
 
 
 @dataclass(slots=True)
 class MockLLMProvider:
+    timeout_seconds = 1
+    max_retries = 0
+
     def generate(self, *, agent_code: str, payload: dict) -> dict:
         run_id = payload["runId"]
         recommendation = []
@@ -16,7 +35,9 @@ class MockLLMProvider:
             campaign = campaigns[0]
             budget = campaign.get("budgetSnapshot")
             next_budget = (
-                str(round(float(budget) * 1.1, 2)) if budget is not None else None
+                str((Decimal(str(budget)) * Decimal("1.10")).quantize(Decimal("0.01")))
+                if budget is not None
+                else None
             )
             recommendation = [
                 {
@@ -43,5 +64,17 @@ class MockLLMProvider:
         }
 
 
-class ExternalLLMProviderBoundary:
+class ExternalLLMProvider:
     capability = {"available": False, "mode": "reserved", "code": "EXTERNAL_LLM"}
+    timeout_seconds = 30
+    max_retries = 2
+
+    def generate(self, *, agent_code: str, payload: dict) -> dict:
+        raise LLMProviderUnavailable(
+            "Real LLM provider is reserved and cannot be configured in V1"
+        )
+
+
+# Backward-compatible capability name used by existing tests and documentation.
+ExternalLLMProviderBoundary = ExternalLLMProvider
+RealLLMProvider = ExternalLLMProvider

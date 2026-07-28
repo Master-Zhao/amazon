@@ -56,3 +56,9 @@ Phase 2A 汇总：`PASS 14 / FAIL 0 / NOT VERIFIED 1`。浏览器未验证不否
 ## V1 M6 最终验收
 
 最终证据见 [V1 最终验收报告](final-acceptance-report.md)。结果为：SQLite/MySQL 8.4 后端各 82 passed，前端 31 tests，Chrome E2E 1 passed，三套 Compose 静态检查通过，隔离 test Compose 7 服务 healthy，live/ready/前端通过。正式容量压测、备份恢复演练和真实 Amazon 三报表样例保持 `NOT VERIFIED` / `BLOCKED_BY_REAL_SAMPLE`，没有转写为 PASS。
+
+## Framework Baseline RC 验收
+
+发布项见 `docs/acceptance/framework-release-checklist.md`。增量结果为后端
+103 passed、前端 33 tests、核心 E2E 1 passed、OpenAPI/类型生成和三套 Compose
+静态检查通过；真实样例与生产等价验证保持显式未完成。

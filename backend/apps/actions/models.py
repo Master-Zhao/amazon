@@ -17,6 +17,29 @@ class PreviewStatus(models.TextChoices):
     WITHDRAWN = "WITHDRAWN", "Withdrawn"
 
 
+class AppendOnlyQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise RuntimeError("Append-only records cannot be updated")
+
+    def delete(self):
+        raise RuntimeError("Append-only records cannot be deleted")
+
+
+class AppendOnlyRecord(models.Model):
+    objects = AppendOnlyQuerySet.as_manager()
+
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise RuntimeError("Append-only records cannot be updated")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise RuntimeError("Append-only records cannot be deleted")
+
+
 class ActionPreview(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT)
@@ -72,7 +95,7 @@ class ActionPreviewVersion(models.Model):
         return super().save(*args, **kwargs)
 
 
-class ApprovalRecord(models.Model):
+class ApprovalRecord(AppendOnlyRecord):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     preview = models.ForeignKey(
         ActionPreview, on_delete=models.PROTECT, related_name="approvals"
@@ -123,7 +146,7 @@ class ExecutionItem(models.Model):
         ]
 
 
-class ExecutionRecord(models.Model):
+class ExecutionRecord(AppendOnlyRecord):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     item = models.ForeignKey(
         ExecutionItem, on_delete=models.PROTECT, related_name="records"

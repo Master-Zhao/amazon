@@ -217,9 +217,11 @@ def process_task(task_id):
         task.started_at = timezone.now()
         task.save(update_fields=["status", "started_at"])
         batch = ImportBatch.objects.create(task=task, status=ImportStatus.RUNNING)
-    normalized = []
     total = succeeded = failed = 0
-    try:
+    normalized_path = ""
+
+    def normalized_chunks():
+        nonlocal total, succeeded, failed
         for row_number, row in iter_rows(task.upload.storage_path):
             total += 1
             try:
@@ -236,13 +238,12 @@ def process_task(task_id):
                         row=row,
                         normalized_object=normalized_object,
                     )
-                    normalized.append(
-                        {
-                            "objectId": str(normalized_object.pk),
-                            "objectType": normalized_object.__class__.__name__,
-                        }
-                    )
+                    normalized = {
+                        "objectId": str(normalized_object.pk),
+                        "objectType": normalized_object.__class__.__name__,
+                    }
                 succeeded += 1
+                yield gzip.compress(json.dumps(normalized).encode("utf-8") + b"\n")
             except (ValueError, IntegrityError) as exc:
                 failed += 1
                 detail = str(exc).split(":", 1)
@@ -254,6 +255,14 @@ def process_task(task_id):
                     message=str(exc)[:500],
                     raw_excerpt={key: str(value)[:100] for key, value in row.items()},
                 )
+
+    try:
+        stored = LocalFileStorage().save_stream(
+            namespace="normalized",
+            filename=f"{batch.pk}.jsonl.gz",
+            chunks=normalized_chunks(),
+        )
+        normalized_path = stored.path
     except ReportFileError as exc:
         task.status = ImportStatus.FAILED
         task.error_code = str(exc)
@@ -265,14 +274,6 @@ def process_task(task_id):
             task.status = ImportStatus.PARTIAL_SUCCEEDED
         else:
             task.status = ImportStatus.SUCCEEDED
-    payload = gzip.compress(
-        b"\n".join(json.dumps(item).encode("utf-8") for item in normalized)
-    )
-    normalized_path = LocalFileStorage().write_bytes(
-        namespace="normalized",
-        filename=f"{batch.pk}.jsonl.gz",
-        content=payload,
-    )
     now = timezone.now()
     with transaction.atomic():
         batch = ImportBatch.objects.select_for_update().get(pk=batch.pk)
