@@ -1,0 +1,16 @@
+# Amazon 广告智能优化系统 V1 · 一页摘要
+
+**目标**：把三类 Amazon Ads 手工导出报表变成可解释、可审批、可人工执行和可审计的优化闭环。
+
+**已实现**：JWT 双 Token；Tenant/Store/Marketplace/Profile 与 RBAC；Campaign/Targeting/Search Term CSV/XLSX 导入；三类日事实；CTR/CPC/CVR/ACOS/ROAS；目标 ACOS 与 HIGH_ACOS 异常；四 Mock Agent；Recommendation；不可变 Action Preview；PERSONAL/TEAM 审批规则；人工执行回填；知识库；AuditLog；七个真实前端菜单。
+
+**架构**：Vue 3 + TypeScript + Vite，Django 5.2 + DRF，Celery，MySQL 8.4，Redis 7，Nginx，Docker Compose。模块化单体；View → Serializer → Service → ORM，复杂读走 Selector。
+
+**安全**：Access Token 仅内存，Refresh 仅 HttpOnly Cookie；每次业务请求重新校验 Membership、功能权限、Store/Profile 和对象归属；LLM 不裁决指标、金额、权限和状态；不保存隐藏思维过程。
+
+**演示证据**：Chrome E2E 已实际通过会话恢复、四级上下文、高 ACOS Campaign 导入、Dashboard 异常、四 Agent 建议、Preview、审批、人工回填、审计和退出。后端 81 项、前端 31 项通过。
+
+**明确边界**：不调用 Amazon Ads 写 API；不接真实 LLM/第三方来源；不跨币种汇总；不做多级审批、微服务、复杂 RAG、库存或财务。
+
+**未充分验证**：真实 Amazon 导出样例；参考 8C16G 环境性能；当前机器最终 Docker 运行态将在 M6 如实复验。
+

@@ -28,9 +28,8 @@ docker compose -f compose.local.yml up -d mysql redis
 docker compose -f compose.local.yml --profile tools run --rm migrate
 
 # 4. 创建本地演示账号（密码只从当前环境传入）
-$env:DEMO_USER_PASSWORD="仅用于本机的临时密码"
-docker compose -f compose.local.yml run --rm backend python manage.py seed_demo_user
-docker compose -f compose.local.yml run --rm backend python manage.py seed_demo_context
+$env:DEMO_USER_PASSWORD = Read-Host "输入仅用于本机的临时密码"
+docker compose -f compose.local.yml run --rm -e DEMO_USER_PASSWORD backend python manage.py seed_demo_context --email demo@example.invalid
 Remove-Item Env:DEMO_USER_PASSWORD
 
 # 5. 启动应用
@@ -150,6 +149,9 @@ docs/testing/            测试策略与验收清单
 - [测试策略](docs/testing/test-strategy.md)
 - [验收清单](docs/testing/acceptance-checklist.md)
 - [决策日志](docs/15-decision-log.md)
+- [DEMO-MILESTONE 报告](docs/demo-milestone-report.md)
+- [技术讲解](docs/presentation/technical-presentation.md)
+- [演示脚本](docs/presentation/demo-script.md)
 
 ## 当前边界
 

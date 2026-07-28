@@ -10,7 +10,7 @@
 | AUTH-004 | Refresh 轮换、吊销与重放拒绝 | 主规格 6 | accounts | `sys_refresh_token`、refresh/logout | 轮换/撤销/并发事务测试 | IMPLEMENTED_AND_TESTED | MySQL 证据来自 Phase 2A |
 | AUTH-005 | `/auth/me` 与用户禁用 | 主规格 6 | accounts | `/auth/me` | disabled/expired/forged tests | IMPLEMENTED_AND_TESTED | Token 只证明账号身份 |
 | AUTH-006 | 登录成功/失败只追加审计且不泄露凭据 | 主规格 6、17 | accounts | `audit_auth_event` | 审计与日志测试 | IMPLEMENTED_AND_TESTED | 完整业务 AuditLog 在 M4 |
-| AUTH-007 | 页面刷新恢复与并发 401 单次刷新 | 主规格 6 | frontend auth | auth store、Axios interceptor | store/http client tests | IMPLEMENTED_AND_TESTED | 浏览器 E2E 在 M5 |
+| AUTH-007 | 页面刷新恢复与并发 401 单次刷新 | 主规格 6 | frontend auth | auth store、Axios interceptor | unit/Chrome E2E | IMPLEMENTED_AND_TESTED | reload 实际触发 refresh/me |
 | ORG-001 | User 多 Tenant 与 Tenant 类型 | 主规格 7 | tenants | models/migration/context API | `test_tenant_permissions.py`、data-model | IMPLEMENTED_AND_TESTED | 多 Tenant/类型测试 |
 | ORG-002 | TenantMembership、可选 Team、TeamMember | 主规格 7 | tenants | models/services、0001 | personal/team tests | IMPLEMENTED_AND_TESTED | PERSONAL 无虚拟 Team |
 | STORE-001 | Tenant→Store→StoreMarketplace→Marketplace→Profile | 主规格 7 | stores | models/0001/context API | context tests、data-model | IMPLEMENTED_AND_TESTED | D-101 已确认；真实账号未验证 |
@@ -56,7 +56,7 @@
 | PERF-005 | 可重复 Locust 压测 | 主规格 18 | tests/performance | M6 | 实测报告 | NOT_IMPLEMENTED | 不虚构 200 RPS 目标 |
 | DEPLOY-001 | local/test/prod Compose 与健康检查 | 主规格 19 | infra | Phase 1/M6 | Compose evidence | IMPLEMENTED_NOT_FULLY_VERIFIED | M6 最终从零复验 |
 | TEST-001 | 后端/前端/OpenAPI/Compose/E2E 验收 | 主规格 20 | tests | M0—M6 | 各报告/Playwright | IMPLEMENTED_NOT_FULLY_VERIFIED | E2E 已通过；M6 收口 Docker/性能 |
-| DOC-001 | 架构/API/部署/测试/演示文档 | 主规格 21 | docs | M0—M6 | 文档清单 | IMPLEMENTED_NOT_FULLY_VERIFIED | M6 最终收口 |
+| DOC-001 | 架构/API/部署/测试/演示文档 | 主规格 21 | docs | M0—M6 | 文档清单/演示脚本 | IMPLEMENTED_NOT_FULLY_VERIFIED | 演示文档已完成；M6 部署/性能收口 |
 | RESERVED-001 | 第三方报表来源 Adapter | 主规格 4、10 | integrations | M2 | contract tests | RESERVED_BY_CONFIRMED_SCOPE | 不真实接入 |
 | RESERVED-002 | Amazon Ads API 报表来源 Adapter | 主规格 4、10 | integrations | M2 | contract tests | RESERVED_BY_CONFIRMED_SCOPE | 不真实调用 |
 | RESERVED-003 | Sponsored Brands/Display 扩展边界 | 主规格 4、9 | advertising | M2 | enum tests | RESERVED_BY_CONFIRMED_SCOPE | 不完整实现 |
