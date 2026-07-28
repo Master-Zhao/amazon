@@ -16,6 +16,9 @@ import ReportCenterPage from '@/features/reports/pages/ReportCenterPage.vue'
 import DashboardPage from '@/features/dashboard/pages/DashboardPage.vue'
 import TargetingAnalyticsPage from '@/features/targeting/pages/TargetingAnalyticsPage.vue'
 import SearchTermAnalyticsPage from '@/features/search-terms/pages/SearchTermAnalyticsPage.vue'
+import OptimizationWorkflowPage from '@/features/optimization/pages/OptimizationWorkflowPage.vue'
+import KnowledgePage from '@/features/knowledge/pages/KnowledgePage.vue'
+import AuditLogPage from '@/features/audit/pages/AuditLogPage.vue'
 
 export const routes: RouteRecordRaw[] = [
   {
@@ -53,6 +56,24 @@ export const routes: RouteRecordRaw[] = [
     name: 'reports',
     component: ReportCenterPage,
     meta: { title: '数据中心', requiresAuth: true },
+  },
+  {
+    path: '/optimization',
+    name: 'optimization',
+    component: OptimizationWorkflowPage,
+    meta: { title: '优化工作流', requiresAuth: true },
+  },
+  {
+    path: '/knowledge',
+    name: 'knowledge',
+    component: KnowledgePage,
+    meta: { title: '知识库', requiresAuth: true },
+  },
+  {
+    path: '/audit',
+    name: 'audit',
+    component: AuditLogPage,
+    meta: { title: '审计日志', requiresAuth: true },
   },
   {
     path: '/seller-context',

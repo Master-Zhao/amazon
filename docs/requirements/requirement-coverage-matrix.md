@@ -35,20 +35,20 @@
 | METRIC-003 | Campaign/Targeting 历史快照 | 主规格 11 | analytics | fact models/import | snapshot tests | IMPLEMENTED_AND_TESTED | 不读当前值覆盖历史 |
 | METRIC-004 | Target ACOS 继承 | 主规格 11 | analytics | target_acos_for | inheritance tests | IMPLEMENTED_AND_TESTED | Campaign→Profile→Tenant |
 | ANOM-001 | 版本化异常规则、风险、数据不足 | 主规格 11 | analytics | rule version/evaluator | anomaly tests | IMPLEMENTED_AND_TESTED | CRITICAL 仅预留 |
-| AGENT-001 | 四 Agent、Orchestrator、统一 Schema | 主规格 12 | agents | M4 | Schema tests | NOT_IMPLEMENTED | M4 |
-| AGENT-002 | LLMProvider 与 MockLLMProvider | 主规格 12 | integrations.llm | M4 | provider tests | NOT_IMPLEMENTED | 真实 Provider 仅预留 |
-| AGENT-003 | 最小授权输入与后端确定性校验 | 主规格 12 | agents | M4 | 越权/超限测试 | NOT_IMPLEMENTED | M4 |
-| REC-001 | 11 类 Recommendation 动作 | 主规格 13 | recommendations | M4 | 动作校验测试 | NOT_IMPLEMENTED | M4 |
-| ACTION-001 | Preview 不可变版本与漂移校验 | 主规格 13 | actions | M4 | 状态/并发测试 | NOT_IMPLEMENTED | M4 |
-| ACTION-002 | PERSONAL 自确认及 TEAM/COMPANY 职责分离 | 主规格 13 | actions | M4 | 审批测试 | NOT_IMPLEMENTED | M4 |
-| ACTION-003 | 只追加 ApprovalRecord 与退回新版本 | 主规格 13 | actions | M4 | 只追加测试 | NOT_IMPLEMENTED | M4 |
-| ACTION-004 | 人工执行清单、部分回填与证据 | 主规格 13 | actions | M4 | 幂等测试 | NOT_IMPLEMENTED | M4 |
-| ACTION-005 | 效果评估基础任务与结果 | 主规格 13 | actions | M4 | M4 | NOT_IMPLEMENTED | M4 |
-| KNOW-001 | 轻量只读知识中心 | 主规格 14 | knowledge | M4/M5 | API/UI tests | NOT_IMPLEMENTED | M4/M5 |
+| AGENT-001 | 四 Agent、Orchestrator、统一 Schema | 主规格 12 | agents | task/run/schema/API | `test_optimization_workflow.py` | IMPLEMENTED_AND_TESTED | 四 Run 与非法 Schema 已验证 |
+| AGENT-002 | LLMProvider 与 MockLLMProvider | 主规格 12 | integrations.llm | Provider 端口/Mock/保留边界 | provider workflow test | IMPLEMENTED_AND_TESTED | 真实 Provider 仅预留且不可用 |
+| AGENT-003 | 最小授权输入与后端确定性校验 | 主规格 12 | agents/recommendations | ScopeSnapshot/Service | Profile/before/金额校验 | IMPLEMENTED_NOT_FULLY_VERIFIED | M6 补全动作分支安全矩阵 |
+| REC-001 | 11 类 Recommendation 动作 | 主规格 13 | recommendations | model/revision/validator/API | Mock 预算动作测试 | IMPLEMENTED_NOT_FULLY_VERIFIED | 11 类已列入白名单，全部分支待 M5 |
+| ACTION-001 | Preview 不可变版本与漂移校验 | 主规格 13 | actions | version/hash/freeze/locks | 冻结更新拒绝测试 | IMPLEMENTED_AND_TESTED | beforeValue 在建议落库前校验 |
+| ACTION-002 | PERSONAL 自确认及 TEAM/COMPANY 职责分离 | 主规格 13 | actions | approval service | 两类审批测试 | IMPLEMENTED_AND_TESTED | COMPANY 与 TEAM 共用守卫 |
+| ACTION-003 | 只追加 ApprovalRecord 与退回新版本 | 主规格 13 | actions | approval/version models | 状态测试 | IMPLEMENTED_NOT_FULLY_VERIFIED | M5 补退回 UI 与并发测试 |
+| ACTION-004 | 人工执行清单、部分回填与证据 | 主规格 13 | actions | task/item/record API | 回填幂等测试 | IMPLEMENTED_NOT_FULLY_VERIFIED | 附件证据上传 UI 待 M5 |
+| ACTION-005 | 效果评估基础任务与结果 | 主规格 13 | actions | EffectEvaluation/task | 模型随迁移验证 | IMPLEMENTED_NOT_FULLY_VERIFIED | 当前只建立 baseline |
+| KNOW-001 | 轻量只读知识中心 | 主规格 14 | knowledge | seed/API/UI | build/typecheck | IMPLEMENTED_NOT_FULLY_VERIFIED | M5 补页面状态测试 |
 | UI-001 | 七个一级菜单与真实业务页面 | 主规格 15 | frontend | M1—M5 | unit/E2E | NOT_IMPLEMENTED | 按里程碑逐步完成 |
 | UI-002 | loading/normal/empty/partial/failure/forbidden | 主规格 15 | frontend | M5 | component tests | NOT_IMPLEMENTED | M5 |
 | API-001 | 统一信封、camelCase、字符串 ID、Decimal+currency | 主规格 16 | core | Phase 1+各模块 | core/OpenAPI tests | IMPLEMENTED_NOT_FULLY_VERIFIED | 基础已验证，业务模型持续检查 |
-| AUDIT-001 | 关键业务 AuditLog 只追加和查询 | 主规格 17 | audit | M4 | M4 | NOT_IMPLEMENTED | M4 |
+| AUDIT-001 | 关键业务 AuditLog 只追加和查询 | 主规格 17 | audit | model/service/API/UI | 实例/批量删除拒绝测试 | IMPLEMENTED_AND_TESTED | M5 扩大事件覆盖 |
 | PERF-001 | 队列隔离、超时、有限重试 | 主规格 18 | config | M2/M4/M6 | M6 | NOT_IMPLEMENTED | M6 |
 | PERF-002 | 幂等、锁、唯一约束与防重复状态转换 | 主规格 18 | all services | M1—M6 | 并发测试 | NOT_IMPLEMENTED | M6 收口 |
 | PERF-003 | 分页、索引、Selector 与 N+1 防护 | 主规格 18 | API/selectors | M1—M6 | 查询数测试 | NOT_IMPLEMENTED | M6 收口 |

@@ -51,6 +51,9 @@ async function performLogout(): Promise<void> {
       <RouterLink v-if="authStore.currentUser" to="/dashboard">广告分析</RouterLink>
       <RouterLink v-if="authStore.currentUser" to="/seller-context">卖家空间</RouterLink>
       <RouterLink v-if="authStore.currentUser" to="/reports">数据中心</RouterLink>
+      <RouterLink v-if="authStore.currentUser" to="/optimization">优化闭环</RouterLink>
+      <RouterLink v-if="authStore.currentUser" to="/knowledge">知识库</RouterLink>
+      <RouterLink v-if="authStore.currentUser" to="/audit">审计</RouterLink>
       <RouterLink v-if="authStore.currentUser" to="/advertising/targeting">Targeting</RouterLink>
       <RouterLink v-if="authStore.currentUser" to="/advertising/search-terms">Search Term</RouterLink>
       <RouterLink v-if="authStore.currentUser" to="/system/roles">角色与权限</RouterLink>

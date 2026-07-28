@@ -1,6 +1,6 @@
 # Amazon 广告智能优化系统 V1
 
-当前仓库已完成 M3：三类报表分别写入 Campaign、Targeting、Search Term 日事实，确定性计算 CTR/CPC/CVR/ACOS/ROAS，保留快照与批次血缘，执行目标 ACOS 继承和版本化异常规则，并提供真实 Dashboard/Targeting/Search Term 页面。AI、Recommendation、审批和执行将在后续里程碑实现。
+当前仓库已完成 M4：在 M0—M3 认证、权限、报表和分析基础上，已用 MockLLMProvider 打通四 Agent、Recommendation、不可变 Action Preview、审批、人工执行回填、基础效果评估、知识库和只追加审计。真实 LLM 与 Amazon Ads 写接口均未接入。
 
 唯一主规格是 [codex_master_goal_amazon_ads_v1.md](codex_master_goal_amazon_ads_v1.md)。长期规则见 [AGENTS.md](AGENTS.md)，阶段计划见 [PLANS.md](PLANS.md)。
 
@@ -152,6 +152,4 @@ docs/testing/            测试策略与验收清单
 
 ## 当前边界
 
-项目发起人已授权按 M0—M6 连续执行；当前 M1 已收口。真实 Amazon Ads API、第三方数据服务和真实 LLM 密钥均未接入；尚未完成最终性能测试，不声明任何并发量、QPS、延迟或广告收益。
-
-ECharts 将在 M3 的真实图表页引入。认证接口只证明全局 User 身份；业务 API 必须继续从数据库校验 Tenant、角色、Store 和 Profile 权限。
+项目发起人已授权按 M0—M6 连续执行；当前 M4 已收口并自动进入 M5。真实 Amazon Ads API、第三方数据服务和真实 LLM 密钥均未接入；尚未完成最终性能测试，不声明任何并发量、QPS、延迟或广告收益。

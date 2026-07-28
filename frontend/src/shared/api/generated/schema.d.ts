@@ -21,6 +21,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/actions/execution-items/{item_id}/records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["api_v1_actions_execution_items_records_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/actions/previews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["api_v1_actions_previews_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/actions/previews/{preview_id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["api_v1_actions_previews_decisions_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/actions/previews/{preview_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["api_v1_actions_previews_submit_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/advertising/campaigns": {
         parameters: {
             query?: never;
@@ -72,6 +136,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analysis/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["api_v1_analysis_tasks_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analysis/tasks/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["api_v1_analysis_tasks_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/analytics/dashboard": {
         parameters: {
             query?: never;
@@ -115,6 +211,22 @@ export interface paths {
         };
         /** 查询独立权威粒度广告指标 */
         get: operations["api_v1_analytics_targeting_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["api_v1_audit_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -271,6 +383,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/knowledge/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["api_v1_knowledge_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/permissions/": {
         parameters: {
             query?: never;
@@ -351,6 +479,22 @@ export interface paths {
         put?: never;
         /** 给 Tenant 成员授予店铺范围 */
         post: operations["api_v1_permissions_stores_user_grants_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recommendations/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["api_v1_recommendations_retrieve"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -455,6 +599,12 @@ export interface components {
         AccessTokenResult: {
             accessToken: string;
         };
+        AnalysisCreateRequest: {
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: uuid */
+            profileId: string;
+        };
         AssignmentData: {
             id: string;
         };
@@ -478,10 +628,30 @@ export interface components {
             data: components["schemas"]["AuthenticatedUser"];
             requestId: string;
         };
+        /**
+         * @description * `APPROVED` - APPROVED
+         *     * `REJECTED` - REJECTED
+         *     * `RETURNED` - RETURNED
+         * @enum {string}
+         */
+        DecisionEnum: "APPROVED" | "REJECTED" | "RETURNED";
+        DecisionRequest: {
+            decision: components["schemas"]["DecisionEnum"];
+            /** @default  */
+            comment: string;
+        };
         EmptyResponse: {
             code: string;
             message: string;
             requestId: string;
+        };
+        ExecutionRecordRequest: {
+            result: components["schemas"]["ResultEnum"];
+            actualValue?: unknown;
+            /** Format: date-time */
+            executedAt: string;
+            /** @default  */
+            note: string;
         };
         /**
          * @description * `VIEW` - VIEW
@@ -529,6 +699,13 @@ export interface components {
             data: components["schemas"]["PermissionListData"];
             requestId: string;
         };
+        PreviewCreateRequest: {
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: uuid */
+            profileId: string;
+            recommendationIds: string[];
+        };
         ProfileContext: {
             id: string;
             externalProfileId: string;
@@ -562,6 +739,13 @@ export interface components {
             /** Format: binary */
             file: string;
         };
+        /**
+         * @description * `SUCCEEDED` - SUCCEEDED
+         *     * `FAILED` - FAILED
+         *     * `SKIPPED` - SKIPPED
+         * @enum {string}
+         */
+        ResultEnum: "SUCCEEDED" | "FAILED" | "SKIPPED";
         Role: {
             id: string;
             tenantId: string | null;
@@ -690,6 +874,102 @@ export interface operations {
             };
         };
     };
+    api_v1_actions_execution_items_records_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExecutionRecordRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ExecutionRecordRequest"];
+                "multipart/form-data": components["schemas"]["ExecutionRecordRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_actions_previews_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PreviewCreateRequest"];
+                "multipart/form-data": components["schemas"]["PreviewCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_actions_previews_decisions_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preview_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["DecisionRequest"];
+                "multipart/form-data": components["schemas"]["DecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_actions_previews_submit_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preview_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     api_v1_advertising_campaigns_retrieve: {
         parameters: {
             query?: never;
@@ -744,6 +1024,50 @@ export interface operations {
             };
         };
     };
+    api_v1_analysis_tasks_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalysisCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AnalysisCreateRequest"];
+                "multipart/form-data": components["schemas"]["AnalysisCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description 分析任务 */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_analysis_tasks_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 分析结果 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     api_v1_analytics_dashboard_retrieve: {
         parameters: {
             query?: never;
@@ -790,6 +1114,24 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description 指标与异常 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_audit_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 审计日志 */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -971,6 +1313,24 @@ export interface operations {
             };
         };
     };
+    api_v1_knowledge_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 知识文章 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     api_v1_permissions_retrieve: {
         parameters: {
             query?: never;
@@ -1112,6 +1472,24 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AssignmentResponse"];
                 };
+            };
+        };
+    };
+    api_v1_recommendations_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 建议列表 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

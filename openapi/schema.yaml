@@ -14,6 +14,103 @@ paths:
       responses:
         '200':
           description: Phase 1 platform information
+  /api/v1/actions/execution-items/{item_id}/records:
+    post:
+      operationId: api_v1_actions_execution_items_records_create
+      parameters:
+      - in: path
+        name: item_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - actions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecutionRecordRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ExecutionRecordRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExecutionRecordRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/v1/actions/previews:
+    post:
+      operationId: api_v1_actions_previews_create
+      tags:
+      - actions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PreviewCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PreviewCreateRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/v1/actions/previews/{preview_id}/decisions:
+    post:
+      operationId: api_v1_actions_previews_decisions_create
+      parameters:
+      - in: path
+        name: preview_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - actions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DecisionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DecisionRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/actions/previews/{preview_id}/submit:
+    post:
+      operationId: api_v1_actions_previews_submit_create
+      parameters:
+      - in: path
+        name: preview_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - actions
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/advertising/campaigns:
     get:
       operationId: api_v1_advertising_campaigns_retrieve
@@ -47,6 +144,45 @@ paths:
       responses:
         '200':
           description: 广告对象列表
+  /api/v1/analysis/tasks:
+    post:
+      operationId: api_v1_analysis_tasks_create
+      tags:
+      - analysis
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AnalysisCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AnalysisCreateRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          description: 分析任务
+  /api/v1/analysis/tasks/{task_id}:
+    get:
+      operationId: api_v1_analysis_tasks_retrieve
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - analysis
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: 分析结果
   /api/v1/analytics/dashboard:
     get:
       operationId: api_v1_analytics_dashboard_retrieve
@@ -80,6 +216,16 @@ paths:
       responses:
         '200':
           description: 指标与异常
+  /api/v1/audit/:
+    get:
+      operationId: api_v1_audit_retrieve
+      tags:
+      - audit
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: 审计日志
   /api/v1/auth/login:
     post:
       operationId: api_v1_auth_login_create
@@ -246,6 +392,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/StoreMarketplaceContextResponse'
           description: ''
+  /api/v1/knowledge/:
+    get:
+      operationId: api_v1_knowledge_retrieve
+      tags:
+      - knowledge
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: 知识文章
   /api/v1/permissions/:
     get:
       operationId: api_v1_permissions_retrieve
@@ -404,6 +560,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/AssignmentResponse'
           description: ''
+  /api/v1/recommendations/:
+    get:
+      operationId: api_v1_recommendations_retrieve
+      tags:
+      - recommendations
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: 建议列表
   /api/v1/reports/tasks/{task_id}:
     get:
       operationId: api_v1_reports_tasks_retrieve
@@ -516,6 +682,18 @@ components:
           type: string
       required:
       - accessToken
+    AnalysisCreateRequest:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        profileId:
+          type: string
+          format: uuid
+      required:
+      - profileId
+      - tenantId
     AssignmentData:
       type: object
       properties:
@@ -575,6 +753,28 @@ components:
       - data
       - message
       - requestId
+    DecisionEnum:
+      enum:
+      - APPROVED
+      - REJECTED
+      - RETURNED
+      type: string
+      description: |-
+        * `APPROVED` - APPROVED
+        * `REJECTED` - REJECTED
+        * `RETURNED` - RETURNED
+    DecisionRequest:
+      type: object
+      properties:
+        decision:
+          $ref: '#/components/schemas/DecisionEnum'
+        comment:
+          type: string
+          minLength: 1
+          default: ''
+          maxLength: 500
+      required:
+      - decision
     EmptyResponse:
       type: object
       properties:
@@ -588,6 +788,23 @@ components:
       - code
       - message
       - requestId
+    ExecutionRecordRequest:
+      type: object
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultEnum'
+        actualValue: {}
+        executedAt:
+          type: string
+          format: date-time
+        note:
+          type: string
+          minLength: 1
+          default: ''
+          maxLength: 500
+      required:
+      - executedAt
+      - result
     LevelEnum:
       enum:
       - VIEW
@@ -704,6 +921,25 @@ components:
       - data
       - message
       - requestId
+    PreviewCreateRequest:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        profileId:
+          type: string
+          format: uuid
+        recommendationIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+      required:
+      - profileId
+      - recommendationIds
+      - tenantId
     ProfileContext:
       type: object
       properties:
@@ -780,6 +1016,16 @@ components:
       - profileId
       - reportType
       - tenantId
+    ResultEnum:
+      enum:
+      - SUCCEEDED
+      - FAILED
+      - SKIPPED
+      type: string
+      description: |-
+        * `SUCCEEDED` - SUCCEEDED
+        * `FAILED` - FAILED
+        * `SKIPPED` - SKIPPED
     Role:
       type: object
       properties:

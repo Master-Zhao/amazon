@@ -3,9 +3,9 @@
 ## 1. 计划状态
 
 - 当前授权：项目发起人于 2026-07-28 明确授权按 `CODEX_FULL_V1_EXECUTION_GOAL.md` 从 M0 连续执行到 M6；该授权取代本文旧的“Phase 2B 未授权/普通阶段后停止”描述。
-- 当前阶段：M0 状态保护与认证收口已验证，完成提交后自动进入 M1。
-- 当前应用状态：Phase 1 基础工程与 Phase 2A JWT 双 Token 已实现；认证基线为后端 51 项、前端 28 项测试通过，OpenAPI 无差异。Tenant/Store/Profile/RBAC 尚待 M1。
-- 下一阶段：M1 Tenant、Store、Profile 与 RBAC。
+- 当前阶段：M4 优化工作流已实现并验证，提交后自动进入 M5。
+- 当前应用状态：M0—M4 已完成；后端 80 项、前端 31 项测试通过，四 Agent 到人工执行回填链路可用。
+- 下一阶段：M5 完整前端工作流与浏览器 E2E。
 - 依赖顺序：`Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7`。
 - 纵向原则：每个阶段交付真实可运行切片，不以空模块或静态页面代替。
 
