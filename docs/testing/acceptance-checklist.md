@@ -52,3 +52,7 @@ Phase 1 之外仍未验证：性能与并发目标、正式 TLS、备份恢复�
 | 15 | 自动浏览器登录/退出与控制台 | NOT VERIFIED | Codex 浏览器控制工具初始化和连接失败；强制收口后未继续尝试 |
 
 Phase 2A 汇总：`PASS 14 / FAIL 0 / NOT VERIFIED 1`。浏览器未验证不否定已通过的 API、后端、前端单元测试和构建。
+
+## V1 M6 最终验收
+
+最终证据见 [V1 最终验收报告](final-acceptance-report.md)。结果为：SQLite/MySQL 8.4 后端各 82 passed，前端 31 tests，Chrome E2E 1 passed，三套 Compose 静态检查通过，隔离 test Compose 7 服务 healthy，live/ready/前端通过。正式容量压测、备份恢复演练和真实 Amazon 三报表样例保持 `NOT VERIFIED` / `BLOCKED_BY_REAL_SAMPLE`，没有转写为 PASS。

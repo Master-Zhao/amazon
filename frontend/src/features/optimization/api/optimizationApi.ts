@@ -84,11 +84,15 @@ export async function createAndSubmitPreview(input: {
 }): Promise<{ previewId: string; status: string }> {
   const created = await httpClient.post<
     ApiEnvelope<{ previewId: string; status: string }>
-  >('/api/v1/actions/previews', {
-    tenantId: input.tenantId,
-    profileId: input.profileId,
-    recommendationIds: input.recommendationIds,
-  })
+  >(
+    '/api/v1/actions/previews',
+    {
+      tenantId: input.tenantId,
+      profileId: input.profileId,
+      recommendationIds: input.recommendationIds,
+    },
+    { headers: { 'Idempotency-Key': crypto.randomUUID() } },
+  )
   const submitted = await httpClient.post<
     ApiEnvelope<{ previewId: string; status: string }>
   >(`/api/v1/actions/previews/${created.data.data.previewId}/submit`)

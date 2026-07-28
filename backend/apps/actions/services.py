@@ -1,5 +1,6 @@
 import hashlib
 import json
+import uuid
 
 from django.db import transaction
 from django.utils import timezone
@@ -46,7 +47,14 @@ def _items(recommendations):
 
 
 @transaction.atomic
-def create_preview(*, request, tenant_id, profile_id, recommendation_ids):
+def create_preview(
+    *,
+    request,
+    tenant_id,
+    profile_id,
+    recommendation_ids,
+    idempotency_key="",
+):
     recommendations = list(
         Recommendation.objects.filter(
             id__in=recommendation_ids,
@@ -65,10 +73,17 @@ def create_preview(*, request, tenant_id, profile_id, recommendation_ids):
         profile=profile,
         minimum_profile_level=ProfileAccessLevel.OPERATE,
     )
-    preview = ActionPreview.objects.create(
-        tenant_id=tenant_id, profile=profile, created_by=request.user
-    )
     items = _items(recommendations)
+    preview, created = ActionPreview.objects.get_or_create(
+        tenant_id=tenant_id,
+        idempotency_key=idempotency_key or uuid.uuid4().hex,
+        defaults={"profile": profile, "created_by": request.user},
+    )
+    if not created:
+        version = preview.versions.get(version=1)
+        if preview.profile_id != profile.pk or version.items != items:
+            raise ValidationError("幂等键已用于不同的 Action Preview 请求")
+        return preview
     ActionPreviewVersion.objects.create(
         preview=preview, version=1, items=items, content_hash=_hash(items)
     )
@@ -102,7 +117,11 @@ def submit_preview(*, request, preview_id):
         profile=preview.profile,
         minimum_profile_level=ProfileAccessLevel.OPERATE,
     )
-    if preview.created_by_id != request.user.pk or preview.status != PreviewStatus.DRAFT:
+    if preview.created_by_id != request.user.pk:
+        raise ValidationError("当前状态不可提交")
+    if preview.status == PreviewStatus.PENDING_APPROVAL:
+        return preview
+    if preview.status != PreviewStatus.DRAFT:
         raise ValidationError("当前状态不可提交")
     version = preview.versions.get(version=preview.current_version)
     version.frozen_at = timezone.now()
@@ -132,6 +151,17 @@ def decide_preview(*, request, preview_id, decision, comment, idempotency_key):
         profile=preview.profile,
         minimum_profile_level=ProfileAccessLevel.APPROVE,
     )
+    existing_approval = ApprovalRecord.objects.filter(
+        preview=preview, idempotency_key=idempotency_key
+    ).first()
+    if existing_approval is not None:
+        if (
+            existing_approval.actor_id != request.user.pk
+            or existing_approval.decision != decision
+            or existing_approval.comment != comment
+        ):
+            raise ValidationError("幂等键已用于不同的审批请求")
+        return preview
     if preview.status != PreviewStatus.PENDING_APPROVAL:
         raise ValidationError("当前状态不可审批")
     if (
@@ -206,6 +236,11 @@ def record_execution(
     )
     if result not in {"SUCCEEDED", "FAILED", "SKIPPED"}:
         raise ValidationError("执行结果无效")
+    existing_record = ExecutionRecord.objects.filter(
+        item=item, idempotency_key=idempotency_key
+    ).first()
+    if existing_record is not None:
+        return existing_record
     record, created = ExecutionRecord.objects.get_or_create(
         item=item,
         idempotency_key=idempotency_key,
@@ -243,4 +278,3 @@ def evaluate_execution(execution_task):
         baseline={"versionId": execution_task.version_id},
         observed={},
     )
-

@@ -72,6 +72,7 @@ class PreviewCreateView(APIView):
             tenant_id=data["tenant_id"],
             profile_id=data["profile_id"],
             recommendation_ids=data["recommendation_ids"],
+            idempotency_key=request.headers.get("Idempotency-Key") or uuid.uuid4().hex,
         )
         return api_response(
             request, data={"preview_id": str(preview.pk), "status": preview.status}, status=201

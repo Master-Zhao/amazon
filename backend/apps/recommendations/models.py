@@ -33,6 +33,12 @@ class Recommendation(models.Model):
                 name="ai_recommendation_task_action_obj_uniq",
             )
         ]
+        indexes = [
+            models.Index(
+                fields=["tenant", "profile", "status", "created_at"],
+                name="ai_rec_scope_status_idx",
+            )
+        ]
 
 
 class RecommendationRevision(models.Model):
@@ -51,4 +57,3 @@ class RecommendationRevision(models.Model):
                 name="ai_recommendation_revision_uniq",
             )
         ]
-

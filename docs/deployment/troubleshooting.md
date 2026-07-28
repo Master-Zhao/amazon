@@ -1,5 +1,15 @@
 # 故障排查
 
+## M6 隔离验收端口
+
+M5/M6 自动浏览器使用 Django `18000` 和 Vite `15173`；test Compose 只暴露 Nginx `8081`。不要为验收终止或占用宿主 8000 的未知进程。test Compose 验收后执行：
+
+```powershell
+docker compose -f compose.test.yml down
+```
+
+该命令只清理 `amazon-ads-test` 容器和网络；test MySQL 使用 tmpfs，不承载用户数据。
+
 ## Docker Engine 不可用或无权限
 
 症状：Compose 无法连接 Docker Desktop/Engine，或命名管道返回权限错误。

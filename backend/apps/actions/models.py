@@ -21,6 +21,7 @@ class ActionPreview(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT)
     profile = models.ForeignKey(AdvertisingProfile, on_delete=models.PROTECT)
+    idempotency_key = models.CharField(max_length=128, default=uuid.uuid4)
     status = models.CharField(
         max_length=32, choices=PreviewStatus.choices, default=PreviewStatus.DRAFT
     )
@@ -31,6 +32,18 @@ class ActionPreview(models.Model):
 
     class Meta:
         db_table = "action_preview"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "idempotency_key"],
+                name="action_preview_tenant_idem_uniq",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["tenant", "profile", "status", "created_at"],
+                name="action_preview_scope_idx",
+            )
+        ]
 
 
 class ActionPreviewVersion(models.Model):

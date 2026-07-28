@@ -153,8 +153,8 @@ class SearchTerm(models.Model):
     ad_group = models.ForeignKey(
         AdGroup, null=True, blank=True, on_delete=models.SET_NULL, related_name="search_terms"
     )
-    query_text = models.CharField(max_length=500)
-    targeting_text = models.CharField(max_length=500, blank=True)
+    query_text = models.CharField(max_length=255)
+    targeting_text = models.CharField(max_length=255, blank=True)
     source_batch_id = models.UUIDField(null=True)
 
     class Meta:

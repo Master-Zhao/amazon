@@ -80,6 +80,8 @@ services:
     build: *test-build
     image: amazon-ads-backend:0.1.0-test
     environment: *test-environment
+    volumes:
+      - ./tests/fixtures:/tests/fixtures:ro
     depends_on: *test-dependencies
     command: ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2"]
     healthcheck:

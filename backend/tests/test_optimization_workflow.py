@@ -6,7 +6,14 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.actions.models import ActionPreviewVersion, ExecutionItem, PreviewStatus
+from apps.actions.models import (
+    ActionPreview,
+    ActionPreviewVersion,
+    ApprovalRecord,
+    ExecutionItem,
+    ExecutionTask,
+    PreviewStatus,
+)
 from apps.actions.services import (
     create_preview,
     decide_preview,
@@ -213,6 +220,57 @@ def test_personal_owner_approval_execution_and_audit_are_append_only(workflow_co
         AuditLog.objects.first().delete()
     with pytest.raises(RuntimeError):
         AuditLog.objects.filter(tenant=tenant).delete()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_preview_submit_and_approval_retries_are_idempotent(workflow_context):
+    owner, tenant, profile = workflow_context
+    analysis = create_analysis(
+        user=owner,
+        tenant_id=tenant.pk,
+        profile_id=profile.pk,
+        idempotency_key="analysis-idempotency",
+    )
+    recommendation = Recommendation.objects.get(analysis_task=analysis)
+    request = request_for(owner)
+
+    first = create_preview(
+        request=request,
+        tenant_id=tenant.pk,
+        profile_id=profile.pk,
+        recommendation_ids=[recommendation.pk],
+        idempotency_key="preview-idempotency",
+    )
+    repeated = create_preview(
+        request=request,
+        tenant_id=tenant.pk,
+        profile_id=profile.pk,
+        recommendation_ids=[recommendation.pk],
+        idempotency_key="preview-idempotency",
+    )
+    first_submit = submit_preview(request=request, preview_id=first.pk)
+    repeated_submit = submit_preview(request=request, preview_id=first.pk)
+    first_approval = decide_preview(
+        request=request,
+        preview_id=first.pk,
+        decision=PreviewStatus.APPROVED,
+        comment="approved",
+        idempotency_key="approval-idempotency",
+    )
+    repeated_approval = decide_preview(
+        request=request,
+        preview_id=first.pk,
+        decision=PreviewStatus.APPROVED,
+        comment="approved",
+        idempotency_key="approval-idempotency",
+    )
+
+    assert repeated.pk == first.pk
+    assert repeated_submit.pk == first_submit.pk
+    assert repeated_approval.pk == first_approval.pk
+    assert ActionPreview.objects.filter(tenant=tenant).count() == 1
+    assert ApprovalRecord.objects.filter(preview=first).count() == 1
+    assert ExecutionTask.objects.filter(preview=first).count() == 1
 
 
 @pytest.mark.django_db(transaction=True)

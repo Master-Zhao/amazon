@@ -3,7 +3,7 @@
 ## 1. 计划状态
 
 - 当前授权：项目发起人于 2026-07-28 明确授权按 `CODEX_FULL_V1_EXECUTION_GOAL.md` 从 M0 连续执行到 M6；该授权取代本文旧的“Phase 2B 未授权/普通阶段后停止”描述。
-- 当前阶段：M5 已提交，DEMO-MILESTONE 的 11 项证据和演示资产已完成，提交/打标签后进入最小 M6。
+- 当前阶段：M0—M6 已完成，DEMO-MILESTONE 已冻结，最终交付验收后停止扩展。
 - 当前应用状态：M0—M5 已完成；Chrome 和 API 测试共同验证会话、上下文、导入、异常、建议、审批、执行和审计。
 - 下一阶段：只执行必要索引/N+1、保护复核、Compose/健康、部署/性能/最终验收。
 - 依赖顺序：`Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7`。

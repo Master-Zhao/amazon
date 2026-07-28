@@ -1,6 +1,6 @@
 # Amazon 广告智能优化系统 V1
 
-当前仓库已完成 M5：在 M0—M4 基础上补齐七个权限菜单、Campaign/导入任务/分析任务/审批执行页面，并以系统 Chrome 自动验证登录恢复、四级上下文、Campaign 异常、Mock Recommendation、审批、人工执行和审计完整闭环。真实 LLM 与 Amazon Ads 写接口均未接入。
+当前仓库已完成 M0—M6。稳定演示检查点为 `demo-milestone` 标签；最终收口补齐幂等保护、查询索引、MySQL 8.4 从零迁移、三套 Compose 校验、隔离 Docker 健康验证和交付文档。真实 LLM 与 Amazon Ads 写接口均未接入。
 
 唯一主规格是 [codex_master_goal_amazon_ads_v1.md](codex_master_goal_amazon_ads_v1.md)。长期规则见 [AGENTS.md](AGENTS.md)，阶段计划见 [PLANS.md](PLANS.md)。
 
@@ -102,6 +102,8 @@ Phase 2A 的最终命令、测试数量和运行验证见 [Phase 2A 报告](docs
 
 Phase 2A 最终结果：后端 SQLite 51 passed、MySQL 8.4 从零迁移 51 passed；前端 8 files / 28 tests passed，lint、typecheck 和 production build 通过；HTTP 登录、me、刷新、退出和旧 Refresh 拒绝均通过。自动浏览器验收为 `NOT VERIFIED`，原因是 Codex 浏览器控制工具初始化和连接失败。
 
+M6 最终结果：后端 SQLite 与隔离 MySQL 8.4 均为 82 passed；前端 9 files / 31 tests passed，lint、typecheck、production build 通过；OpenAPI/生成类型同步；Playwright 使用已安装 Chrome 在 Django 18000/Vite 15173 完整链路 1 passed；test Compose 7 服务全部 healthy，8081 的 live/ready/前端通过。只读 10 RPS × 5 秒烟雾 50/50 成功，不代表正式容量结论。
+
 ## API 基础
 
 统一响应：
@@ -148,6 +150,10 @@ docs/testing/            测试策略与验收清单
 - [环境变量矩阵](docs/deployment/environment-variables.md)
 - [测试策略](docs/testing/test-strategy.md)
 - [验收清单](docs/testing/acceptance-checklist.md)
+- [最终验收报告](docs/testing/final-acceptance-report.md)
+- [性能测试计划](docs/testing/performance-test-plan.md)
+- [备份与恢复](docs/deployment/backup-and-restore.md)
+- [最终 V1 报告](docs/final-v1-report.md)
 - [决策日志](docs/15-decision-log.md)
 - [DEMO-MILESTONE 报告](docs/demo-milestone-report.md)
 - [技术讲解](docs/presentation/technical-presentation.md)
@@ -155,4 +161,4 @@ docs/testing/            测试策略与验收清单
 
 ## 当前边界
 
-项目发起人已授权按 M0—M6 连续执行；当前 M5 已收口，下一步先建立 demo-milestone，再执行最小 M6。真实 Amazon Ads API、第三方数据服务和真实 LLM 密钥均未接入；尚未完成最终性能测试，不声明任何并发量、QPS、延迟或广告收益。
+项目发起人已授权并已完成 M0—M6，现停止扩展。真实 Amazon Ads API、第三方数据服务和真实 LLM 密钥均未接入；真实 Amazon 导出样例、正式 TLS、备份恢复演练和参考环境容量压测仍未完成，不声明 200 RPS、300 用户、延迟、容量或广告收益。

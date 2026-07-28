@@ -35,7 +35,7 @@ docker compose --env-file .env.prod -f compose.prod.yml ps
 
 Compose 中的 Nginx 当前监听 HTTP 80。正式生产应由可信负载均衡器或补充的 TLS 配置终止 HTTPS，并正确传递 `X-Forwarded-Proto=https`。启用 `SECURE_SSL_REDIRECT` 前必须确认代理头，否则会产生重定向问题。
 
-MySQL 和上传目录使用持久卷。Redis 即使持久化也不能承载唯一业务事实。备份、TLS 证书、监控、告警、滚动发布、多实例 Beat 选主与灾难恢复尚未在 Phase 1 实现。
+MySQL 和上传目录使用持久卷。Redis 即使持久化也不能承载唯一业务事实。备份与恢复步骤见 [备份与恢复](backup-and-restore.md)，但真实恢复演练尚未完成；TLS 证书、监控、告警、滚动发布、多实例 Beat 选主与灾难恢复不在本次最小 M6 实施范围。
 
 ## 回滚
 

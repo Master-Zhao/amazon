@@ -35,6 +35,12 @@ class AnalysisTask(models.Model):
                 name="agent_task_tenant_idem_uniq",
             )
         ]
+        indexes = [
+            models.Index(
+                fields=["tenant", "profile", "created_at"],
+                name="agent_task_scope_created_idx",
+            )
+        ]
 
 
 class AgentRun(models.Model):
@@ -53,4 +59,3 @@ class AgentRun(models.Model):
                 fields=["task", "agent_code"], name="agent_run_task_code_uniq"
             )
         ]
-
