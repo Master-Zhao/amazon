@@ -193,9 +193,37 @@ def test_xlsx_campaign_import(report_context):
     workbook = Workbook()
     sheet = workbook.active
     sheet.append(
-        ["profile_id", "campaign_id", "campaign_name", "state", "budget", "currency"]
+        [
+            "date",
+            "profile_id",
+            "campaign_id",
+            "campaign_name",
+            "state",
+            "budget",
+            "currency",
+            "impressions",
+            "clicks",
+            "spend",
+            "orders",
+            "sales",
+        ]
     )
-    sheet.append(["DEMO-PROFILE-001", "XLSX-1", "Excel Campaign", "ENABLED", 12.5, "USD"])
+    sheet.append(
+        [
+            "2026-07-22",
+            "DEMO-PROFILE-001",
+            "XLSX-1",
+            "Excel Campaign",
+            "ENABLED",
+            12.5,
+            "USD",
+            100,
+            10,
+            8,
+            2,
+            40,
+        ]
+    )
     content = BytesIO()
     workbook.save(content)
 

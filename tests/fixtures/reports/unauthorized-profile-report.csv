@@ -1,2 +1,2 @@
-profile_id,campaign_id,campaign_name,state,budget,currency
-OTHER-PROFILE,C-900,Unauthorized,ENABLED,99.00,USD
+date,profile_id,campaign_id,campaign_name,state,budget,currency,impressions,clicks,spend,orders,sales
+2026-07-20,OTHER-PROFILE,C-900,Unauthorized,ENABLED,99.00,USD,100,5,10.00,0,0

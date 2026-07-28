@@ -30,11 +30,11 @@
 | REPORT-005 | Upload/Task/Batch 只追加、重处理新建 | 主规格 10 | reports | models/service | duplicate/reprocess test | IMPLEMENTED_AND_TESTED | 新 Batch 血缘 |
 | REPORT-006 | 文件级/行级错误与部分成功 | 主规格 10 | reports | parser/service/errors | partial/profile mismatch | IMPLEMENTED_AND_TESTED | 文件级更多格式待真实样例 |
 | REPORT-007 | 流式保存、分块解析、批量写入 | 主规格 10、18 | reports | chunked storage/read-only parser | fixture tests | IMPLEMENTED_NOT_FULLY_VERIFIED | 大规模批量性能 M6 |
-| METRIC-001 | 三类 Daily Metric 独立事实 | 主规格 11 | analytics | M3 | 粒度隔离测试 | NOT_IMPLEMENTED | M3 |
-| METRIC-002 | CTR/CPC/CVR/ACOS/ROAS 与 null 原因 | 主规格 11 | analytics | M3 | 公式测试 | NOT_IMPLEMENTED | M3 |
-| METRIC-003 | Campaign/Targeting 历史快照 | 主规格 11 | analytics | M3 | 快照测试 | NOT_IMPLEMENTED | M3 |
-| METRIC-004 | Target ACOS 继承 | 主规格 11 | analytics | M3 | 继承测试 | NOT_IMPLEMENTED | M3 |
-| ANOM-001 | 版本化异常规则、风险、数据不足 | 主规格 11 | analytics | M3 | 边界测试 | NOT_IMPLEMENTED | CRITICAL 仅预留 |
+| METRIC-001 | 三类 Daily Metric 独立事实 | 主规格 11 | analytics | models/0001/selectors | analytics tests | IMPLEMENTED_AND_TESTED | Dashboard 仅 Campaign |
+| METRIC-002 | CTR/CPC/CVR/ACOS/ROAS 与 null 原因 | 主规格 11 | analytics | calculations/service/API | formula tests | IMPLEMENTED_AND_TESTED | Decimal/null reason |
+| METRIC-003 | Campaign/Targeting 历史快照 | 主规格 11 | analytics | fact models/import | snapshot tests | IMPLEMENTED_AND_TESTED | 不读当前值覆盖历史 |
+| METRIC-004 | Target ACOS 继承 | 主规格 11 | analytics | target_acos_for | inheritance tests | IMPLEMENTED_AND_TESTED | Campaign→Profile→Tenant |
+| ANOM-001 | 版本化异常规则、风险、数据不足 | 主规格 11 | analytics | rule version/evaluator | anomaly tests | IMPLEMENTED_AND_TESTED | CRITICAL 仅预留 |
 | AGENT-001 | 四 Agent、Orchestrator、统一 Schema | 主规格 12 | agents | M4 | Schema tests | NOT_IMPLEMENTED | M4 |
 | AGENT-002 | LLMProvider 与 MockLLMProvider | 主规格 12 | integrations.llm | M4 | provider tests | NOT_IMPLEMENTED | 真实 Provider 仅预留 |
 | AGENT-003 | 最小授权输入与后端确定性校验 | 主规格 12 | agents | M4 | 越权/超限测试 | NOT_IMPLEMENTED | M4 |

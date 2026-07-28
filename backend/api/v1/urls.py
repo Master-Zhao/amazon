@@ -9,4 +9,5 @@ urlpatterns = [
     path("permissions/", include("apps.permissions.urls")),
     path("reports/", include("apps.reports.urls")),
     path("advertising/", include("apps.advertising.urls")),
+    path("analytics/", include("apps.analytics.urls")),
 ]

@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "apps.products",
     "apps.advertising",
     "apps.reports",
+    "apps.analytics",
 ]
 
 MIDDLEWARE = [
@@ -197,6 +198,7 @@ CELERY_TASK_QUEUES = (
 CELERY_TASK_ROUTES = {
     "apps.core.tasks.smoke_task": {"queue": "default"},
     "apps.reports.tasks.process_import_task": {"queue": "imports"},
+    "apps.analytics.tasks.recalculate_anomalies": {"queue": "analysis"},
 }
 CELERY_TASK_TIME_LIMIT = env_int("CELERY_TASK_TIME_LIMIT", 30)
 CELERY_TASK_SOFT_TIME_LIMIT = env_int("CELERY_TASK_SOFT_TIME_LIMIT", 20)

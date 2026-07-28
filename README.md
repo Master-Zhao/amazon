@@ -1,6 +1,6 @@
 # Amazon 广告智能优化系统 V1
 
-当前仓库已完成 M2：认证与多租户权限之上，已加入 Sponsored Products 广告/产品模型、三类 CSV/XLSX 报表上传、Celery 导入任务、批次/行错/重复/重处理/血缘和数据中心页面。指标、AI、Recommendation、审批和执行将在后续里程碑实现。
+当前仓库已完成 M3：三类报表分别写入 Campaign、Targeting、Search Term 日事实，确定性计算 CTR/CPC/CVR/ACOS/ROAS，保留快照与批次血缘，执行目标 ACOS 继承和版本化异常规则，并提供真实 Dashboard/Targeting/Search Term 页面。AI、Recommendation、审批和执行将在后续里程碑实现。
 
 唯一主规格是 [codex_master_goal_amazon_ads_v1.md](codex_master_goal_amazon_ads_v1.md)。长期规则见 [AGENTS.md](AGENTS.md)，阶段计划见 [PLANS.md](PLANS.md)。
 

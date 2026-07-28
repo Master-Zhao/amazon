@@ -47,6 +47,39 @@ paths:
       responses:
         '200':
           description: 广告对象列表
+  /api/v1/analytics/dashboard:
+    get:
+      operationId: api_v1_analytics_dashboard_retrieve
+      summary: 查询独立权威粒度广告指标
+      tags:
+      - analytics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: 指标与异常
+  /api/v1/analytics/search-terms:
+    get:
+      operationId: api_v1_analytics_search_terms_retrieve
+      summary: 查询独立权威粒度广告指标
+      tags:
+      - analytics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: 指标与异常
+  /api/v1/analytics/targeting:
+    get:
+      operationId: api_v1_analytics_targeting_retrieve
+      summary: 查询独立权威粒度广告指标
+      tags:
+      - analytics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: 指标与异常
   /api/v1/auth/login:
     post:
       operationId: api_v1_auth_login_create

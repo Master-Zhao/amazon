@@ -13,6 +13,9 @@ import HomePage from '@/features/home/pages/HomePage.vue'
 import SellerContextPage from '@/features/tenant-context/pages/SellerContextPage.vue'
 import RoleManagementPage from '@/features/system/pages/RoleManagementPage.vue'
 import ReportCenterPage from '@/features/reports/pages/ReportCenterPage.vue'
+import DashboardPage from '@/features/dashboard/pages/DashboardPage.vue'
+import TargetingAnalyticsPage from '@/features/targeting/pages/TargetingAnalyticsPage.vue'
+import SearchTermAnalyticsPage from '@/features/search-terms/pages/SearchTermAnalyticsPage.vue'
 
 export const routes: RouteRecordRaw[] = [
   {
@@ -26,6 +29,24 @@ export const routes: RouteRecordRaw[] = [
     name: 'login',
     component: LoginPage,
     meta: { title: '登录', guestOnly: true },
+  },
+  {
+    path: '/dashboard',
+    name: 'dashboard',
+    component: DashboardPage,
+    meta: { title: '广告工作台', requiresAuth: true },
+  },
+  {
+    path: '/advertising/targeting',
+    name: 'targeting-analytics',
+    component: TargetingAnalyticsPage,
+    meta: { title: 'Targeting 分析', requiresAuth: true },
+  },
+  {
+    path: '/advertising/search-terms',
+    name: 'search-term-analytics',
+    component: SearchTermAnalyticsPage,
+    meta: { title: 'Search Term 分析', requiresAuth: true },
   },
   {
     path: '/reports',

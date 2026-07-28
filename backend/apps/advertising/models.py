@@ -37,6 +37,9 @@ class Campaign(models.Model):
     state = models.CharField(max_length=16, choices=EntityState.choices)
     daily_budget = models.DecimalField(max_digits=14, decimal_places=2, null=True)
     currency = models.CharField(max_length=3)
+    target_acos = models.DecimalField(
+        max_digits=7, decimal_places=4, null=True, blank=True
+    )
     source_batch_id = models.UUIDField(null=True)
 
     class Meta:
@@ -162,4 +165,3 @@ class SearchTerm(models.Model):
                 name="ads_search_term_profile_query_target_uniq",
             )
         ]
-

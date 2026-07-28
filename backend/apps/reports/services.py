@@ -31,9 +31,10 @@ from apps.stores.models import AdvertisingProfile
 from integrations.storage.local import LocalFileStorage
 
 REQUIRED_FIELDS = {
-    ReportType.CAMPAIGN: {"campaign_id", "campaign_name", "state", "currency"},
+    ReportType.CAMPAIGN: {"date", "campaign_id", "campaign_name", "state", "currency"},
     ReportType.TARGETING: {
         "campaign_id",
+        "date",
         "campaign_name",
         "ad_group_id",
         "ad_group_name",
@@ -45,6 +46,7 @@ REQUIRED_FIELDS = {
     },
     ReportType.SEARCH_TERM: {
         "campaign_id",
+        "date",
         "campaign_name",
         "search_term",
         "targeting_text",
@@ -100,7 +102,7 @@ def _normalize_row(profile, report_type, row, batch):
         batch,
     )
     if report_type == ReportType.CAMPAIGN:
-        return {"campaignId": str(campaign.pk)}
+        return campaign
     if report_type == ReportType.TARGETING:
         ad_group, _ = AdGroup.objects.update_or_create(
             campaign=campaign,
@@ -137,7 +139,7 @@ def _normalize_row(profile, report_type, row, batch):
             )
         else:
             raise ValueError("targeting_type:INVALID")
-        return {"targetId": str(target.pk), "targetingType": target_type}
+        return target
     term, _ = SearchTerm.objects.update_or_create(
         profile=profile,
         query_text=str(row["search_term"]),
@@ -147,7 +149,7 @@ def _normalize_row(profile, report_type, row, batch):
             "source_batch_id": batch.pk,
         },
     )
-    return {"searchTermId": str(term.pk)}
+    return term
 
 
 @transaction.atomic
@@ -222,8 +224,23 @@ def process_task(task_id):
             total += 1
             try:
                 with transaction.atomic():
+                    normalized_object = _normalize_row(
+                        task.upload.profile, task.upload.report_type, row, batch
+                    )
+                    from apps.analytics.services import upsert_daily_metric
+
+                    upsert_daily_metric(
+                        report_type=task.upload.report_type,
+                        profile=task.upload.profile,
+                        batch=batch,
+                        row=row,
+                        normalized_object=normalized_object,
+                    )
                     normalized.append(
-                        _normalize_row(task.upload.profile, task.upload.report_type, row, batch)
+                        {
+                            "objectId": str(normalized_object.pk),
+                            "objectType": normalized_object.__class__.__name__,
+                        }
                     )
                 succeeded += 1
             except (ValueError, IntegrityError) as exc:

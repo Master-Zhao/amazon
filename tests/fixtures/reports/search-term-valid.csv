@@ -1,3 +1,3 @@
-profile_id,campaign_id,campaign_name,campaign_state,search_term,targeting_text,currency
-DEMO-PROFILE-001,C-100,Brand Core,ENABLED,best running shoes,running shoes,USD
-DEMO-PROFILE-001,C-100,Brand Core,ENABLED,lightweight trainers,running shoes,USD
+date,profile_id,campaign_id,campaign_name,campaign_state,search_term,targeting_text,currency,impressions,clicks,spend,orders,sales
+2026-07-20,DEMO-PROFILE-001,C-100,Brand Core,ENABLED,best running shoes,running shoes,USD,400,25,35.00,6,240.00
+2026-07-20,DEMO-PROFILE-001,C-100,Brand Core,ENABLED,lightweight trainers,running shoes,USD,300,10,20.00,2,60.00

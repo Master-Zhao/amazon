@@ -48,8 +48,11 @@ async function performLogout(): Promise<void> {
 
     <nav class="nav" aria-label="平台导航">
       <RouterLink v-if="authStore.currentUser" to="/">工作台</RouterLink>
+      <RouterLink v-if="authStore.currentUser" to="/dashboard">广告分析</RouterLink>
       <RouterLink v-if="authStore.currentUser" to="/seller-context">卖家空间</RouterLink>
       <RouterLink v-if="authStore.currentUser" to="/reports">数据中心</RouterLink>
+      <RouterLink v-if="authStore.currentUser" to="/advertising/targeting">Targeting</RouterLink>
+      <RouterLink v-if="authStore.currentUser" to="/advertising/search-terms">Search Term</RouterLink>
       <RouterLink v-if="authStore.currentUser" to="/system/roles">角色与权限</RouterLink>
       <RouterLink v-else to="/login">登录</RouterLink>
       <RouterLink to="/diagnostics/health">运行诊断</RouterLink>
