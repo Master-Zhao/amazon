@@ -1,6 +1,19 @@
 # 01 项目范围
 
-## 1. 范围原则
+> **历史方案说明（已取代）**：本文原始 V1a—V1d 切分保留用于追溯，但其中“一种待确认报表/广告类型”、邮箱密码登录、`UserStoreAccess` 授权、单 Store 分析和“商业级高并发排除”等描述，已被 `codex_master_goal_amazon_ads_v1.md` 的当前确认规格取代，不再作为实施依据。
+
+## 当前有效结论（2026-07-28）
+
+- V1 完整支持 Sponsored Products，以及 Campaign、Targeting、Search Term 三类报表；真实脱敏样例仍是字段与粒度的最终验证条件。
+- 认证采用 JWT 双 Token：Access 短期且前端内存优先，Refresh 使用 HttpOnly Cookie；Phase 1 只预留配置，不实现登录。
+- 数据范围按 `Tenant → AmazonStore → StoreMarketplace → Marketplace → AdvertisingProfile` 校验；User/Team 的 Store/Profile 白名单和 RBAC 在 Phase 2 实现。
+- Campaign、Targeting、Search Term 分别使用独立 Daily Metric 事实表，不使用旧统一事实表。
+- V1 包含可压测的高并发框架与 Phase 6 真实压测，但不得在测试前声明任何性能结果。
+- 当前仅授权 Phase 1 定向收口，Phase 2—7 仍未实现。
+
+以下内容均为历史记录：
+
+## 1. 历史范围原则
 
 - 每个阶段必须形成可演示、可测试、可审计的垂直切片。
 - 列入领域模型不等于立即建表或立即实现。

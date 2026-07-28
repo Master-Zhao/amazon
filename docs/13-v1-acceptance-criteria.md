@@ -1,6 +1,19 @@
 # 13 V1验收标准
 
-## 1. 总体验收原则
+> **历史方案说明（已取代）**：本文原 V1a—V1d 清单保留用于追溯。旧“首种广告类型/首种报表”、`UserStoreAccess`、单 Store 分析、统一事实路径以及“认证方式和运行时未冻结”的阻塞描述，已被 `codex_master_goal_amazon_ads_v1.md` 的当前确认规格取代。
+
+## 当前有效结论（2026-07-28）
+
+- V1 验收范围是 Sponsored Products 与 Campaign、Targeting、Search Term 三类报表，不再四选一。
+- Store/Profile 归属为 `Tenant → AmazonStore → StoreMarketplace → Marketplace/AdvertisingProfile`；功能权限为 RBAC，数据权限包含 Store 与 Profile 白名单。
+- Campaign、Targeting、Search Term 使用三张独立 Daily Metric 事实表。
+- JWT 双 Token 和运行时版本已确认；Phase 1 仅完成运行基础与 JWT 配置预留，登录和授权仍待 Phase 2。
+- 当前 Phase 1 的 20 项基础验收状态只以 `docs/testing/acceptance-checklist.md` 为准；不能由 Phase 1 推导全 V1 已完成。
+- 真实脱敏报表样例仍阻塞三类报表 Schema/粒度的最终验收，但不把确认的三报表范围降回“一种待确认报表”。
+
+以下第 1—8 节为历史清单：
+
+## 1. 历史总体验收原则
 
 - 每项必须有可重复的测试证据。
 - “页面能显示”不能代替后端约束、权限和审计验证。

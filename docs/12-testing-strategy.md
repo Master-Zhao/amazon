@@ -1,6 +1,19 @@
 # 12 测试策略
 
-## 1. 原则
+> **历史方案说明（已取代）**：本文保留 Phase 0 时的全 V1 测试设想，其中旧 `UserStoreAccess`、单 Store Agent、首种报表待确认、统一事实口径和“本轮尚未初始化工程”等描述，已被 `codex_master_goal_amazon_ads_v1.md` 与当前 Phase 1 工程状态取代。
+
+## 当前有效结论（2026-07-28）
+
+- Phase 1 当前执行 Django check、迁移差异/应用检查、完整 pytest、OpenAPI、前端 lint/typecheck/unit/build、三套 Compose 静态校验和真实运行健康检查。
+- API ID 仅通过显式公共标识符字段字符串化；clicks、orders、分页数等普通数字保持 JSON number，Decimal/UUID 保持字符串。
+- readiness 必须覆盖 MySQL/Redis/config 故障、503、响应 requestId、同 requestId JSON 告警和敏感连接信息不泄漏。
+- Worker 通过进程存活、Broker/inspect ping 验证；Beat 通过 PID1 和真实 beat 命令行验证。
+- 认证、Tenant/Store/Profile/RBAC 和三类报表属于后续授权阶段，测试目标保留但尚未实现。
+- 自动化浏览器 E2E 不作为 Phase 1 的 20 项阻塞条件；本次不新增 E2E 依赖，后续业务联调和 Phase 7 再落地。此前真实浏览器验收证据仍有效，但不得称为可重复自动化 E2E。
+
+以下第 1—11 节为历史测试设计：
+
+## 1. 历史原则
 
 - 优先测试业务不变量、隔离、状态转换和不可变历史。
 - 确定性算法使用表格驱动和边界测试。

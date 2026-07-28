@@ -1,6 +1,18 @@
 # 10 运行环境基线
 
-## 1. 状态
+> **历史方案说明（已取代）**：本文原“具体版本均待确认、不得产生锁文件”状态，已被 `codex_master_goal_amazon_ads_v1.md` 和 Phase 1 兼容验证结果取代。为保留决策过程，旧方案继续留在下文，但不再作为当前门禁。
+
+## 当前有效结论（2026-07-28）
+
+- 后端：Python 3.13、Django 5.2 LTS、DRF 3.16.x、Celery 5.6.x、MySQL 8.4 LTS、Redis 7.x、Gunicorn。
+- 前端：Node.js 24 LTS、Vue 3、TypeScript、Vite 8.x、Vue Router、Pinia、Axios、pnpm；ECharts 在首次真实 Dashboard/趋势图页面实现时再安装，Phase 1 不安装未使用依赖。
+- 已生成并验证 `backend/uv.lock` 与 `frontend/pnpm-lock.yaml`；具体实测版本和命令以 `docs/phase-1-report.md` 为准。
+- local/prod 使用 MySQL；test 为 SQLite 单元测试加 MySQL 8.4 容器集成测试。
+- local/test/prod 环境配置现状见 `docs/deployment/environment-variables.md`。
+
+以下第 1—8 节为历史记录：
+
+## 1. 历史状态
 
 Python、Django、Django REST Framework、Celery、Node、Vue、Vite、TypeScript、MySQL和Redis的具体版本均为**待确认**。本文不自行冻结版本，也不产生依赖文件。
 

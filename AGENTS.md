@@ -108,7 +108,7 @@ tests/fixtures/reports/
 - View、Task、Agent 不得直接修改核心状态；所有状态转换由 Service/状态机服务执行。
 - 所有受保护操作必须同时校验认证、有效 TenantMembership、功能权限、Store 权限、Profile 权限、对象 Tenant/Store/Profile 归属和状态守卫。
 - 跨 Tenant 或完全越出数据范围返回 404；当前范围内缺动作权限返回 403。
-- 数据库表名只允许 `sys_`、`ads_`、`report_`、`analytics_`、`ai_`、`action_`、`knowledge_`、`audit_`、`file_` 前缀。
+- 项目自定义表名只允许 `sys_`、`org_`、`ads_`、`report_`、`analytics_`、`ai_`、`agent_`、`action_`、`knowledge_`、`audit_`、`file_` 前缀；Django 框架内置 `auth_*`、`django_*` 表豁免。
 - Amazon 外部 ID 使用字符串；金额使用 Decimal；时间以 UTC 存储；业务日期保留 Marketplace 语义。
 - 已在共享环境执行的迁移不得修改，只能新增迁移。
 - 状态写入、不可变版本、审批/执行记录和 AuditLog 应处于同一事务边界；任务在事务提交后派发。
@@ -150,23 +150,25 @@ tests/fixtures/reports/
 以下是工程创建后的标准命令；仅当对应文件存在时执行。每次交付必须记录实际命令和真实结果：
 
 ```powershell
-uv sync --frozen
-uv run python backend/manage.py check
-uv run python backend/manage.py makemigrations --check --dry-run
-uv run python backend/manage.py migrate --check
-uv run pytest backend
+uv sync --project backend --frozen
+uv run --project backend python backend/manage.py check
+uv run --project backend python backend/manage.py makemigrations --check --dry-run
+uv run --project backend python backend/manage.py migrate --check
+uv run --project backend pytest backend
 
 pnpm --dir frontend install --frozen-lockfile
 pnpm --dir frontend typecheck
 pnpm --dir frontend test
 pnpm --dir frontend build
 
-docker compose config --quiet
-docker compose up -d --build
-docker compose ps
+docker compose -f compose.local.yml config --quiet
+docker compose -f compose.test.yml config --quiet
+docker compose --env-file .env.example -f compose.prod.yml config --quiet
+docker compose -f compose.local.yml up -d --build
+docker compose -f compose.local.yml ps
 ```
 
-还必须按阶段运行 OpenAPI 校验、生成类型差异检查、浏览器 E2E、迁移从零执行、健康检查和相关安全/并发测试。当前 Phase 0 没有工程清单，上述项目级检查不可执行；不得把“计划命令”报告为“已执行”。
+还必须按阶段运行 OpenAPI 校验、生成类型差异检查、迁移从零执行、健康检查和相关安全/并发测试。自动化浏览器 E2E 在后续业务前端联调与 Phase 7 落地，不是 Phase 1 阻塞项；Phase 1 已完成的真实浏览器验收不得描述为可重复自动化 E2E。Phase 1 已建立工程清单和 local/test/prod Compose；后续变更必须执行实际受影响的检查，未执行项写明原因，不得把“计划命令”报告为“已执行”。
 
 ## 10. 完成标准
 

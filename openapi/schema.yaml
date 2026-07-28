@@ -1,0 +1,36 @@
+openapi: 3.0.3
+info:
+  title: Amazon Ads Optimizer API
+  version: 0.1.0
+  description: Phase 1 platform and health API. Business APIs are not implemented.
+paths:
+  /api/v1/:
+    get:
+      operationId: api_v1_retrieve
+      summary: Platform API information
+      tags:
+      - platform
+      responses:
+        '200':
+          description: Phase 1 platform information
+  /health/live:
+    get:
+      operationId: health_live_retrieve
+      summary: Liveness probe
+      tags:
+      - health
+      responses:
+        '200':
+          description: Django process is alive
+  /health/ready:
+    get:
+      operationId: health_ready_retrieve
+      summary: Readiness probe
+      tags:
+      - health
+      responses:
+        '200':
+          description: Required dependencies are available
+        '503':
+          description: One or more dependencies are unavailable
+components: {}

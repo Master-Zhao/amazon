@@ -2,9 +2,9 @@
 
 ## 1. 计划状态
 
-- 当前阶段：Phase 0 已执行文档落库，等待验收。
-- 当前应用状态：没有后端、前端、依赖清单、迁移、测试、Compose 或环境示例，系统不可启动。
-- 下一阶段：仅在用户明确授权后进入 Phase 1。
+- 当前阶段：Phase 1 已完成定向补缺、最终验收与收口；不得进入 Phase 2。
+- 当前应用状态：Django/Vue、锁文件、首次自定义 User 迁移、测试、OpenAPI、local/test/prod Compose、readiness 安全日志、Worker/Beat healthcheck、JWT 配置预留、API ID 字段、环境矩阵和 Axios/settings 测试均已完成。local 7 服务保持 healthy；独立 prod 运行验收后已停止。
+- 下一阶段：仅在用户明确授权后进入 Phase 2。
 - 依赖顺序：`Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7`。
 - 纵向原则：每个阶段交付真实可运行切片，不以空模块或静态页面代替。
 
@@ -34,14 +34,14 @@
 
 ### 涉及模块
 
-- 后端：`config`、`api/v1`、`apps/core`、Celery 配置。
+- 后端：`config`、`api/v1`、`apps/core`、`apps/accounts` 的最小自定义 User、Celery 配置。
 - 前端：`src/app`、`src/shared`，最小应用壳与健康状态页。
 - 基础设施：MySQL、Redis、API、Worker、Beat、Nginx、前端构建。
 - 契约：统一响应、统一异常、requestId、camelCase、OpenAPI。
 
 ### 预计修改文件
 
-- 根目录：`.gitignore`、`.env.example`、`compose.yaml`、`README.md`。
+- 根目录：`.gitignore`、`.env.example`、`compose.local.yml`、`compose.test.yml`、`compose.prod.yml`、`README.md`。
 - 后端：`backend/pyproject.toml` 或根 `pyproject.toml`、`uv.lock`、`backend/manage.py`、`backend/config/**`、`backend/api/v1/**`、`backend/apps/core/**`、`backend/tests/**`。
 - 前端：`frontend/package.json`、`frontend/pnpm-lock.yaml`、`frontend/vite.config.ts`、`frontend/tsconfig*.json`、`frontend/src/app/**`、`frontend/src/shared/**`。
 - 部署：`backend/Dockerfile`、`frontend/Dockerfile`、`infra/nginx/**`。
@@ -49,8 +49,8 @@
 
 ### 数据库迁移
 
-- 只产生 Django 基础迁移能力；不得创建业务域 Model。
-- 自定义 User 必须在首次业务迁移前设计并于 Phase 2 首次迁移中落地，不能先迁移默认 `auth.User`。
+- 只产生 Django 内置表和自定义 User；不得创建业务域 Model。
+- 自定义 User 已按 Phase 1 明确授权在 `accounts.0001_initial` 落地，首次迁移未使用默认 `auth.User`。
 - 验证空数据库 `migrate` 可运行；记录 Django 内置表。
 
 ### 接口交付
@@ -70,10 +70,12 @@
 
 - Django `check`、基础 pytest、OpenAPI 校验。
 - Celery 与 Redis 最小任务往返。
+- Worker/Beat 在 Compose 中显示 `healthy`；Worker healthcheck 包含 inspect ping，Beat healthcheck 验证真实 PID1 调度进程。
 - 前端 typecheck、组件/单元测试、生产构建。
 - `docker compose config --quiet`、全容器启动、live/ready 探测。
 - 混合开发方式启动验证。
 - 检查仓库无秘密、无 `latest`、无 npm/yarn 锁文件。
+- 自动化浏览器 E2E 不作为本阶段阻塞项；保留真实浏览器验收证据，后续业务联调与 Phase 7 再实现可重复脚本。
 
 ### 文档要求
 
@@ -98,7 +100,7 @@
 
 ### 实现目标
 
-实现全局 User、Tenant/Team/RBAC、StoreMarketplace/Profile 层级、JWT 双 Token、Store/Profile 授权与前端上下文切换，形成真实隔离链路。
+在 Phase 1 全局 User 基础上实现认证、Tenant/Team/RBAC、StoreMarketplace/Profile 层级、JWT 双 Token、Store/Profile 授权与前端上下文切换，形成真实隔离链路。
 
 ### 涉及模块
 
@@ -121,7 +123,7 @@
 
 ### 数据库迁移
 
-- 首次迁移即自定义 `sys_user`。
+- 保持 Phase 1 `accounts.0001_initial` 的 `sys_user` 不变，只通过新增迁移扩展认证所需字段或约束。
 - `sys_tenant`、Membership、Team/Member、Role/Permission/关系。
 - `ads_store`、`ads_marketplace`、`ads_store_marketplace`、`ads_advertising_profile`。
 - Store 与 Profile 的 User/Team 白名单授权及等级约束。
