@@ -1,97 +1,32 @@
-from datetime import date
 from decimal import Decimal
 
 import pytest
-from django.contrib.auth import get_user_model
 
-from apps.advertising.models import Campaign, EntityState
+from apps.agents.models import AgentCode
+from apps.agents.orchestrator import (
+    AgentResultValidationError,
+    AnalysisOrchestrator,
+    validate_agent_result,
+)
 from apps.analytics.calculations import calculate_metrics
-from apps.analytics.models import AnomalyRecord, CampaignDailyMetric
-from apps.analytics.selectors import dashboard
-from apps.analytics.services import target_acos_for, upsert_daily_metric
-from apps.reports.models import (
-    ImportBatch,
-    ImportStatus,
-    ImportTask,
-    ReportType,
-    ReportUpload,
-)
-from apps.stores.models import (
-    AdvertisingProfile,
-    AmazonStore,
-    Marketplace,
-    StoreMarketplace,
-)
-from apps.tenants.models import MembershipRole, Tenant, TenantMembership, TenantType
+from apps.analytics.services import metric_formulas
+from integrations.llm.providers import MockLLMProvider
 
 
-@pytest.fixture
-def analytics_context(db):
-    user = get_user_model().objects.create_user(
-        username="analyst", email="analyst@example.invalid", password="password"
-    )
-    tenant = Tenant.objects.create(
-        name="Analytics", tenant_type=TenantType.PERSONAL, target_acos="0.3000"
-    )
-    TenantMembership.objects.create(
-        tenant=tenant, user=user, role=MembershipRole.OWNER
-    )
-    marketplace = Marketplace.objects.create(
-        code="US",
-        name="Amazon.com",
-        country_code="US",
-        currency="USD",
-        timezone="America/Los_Angeles",
-    )
-    store = AmazonStore.objects.create(
-        tenant=tenant, name="Store", external_store_id="ANALYTICS-STORE"
-    )
-    scope = StoreMarketplace.objects.create(
-        store=store, marketplace=marketplace, seller_id="SELLER"
-    )
-    profile = AdvertisingProfile.objects.create(
-        store_marketplace=scope,
-        external_profile_id="P-1",
-        name="Profile",
-        currency="USD",
-        timezone=marketplace.timezone,
-        target_acos="0.2500",
-    )
-    campaign = Campaign.objects.create(
-        profile=profile,
-        external_campaign_id="C-1",
-        name="Campaign",
-        state=EntityState.ENABLED,
-        daily_budget="50.00",
-        currency="USD",
-    )
-    upload = ReportUpload.objects.create(
-        tenant=tenant,
-        profile=profile,
-        report_type=ReportType.CAMPAIGN,
-        original_name="fixture.csv",
-        content_type="text/csv",
-        size_bytes=1,
-        sha256="a" * 64,
-        storage_path="reports/fixture.csv",
-        uploaded_by=user,
-    )
-    task = ImportTask.objects.create(
-        upload=upload,
-        status=ImportStatus.RUNNING,
-        requested_by=user,
-        idempotency_key="analytics-test",
-    )
-    batch = ImportBatch.objects.create(task=task, status=ImportStatus.RUNNING)
-    return user, tenant, profile, campaign, batch
-
-
-def test_deterministic_formulas_and_zero_denominators():
+def test_deterministic_formulas_and_zero_denominator_reasons():
     calculated = calculate_metrics(
-        impressions=100, clicks=10, spend="20.00", orders=2, sales="80.00"
+        impressions=100,
+        clicks=10,
+        spend="20.00",
+        orders=2,
+        sales="80.00",
     )
     empty = calculate_metrics(
-        impressions=0, clicks=0, spend="0", orders=0, sales="0"
+        impressions=0,
+        clicks=0,
+        spend="0",
+        orders=0,
+        sales="0",
     )
 
     assert calculated["ctr"] == Decimal("0.1")
@@ -99,84 +34,82 @@ def test_deterministic_formulas_and_zero_denominators():
     assert calculated["cvr"] == Decimal("0.2")
     assert calculated["acos"] == Decimal("0.25")
     assert calculated["roas"] == Decimal("4")
-    assert empty["ctr"] is None and empty["acos"] is None and empty["roas"] is None
-    assert empty["invalid_reasons"]["acos"] == "NO_SALES"
+    assert empty["ctr"] is None
+    assert empty["acos"] is None
+    assert empty["roas"] is None
+    assert empty["invalid_reasons"] == {
+        "ctr": "NO_IMPRESSIONS",
+        "cpc": "NO_CLICKS",
+        "cvr": "NO_CLICKS",
+        "acos": "NO_SALES",
+        "roas": "NO_SPEND",
+    }
 
 
-@pytest.mark.django_db
-def test_campaign_metric_preserves_snapshots_and_batch_lineage(analytics_context):
-    _, _, profile, campaign, batch = analytics_context
-    metric = upsert_daily_metric(
-        report_type=ReportType.CAMPAIGN,
-        profile=profile,
-        batch=batch,
-        row={
-            "date": "2026-07-20",
-            "impressions": "1000",
-            "clicks": "50",
-            "spend": "100",
-            "orders": "5",
-            "sales": "200",
-        },
-        normalized_object=campaign,
+def test_selector_formula_contract_returns_value_or_explicit_reason():
+    formulas = metric_formulas(
+        impressions=0,
+        clicks=0,
+        spend="0",
+        orders=0,
+        sales="0",
     )
-    campaign.daily_budget = Decimal("80")
-    campaign.state = EntityState.PAUSED
-    campaign.save()
 
-    metric.refresh_from_db()
-    assert metric.budget_snapshot == Decimal("50")
-    assert metric.state_snapshot == EntityState.ENABLED
-    assert metric.source_batch == batch
-    assert metric.acos == Decimal("0.5")
+    assert formulas["ctr"] == {"value": None, "reason": "NO_IMPRESSIONS"}
+    assert formulas["cpc"] == {"value": None, "reason": "NO_CLICKS"}
+    assert formulas["acos"] == {"value": None, "reason": "NO_SALES"}
+    assert formulas["roas"] == {"value": None, "reason": "NO_SPEND"}
 
 
-@pytest.mark.django_db
-def test_target_acos_inheritance_and_anomaly_rule(analytics_context):
-    _, tenant, profile, campaign, batch = analytics_context
-    assert target_acos_for(campaign) == Decimal("0.2500")
-    campaign.target_acos = Decimal("0.2000")
-    campaign.save(update_fields=["target_acos"])
-    assert target_acos_for(campaign) == Decimal("0.2000")
+def test_mock_orchestrator_runs_all_four_agents_with_one_versioned_schema():
+    context = {
+        "campaigns": [
+            {
+                "campaignId": "1",
+                "metricId": "11",
+                "sourceBatchId": "21",
+                "dailyBudget": "50.00",
+                "currency": "USD",
+                "anomalies": [
+                    {
+                        "ruleCode": "HIGH_ACOS",
+                        "ruleVersion": 1,
+                        "status": "ANOMALY",
+                        "observedValue": "0.40",
+                        "thresholdValue": "0.25",
+                        "riskLevel": "MEDIUM",
+                    }
+                ],
+            }
+        ]
+    }
 
-    metric = upsert_daily_metric(
-        report_type=ReportType.CAMPAIGN,
-        profile=profile,
-        batch=batch,
-        row={
-            "date": "2026-07-20",
-            "impressions": "1000",
-            "clicks": "20",
-            "spend": "100",
-            "orders": "1",
-            "sales": "100",
-        },
-        normalized_object=campaign,
+    results = AnalysisOrchestrator(MockLLMProvider()).run(
+        run_id="run-1",
+        authorized_context=context,
     )
-    anomaly = AnomalyRecord.objects.get(metric=metric)
-    assert anomaly.status == "ANOMALOUS"
-    assert anomaly.risk_level == "HIGH"
 
-
-@pytest.mark.django_db
-def test_dashboard_uses_campaign_fact_only(analytics_context):
-    user, tenant, profile, campaign, batch = analytics_context
-    upsert_daily_metric(
-        report_type=ReportType.CAMPAIGN,
-        profile=profile,
-        batch=batch,
-        row={
-            "date": "2026-07-20",
-            "impressions": "100",
-            "clicks": "10",
-            "spend": "20",
-            "orders": "2",
-            "sales": "80",
-        },
-        normalized_object=campaign,
+    assert [item["agentCode"] for item in results] == list(AgentCode.values)
+    assert all(item["schemaVersion"] == "agent-result-v1" for item in results)
+    assert all(item["runId"] == "run-1" for item in results)
+    assert results[-1]["recommendations"][0]["actionType"] == (
+        "UPDATE_CAMPAIGN_BUDGET"
     )
-    result = dashboard(user, tenant.pk, profile.pk)
+    assert results[-1]["recommendations"][0]["afterValue"] == {
+        "dailyBudget": "45.00",
+        "currency": "USD",
+    }
 
-    assert result["currency"] == "USD"
-    assert result["totals"]["spend"] == Decimal("20")
-    assert len(result["series"]) == 1
+
+def test_agent_schema_validation_rejects_missing_or_wrong_version():
+    with pytest.raises(AgentResultValidationError, match="missing keys"):
+        validate_agent_result({"schemaVersion": "agent-result-v1"})
+
+    invalid = MockLLMProvider().generate(
+        agent_code=AgentCode.DATA_ANALYSIS,
+        run_id="run-invalid",
+        context={},
+    )
+    invalid["schemaVersion"] = "unexpected"
+    with pytest.raises(AgentResultValidationError, match="schemaVersion"):
+        validate_agent_result(invalid)

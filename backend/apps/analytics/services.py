@@ -63,9 +63,11 @@ def safe_ratio(
     *,
     zero_reason: str,
 ) -> tuple[Decimal | None, str | None]:
-    if denominator == 0:
+    numerator_value = Decimal(str(numerator))
+    denominator_value = Decimal(str(denominator))
+    if denominator_value == 0:
         return None, zero_reason
-    return Decimal(numerator) / Decimal(denominator), None
+    return numerator_value / denominator_value, None
 
 
 def metric_formulas(
