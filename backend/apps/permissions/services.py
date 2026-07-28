@@ -60,7 +60,7 @@ def _active_membership(*, user, tenant_id) -> TenantMembership:
 def permission_codes_for(*, user, tenant: Tenant) -> frozenset[str]:
     membership = _active_membership(user=user, tenant_id=tenant.pk)
     if membership.role in {MembershipRole.OWNER, MembershipRole.ADMIN}:
-        return frozenset(Permission.objects.values_list("code", flat=True))
+        return frozenset(PERMISSION_CATALOG)
     return frozenset(
         Permission.objects.filter(
             roles__userrole__tenant=tenant,

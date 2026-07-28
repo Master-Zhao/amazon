@@ -19,17 +19,17 @@
 | PERM-002 | Store/Profile User 与 Team 授权并集、最高等级 | 主规格 8 | permissions | models/services/grant API | union/highest tests | IMPLEMENTED_AND_TESTED | 无显式 DENY |
 | PERM-003 | Owner/Admin 全范围、无显式 DENY | 主规格 8 | permissions | authorization service | owner tests | IMPLEMENTED_AND_TESTED | MANAGE |
 | PERM-004 | 认证∩Membership∩功能∩Store∩Profile | 主规格 8 | permissions | authorize service | 404/403 tests | IMPLEMENTED_AND_TESTED | 跨范围 404、范围内缺动作 403 |
-| ADS-001 | Sponsored Products 广告层级 | 主规格 9 | advertising | M2 | M2 | NOT_IMPLEMENTED | Brands/Display 仅扩展枚举 |
-| ADS-002 | Keyword/ProductTarget/SearchTerm 与匹配类型 | 主规格 9 | advertising | M2 | M2 | NOT_IMPLEMENTED | M2 |
-| ADS-003 | Campaign/AdGroup 级 Negative Keyword | 主规格 9 | advertising | M2 | M2 | NOT_IMPLEMENTED | M2 |
-| PROD-001 | Product/CatalogItem/Listing 关系与唯一键 | 主规格 9 | products | M2 | M2 | NOT_IMPLEMENTED | D-109 已确认 |
-| REPORT-001 | Campaign CSV/Excel 上传异步导入 | 主规格 10 | reports | M2 | fixture tests | NOT_IMPLEMENTED | 真实样例最终验证受阻 |
-| REPORT-002 | Targeting CSV/Excel 上传异步导入 | 主规格 10 | reports | M2 | fixture tests | NOT_IMPLEMENTED | 真实样例最终验证受阻 |
-| REPORT-003 | Search Term CSV/Excel 上传异步导入 | 主规格 10 | reports | M2 | fixture tests | NOT_IMPLEMENTED | 真实样例最终验证受阻 |
-| REPORT-004 | FileStorage 与 FileUploadReportSource | 主规格 10 | integrations | M2 | M2 | NOT_IMPLEMENTED | 第三方/Amazon API Source 仅预留 |
-| REPORT-005 | Upload/Task/Batch 只追加、重处理新建 | 主规格 10 | reports | M2 | 幂等/血缘测试 | NOT_IMPLEMENTED | M2 |
-| REPORT-006 | 文件级/行级错误与部分成功 | 主规格 10 | reports | M2 | partial fixture | NOT_IMPLEMENTED | M2 |
-| REPORT-007 | 流式保存、分块解析、批量写入 | 主规格 10、18 | reports | M2/M6 | M2/M6 | NOT_IMPLEMENTED | M2/M6 |
+| ADS-001 | Sponsored Products 广告层级 | 主规格 9 | advertising | models/migrations/API | report tests | IMPLEMENTED_AND_TESTED | Brands/Display 仅扩展枚举 |
+| ADS-002 | Keyword/ProductTarget/SearchTerm 与匹配类型 | 主规格 9 | advertising | models/import/selectors | targeting/search fixtures | IMPLEMENTED_AND_TESTED | 真实自然键待样例 |
+| ADS-003 | Campaign/AdGroup 级 Negative Keyword | 主规格 9 | advertising | NegativeKeyword model | 后续动作测试 | IMPLEMENTED_NOT_FULLY_VERIFIED | M4 新增动作验证 |
+| PROD-001 | Product/CatalogItem/Listing 关系与唯一键 | 主规格 9 | products | models/0001 | 迁移约束 | IMPLEMENTED_NOT_FULLY_VERIFIED | D-109；真实 SKU 待样例 |
+| REPORT-001 | Campaign CSV/Excel 上传异步导入 | 主规格 10 | reports | upload/task/parser | CSV/XLSX tests | BLOCKED_BY_REAL_SAMPLE | fixture 通过，真实导出待验证 |
+| REPORT-002 | Targeting CSV/Excel 上传异步导入 | 主规格 10 | reports | upload/task/parser | targeting fixture | BLOCKED_BY_REAL_SAMPLE | fixture 通过，真实导出待验证 |
+| REPORT-003 | Search Term CSV/Excel 上传异步导入 | 主规格 10 | reports | upload/task/parser | search fixture | BLOCKED_BY_REAL_SAMPLE | fixture 通过，真实导出待验证 |
+| REPORT-004 | FileStorage 与 FileUploadReportSource | 主规格 10 | integrations | LocalFileStorage/source capability | source tests | IMPLEMENTED_AND_TESTED | 第三方/Amazon API Source 仅预留 |
+| REPORT-005 | Upload/Task/Batch 只追加、重处理新建 | 主规格 10 | reports | models/service | duplicate/reprocess test | IMPLEMENTED_AND_TESTED | 新 Batch 血缘 |
+| REPORT-006 | 文件级/行级错误与部分成功 | 主规格 10 | reports | parser/service/errors | partial/profile mismatch | IMPLEMENTED_AND_TESTED | 文件级更多格式待真实样例 |
+| REPORT-007 | 流式保存、分块解析、批量写入 | 主规格 10、18 | reports | chunked storage/read-only parser | fixture tests | IMPLEMENTED_NOT_FULLY_VERIFIED | 大规模批量性能 M6 |
 | METRIC-001 | 三类 Daily Metric 独立事实 | 主规格 11 | analytics | M3 | 粒度隔离测试 | NOT_IMPLEMENTED | M3 |
 | METRIC-002 | CTR/CPC/CVR/ACOS/ROAS 与 null 原因 | 主规格 11 | analytics | M3 | 公式测试 | NOT_IMPLEMENTED | M3 |
 | METRIC-003 | Campaign/Targeting 历史快照 | 主规格 11 | analytics | M3 | 快照测试 | NOT_IMPLEMENTED | M3 |

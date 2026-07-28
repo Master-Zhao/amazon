@@ -1,6 +1,6 @@
 # Amazon 广告智能优化系统 V1
 
-当前仓库已完成 M1：在 Phase 1 基础工程和 Phase 2A JWT 双 Token 上，新增真实 Tenant/Team、Store/Marketplace/AdvertisingProfile、RBAC、Store/Profile 数据授权与前端四级上下文。广告、报表、AI、Recommendation、审批和执行将在后续里程碑实现。
+当前仓库已完成 M2：认证与多租户权限之上，已加入 Sponsored Products 广告/产品模型、三类 CSV/XLSX 报表上传、Celery 导入任务、批次/行错/重复/重处理/血缘和数据中心页面。指标、AI、Recommendation、审批和执行将在后续里程碑实现。
 
 唯一主规格是 [codex_master_goal_amazon_ads_v1.md](codex_master_goal_amazon_ads_v1.md)。长期规则见 [AGENTS.md](AGENTS.md)，阶段计划见 [PLANS.md](PLANS.md)。
 

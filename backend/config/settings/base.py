@@ -40,6 +40,9 @@ INSTALLED_APPS = [
     "apps.tenants",
     "apps.stores",
     "apps.permissions",
+    "apps.products",
+    "apps.advertising",
+    "apps.reports",
 ]
 
 MIDDLEWARE = [
@@ -94,6 +97,18 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_ROOT = BASE_DIR / "media"
 MEDIA_URL = "/media/"
+FILE_RETENTION_DAYS = env_positive_int("FILE_RETENTION_DAYS", 365)
+REPORT_FIELD_ALIASES = {
+    "Campaign ID": "campaign_id",
+    "Campaign Name": "campaign_name",
+    "Campaign State": "campaign_state",
+    "Ad Group ID": "ad_group_id",
+    "Ad Group Name": "ad_group_name",
+    "Targeting ID": "targeting_id",
+    "Targeting": "targeting_text",
+    "Search Term": "search_term",
+    "Currency": "currency",
+}
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS")
@@ -181,6 +196,7 @@ CELERY_TASK_QUEUES = (
 )
 CELERY_TASK_ROUTES = {
     "apps.core.tasks.smoke_task": {"queue": "default"},
+    "apps.reports.tasks.process_import_task": {"queue": "imports"},
 }
 CELERY_TASK_TIME_LIMIT = env_int("CELERY_TASK_TIME_LIMIT", 30)
 CELERY_TASK_SOFT_TIME_LIMIT = env_int("CELERY_TASK_SOFT_TIME_LIMIT", 20)

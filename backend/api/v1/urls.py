@@ -7,4 +7,6 @@ urlpatterns = [
     path("auth/", include("apps.accounts.urls")),
     path("context/", include("apps.stores.urls")),
     path("permissions/", include("apps.permissions.urls")),
+    path("reports/", include("apps.reports.urls")),
+    path("advertising/", include("apps.advertising.urls")),
 ]

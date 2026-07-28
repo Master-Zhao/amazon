@@ -5,6 +5,7 @@ describe('router foundation', () => {
     expect(routes.map((route) => route.name)).toEqual([
       'home',
       'login',
+      'reports',
       'seller-context',
       'role-management',
       'health-diagnostics',

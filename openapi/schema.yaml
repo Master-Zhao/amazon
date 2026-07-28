@@ -14,6 +14,39 @@ paths:
       responses:
         '200':
           description: Phase 1 platform information
+  /api/v1/advertising/campaigns:
+    get:
+      operationId: api_v1_advertising_campaigns_retrieve
+      summary: 查询导入后的广告对象
+      tags:
+      - advertising
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: 广告对象列表
+  /api/v1/advertising/search-terms:
+    get:
+      operationId: api_v1_advertising_search_terms_retrieve
+      summary: 查询导入后的广告对象
+      tags:
+      - advertising
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: 广告对象列表
+  /api/v1/advertising/targeting:
+    get:
+      operationId: api_v1_advertising_targeting_retrieve
+      summary: 查询导入后的广告对象
+      tags:
+      - advertising
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: 广告对象列表
   /api/v1/auth/login:
     post:
       operationId: api_v1_auth_login_create
@@ -338,6 +371,73 @@ paths:
               schema:
                 $ref: '#/components/schemas/AssignmentResponse'
           description: ''
+  /api/v1/reports/tasks/{task_id}:
+    get:
+      operationId: api_v1_reports_tasks_retrieve
+      summary: 查看导入任务、批次计数和行级错误
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - reports
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: 导入任务详情
+  /api/v1/reports/tasks/{task_id}/reprocess:
+    post:
+      operationId: api_v1_reports_tasks_reprocess_create
+      summary: 重处理历史 Upload 并创建新 Task/Batch
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - reports
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+          description: ''
+  /api/v1/reports/uploads:
+    post:
+      operationId: api_v1_reports_uploads_create
+      summary: 上传三类广告报表并创建异步导入任务
+      tags:
+      - reports
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportUploadRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportUploadRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReportUploadRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+          description: ''
   /health/live:
     get:
       operationId: health_live_retrieve
@@ -618,6 +718,35 @@ components:
             $ref: '#/components/schemas/ProfileContext'
       required:
       - items
+    ReportTypeEnum:
+      enum:
+      - CAMPAIGN
+      - TARGETING
+      - SEARCH_TERM
+      type: string
+      description: |-
+        * `CAMPAIGN` - CAMPAIGN
+        * `TARGETING` - TARGETING
+        * `SEARCH_TERM` - SEARCH_TERM
+    ReportUploadRequest:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        profileId:
+          type: string
+          format: uuid
+        reportType:
+          $ref: '#/components/schemas/ReportTypeEnum'
+        file:
+          type: string
+          format: binary
+      required:
+      - file
+      - profileId
+      - reportType
+      - tenantId
     Role:
       type: object
       properties:
@@ -793,6 +922,38 @@ components:
             $ref: '#/components/schemas/StoreMarketplaceContext'
       required:
       - items
+    TaskData:
+      type: object
+      properties:
+        taskId:
+          type: string
+        status:
+          type: string
+        isDuplicate:
+          type: boolean
+        taskUrl:
+          type: string
+      required:
+      - isDuplicate
+      - status
+      - taskId
+      - taskUrl
+    TaskResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/TaskData'
+        requestId:
+          type: string
+      required:
+      - code
+      - data
+      - message
+      - requestId
     TenantContext:
       type: object
       properties:

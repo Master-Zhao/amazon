@@ -55,15 +55,16 @@ def test_explicit_test_settings_are_loaded():
     assert settings.JWT_COOKIE_SAME_SITE == "Lax"
 
 
-def test_m1_installs_only_authorized_business_apps():
+def test_m2_installs_only_authorized_business_apps():
     expected_apps = {
         "apps.tenants",
         "apps.permissions",
         "apps.stores",
-    }
-    future_apps = {
+        "apps.products",
         "apps.reports",
         "apps.advertising",
+    }
+    future_apps = {
         "apps.analytics",
         "apps.agents",
         "apps.recommendations",

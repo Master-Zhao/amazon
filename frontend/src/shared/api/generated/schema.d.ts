@@ -21,6 +21,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/advertising/campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查询导入后的广告对象 */
+        get: operations["api_v1_advertising_campaigns_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/advertising/search-terms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查询导入后的广告对象 */
+        get: operations["api_v1_advertising_search_terms_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/advertising/targeting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查询导入后的广告对象 */
+        get: operations["api_v1_advertising_targeting_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -255,6 +306,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/tasks/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查看导入任务、批次计数和行级错误 */
+        get: operations["api_v1_reports_tasks_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/tasks/{task_id}/reprocess": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 重处理历史 Upload 并创建新 Task/Batch */
+        post: operations["api_v1_reports_tasks_reprocess_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 上传三类广告报表并创建异步导入任务 */
+        post: operations["api_v1_reports_uploads_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -393,6 +495,22 @@ export interface components {
         ProfileContextResult: {
             items: components["schemas"]["ProfileContext"][];
         };
+        /**
+         * @description * `CAMPAIGN` - CAMPAIGN
+         *     * `TARGETING` - TARGETING
+         *     * `SEARCH_TERM` - SEARCH_TERM
+         * @enum {string}
+         */
+        ReportTypeEnum: "CAMPAIGN" | "TARGETING" | "SEARCH_TERM";
+        ReportUploadRequest: {
+            /** Format: uuid */
+            tenantId: string;
+            /** Format: uuid */
+            profileId: string;
+            reportType: components["schemas"]["ReportTypeEnum"];
+            /** Format: binary */
+            file: string;
+        };
         Role: {
             id: string;
             tenantId: string | null;
@@ -455,6 +573,18 @@ export interface components {
         StoreMarketplaceContextResult: {
             items: components["schemas"]["StoreMarketplaceContext"][];
         };
+        TaskData: {
+            taskId: string;
+            status: string;
+            isDuplicate: boolean;
+            taskUrl: string;
+        };
+        TaskResponse: {
+            code: string;
+            message: string;
+            data: components["schemas"]["TaskData"];
+            requestId: string;
+        };
         TenantContext: {
             id: string;
             name: string;
@@ -501,6 +631,60 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Phase 1 platform information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_advertising_campaigns_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 广告对象列表 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_advertising_search_terms_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 广告对象列表 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_advertising_targeting_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 广告对象列表 */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -822,6 +1006,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AssignmentResponse"];
+                };
+            };
+        };
+    };
+    api_v1_reports_tasks_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 导入任务详情 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_reports_tasks_reprocess_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+        };
+    };
+    api_v1_reports_uploads_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportUploadRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ReportUploadRequest"];
+                "multipart/form-data": components["schemas"]["ReportUploadRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
                 };
             };
         };

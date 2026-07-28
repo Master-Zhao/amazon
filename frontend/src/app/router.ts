@@ -12,6 +12,7 @@ import HealthDiagnosticsPage from '@/features/diagnostics/pages/HealthDiagnostic
 import HomePage from '@/features/home/pages/HomePage.vue'
 import SellerContextPage from '@/features/tenant-context/pages/SellerContextPage.vue'
 import RoleManagementPage from '@/features/system/pages/RoleManagementPage.vue'
+import ReportCenterPage from '@/features/reports/pages/ReportCenterPage.vue'
 
 export const routes: RouteRecordRaw[] = [
   {
@@ -25,6 +26,12 @@ export const routes: RouteRecordRaw[] = [
     name: 'login',
     component: LoginPage,
     meta: { title: '登录', guestOnly: true },
+  },
+  {
+    path: '/reports',
+    name: 'reports',
+    component: ReportCenterPage,
+    meta: { title: '数据中心', requiresAuth: true },
   },
   {
     path: '/seller-context',

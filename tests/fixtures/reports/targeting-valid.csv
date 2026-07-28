@@ -1,0 +1,3 @@
+profile_id,campaign_id,campaign_name,campaign_state,ad_group_id,ad_group_name,ad_group_state,targeting_type,targeting_id,targeting_text,match_type,state,bid,currency
+DEMO-PROFILE-001,C-100,Brand Core,ENABLED,AG-100,Exact Group,ENABLED,KEYWORD,K-100,running shoes,EXACT,ENABLED,1.25,USD
+DEMO-PROFILE-001,C-100,Brand Core,ENABLED,AG-100,Exact Group,ENABLED,PRODUCT,T-100,asin=B000DEMO01,,PAUSED,0.85,USD
