@@ -55,7 +55,13 @@ class Command(BaseCommand):
             )
 
         for code, name in PERMISSIONS.items():
-            Permission.objects.update_or_create(code=code, defaults={"name": name})
+            Permission.objects.update_or_create(
+                code=code,
+                defaults={
+                    "name": name,
+                    "description": name,
+                },
+            )
 
         tenant, _ = Tenant.objects.update_or_create(
             name="演示个人卖家空间",
