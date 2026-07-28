@@ -41,7 +41,7 @@ def api_exception_handler(exc, context):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-    error_code = next(
+    error_code = getattr(exc, "error_code", None) or next(
         (
             code
             for exception_type, code in _ERROR_CODE_BY_EXCEPTION.items()

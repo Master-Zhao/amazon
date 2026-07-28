@@ -3,20 +3,31 @@ import { flushPromises, mount } from '@vue/test-utils'
 
 import App from '@/app/App.vue'
 import { router } from '@/app/router'
+import { useAuthStore } from '@/features/auth/stores/auth'
 
 describe('application shell', () => {
-  it('mounts with router and Pinia', async () => {
+  it('mounts the authenticated Phase 2A shell', async () => {
+    const pinia = createPinia()
+    const authStore = useAuthStore(pinia)
+    authStore.accessToken = 'memory-only-token'
+    authStore.currentUser = {
+      id: '1',
+      email: 'demo@example.invalid',
+      username: 'demo',
+      firstName: '',
+      lastName: '',
+    }
     await router.push('/')
     await router.isReady()
 
     const wrapper = mount(App, {
       global: {
-        plugins: [createPinia(), router],
+        plugins: [pinia, router],
       },
     })
     await flushPromises()
 
-    expect(wrapper.text()).toContain('基础工程运行框架')
-    expect(wrapper.text()).toContain('这里只展示真实的基础工程状态')
+    expect(wrapper.text()).toContain('账号认证工作台')
+    expect(wrapper.text()).toContain('欢迎回来，demo')
   })
 })

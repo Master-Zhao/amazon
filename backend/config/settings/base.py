@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import timedelta
 
 from kombu import Queue
 
@@ -103,8 +104,6 @@ CSRF_COOKIE_HTTPONLY = False
 SESSION_COOKIE_SAMESITE = env("SESSION_COOKIE_SAMESITE", "Lax")
 CSRF_COOKIE_SAMESITE = env("CSRF_COOKIE_SAMESITE", "Lax")
 
-# Phase 1 only reserves and validates the Phase 2 JWT configuration surface.
-# No authentication endpoint or token issuance is implemented here.
 JWT_ACCESS_TOKEN_TTL_MINUTES = env_positive_int(
     "JWT_ACCESS_TOKEN_TTL_MINUTES", 15
 )
@@ -129,6 +128,9 @@ if JWT_COOKIE_SAME_SITE == "None" and not JWT_COOKIE_SECURE:
     )
 
 REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "apps.accounts.authentication.AccessTokenAuthentication"
+    ],
     "DEFAULT_RENDERER_CLASSES": ["apps.core.renderers.CamelCaseJSONRenderer"],
     "DEFAULT_PARSER_CLASSES": [
         "apps.core.parsers.CamelCaseJSONParser",
@@ -139,9 +141,27 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
 }
 
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=JWT_ACCESS_TOKEN_TTL_MINUTES),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=JWT_REFRESH_TOKEN_TTL_DAYS),
+    "ROTATE_REFRESH_TOKENS": JWT_ROTATE_REFRESH_TOKENS,
+    "BLACKLIST_AFTER_ROTATION": JWT_BLACKLIST_AFTER_ROTATION,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    "TOKEN_TYPE_CLAIM": "token_type",
+    "JTI_CLAIM": "jti",
+    "CHECK_USER_IS_ACTIVE": True,
+}
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "Amazon Ads Optimizer API",
-    "DESCRIPTION": "Phase 1 platform and health API. Business APIs are not implemented.",
+    "DESCRIPTION": (
+        "Phase 2A account authentication plus Phase 1 platform and health APIs. "
+        "Tenant and business APIs are not implemented."
+    ),
     "VERSION": APP_VERSION,
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,

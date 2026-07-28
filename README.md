@@ -1,6 +1,6 @@
 # Amazon 广告智能优化系统 V1
 
-当前仓库已完成 Phase 1：基础工程与运行框架。它现在是一个可安装、可迁移、可测试、可构建并可通过 Docker Compose 启动的前后端工程；尚未实现登录、Tenant、广告、报表、AI、Recommendation、审批或执行业务。
+当前仓库已完成 Phase 2A：账号认证与 JWT 双 Token。Phase 1 基础工程保持不变；当前新增真实登录、刷新、当前用户和退出链路。Tenant、Team、Store、AdvertisingProfile、RBAC、广告、报表、AI、Recommendation、审批和执行仍未实现。
 
 唯一主规格是 [codex_master_goal_amazon_ads_v1.md](codex_master_goal_amazon_ads_v1.md)。长期规则见 [AGENTS.md](AGENTS.md)，阶段计划见 [PLANS.md](PLANS.md)。
 
@@ -27,21 +27,27 @@ docker compose -f compose.local.yml up -d mysql redis
 # 3. 独立执行迁移
 docker compose -f compose.local.yml --profile tools run --rm migrate
 
-# 4. 启动应用
+# 4. 创建本地演示账号（密码只从当前环境传入）
+$env:DEMO_USER_PASSWORD="仅用于本机的临时密码"
+docker compose -f compose.local.yml run --rm backend python manage.py seed_demo_user
+Remove-Item Env:DEMO_USER_PASSWORD
+
+# 5. 启动应用
 docker compose -f compose.local.yml up -d backend celery-worker celery-beat frontend nginx
 
-# 5. 检查
+# 6. 检查
 docker compose -f compose.local.yml ps
 curl.exe http://localhost:8080/health/live
 curl.exe http://localhost:8080/health/ready
 
-# 6. 验证真实 Celery 往返
+# 7. 验证真实 Celery 往返
 docker compose -f compose.local.yml exec backend python manage.py celery_smoke --timeout 30
 ```
 
 访问：
 
 - 首页：`http://localhost:8080/`
+- 登录：`http://localhost:8080/login`
 - 运行诊断：`http://localhost:8080/diagnostics/health`
 - OpenAPI：`http://localhost:8080/api/docs/`
 - Schema：`http://localhost:8080/api/schema/`
@@ -91,6 +97,10 @@ pnpm --dir frontend generate:api
 
 Phase 1 最终结果：后端 SQLite 25 tests passed；MySQL 8.4 25 tests passed；前端 5 files / 15 tests passed；lint、typecheck、production build、OpenAPI/生成类型差异和三个 Compose 静态校验通过。local 7 服务均 healthy（包含 Worker/Beat）；独立 prod Compose 已实测 Gunicorn、生产静态前端、Nginx 与 requestId，并在验收后停止。
 
+Phase 2A 的最终命令、测试数量和运行验证见 [Phase 2A 报告](docs/phase-2a-report.md)。
+
+Phase 2A 最终结果：后端 SQLite 51 passed、MySQL 8.4 从零迁移 51 passed；前端 8 files / 28 tests passed，lint、typecheck 和 production build 通过；HTTP 登录、me、刷新、退出和旧 Refresh 拒绝均通过。自动浏览器验收为 `NOT VERIFIED`，原因是 Codex 浏览器控制工具初始化和连接失败。
+
 ## API 基础
 
 统一响应：
@@ -106,7 +116,7 @@ Phase 1 最终结果：后端 SQLite 25 tests passed；MySQL 8.4 25 tests passed
 
 公共层统一处理 requestId、异常、递归 snake_case/camelCase 转换和 Decimal/日期/UUID 序列化。`/health/live` 只证明进程存活；`/health/ready` 检查 MySQL、Redis 和必需配置。
 
-`/api/v1/` 当前只公开平台元数据，并明确返回 `businessCapabilities: "not_implemented"`。没有假登录、假 Tenant、假 Dashboard 或硬编码广告结果。
+认证接口为 `/api/v1/auth/login`、`/refresh`、`/logout` 和 `/me`。Access Token 只在响应体和前端内存中使用；Refresh Token 仅通过认证路径下的 HttpOnly Cookie 传输，不进入 JSON、Pinia、localStorage 或 sessionStorage。仍没有假 Tenant、假 Dashboard 或硬编码广告结果。
 
 ## 目录
 
@@ -126,6 +136,8 @@ docs/testing/            测试策略与验收清单
 ## 文档入口
 
 - [Phase 1 报告](docs/phase-1-report.md)
+- [Phase 2A 报告](docs/phase-2a-report.md)
+- [认证设计](docs/architecture/authentication-design.md)
 - [技术方案](docs/architecture/technical-solution.md)
 - [模块设计](docs/architecture/module-design.md)
 - [异步任务](docs/architecture/async-task-design.md)
@@ -139,6 +151,6 @@ docs/testing/            测试策略与验收清单
 
 ## 当前边界
 
-Phase 2 必须等待明确授权。真实 Amazon Ads API、第三方数据服务和真实 LLM 密钥均未接入；未执行性能测试，不声明任何并发量、QPS、延迟或广告收益。
+Phase 2A 已获授权并严格收口。Phase 2B 及其后的 Tenant、Store/Profile 和权限能力仍必须等待明确授权。真实 Amazon Ads API、第三方数据服务和真实 LLM 密钥均未接入；未执行性能测试，不声明任何并发量、QPS、延迟或广告收益。
 
-Phase 1 只预留并校验 JWT TTL、Refresh Cookie、轮换和吊销配置，不包含登录、Token 签发或授权业务。ECharts 与自动化浏览器 E2E 依赖均未在 Phase 1 引入。
+ECharts 未安装。认证接口只证明全局 User 身份，不承载 Tenant、角色、Store 或 Profile 权限。

@@ -20,6 +20,12 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", True)
 SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", True)
 CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", True)
+JWT_COOKIE_SECURE = env_bool("JWT_COOKIE_SECURE", True)
+JWT_COOKIE_HTTP_ONLY = env_bool("JWT_COOKIE_HTTP_ONLY", True)
+if not JWT_COOKIE_SECURE:
+    raise ImproperlyConfigured("JWT_COOKIE_SECURE must be true in production")
+if not JWT_COOKIE_HTTP_ONLY:
+    raise ImproperlyConfigured("JWT_COOKIE_HTTP_ONLY must be true in production")
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"

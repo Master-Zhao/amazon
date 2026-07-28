@@ -33,3 +33,14 @@ def test_custom_user_email_is_unique():
             email="unique@example.invalid",
             password="test-only-password",
         )
+
+
+@pytest.mark.django_db
+def test_custom_user_normalizes_full_email_to_lowercase():
+    user = get_user_model().objects.create_user(
+        username="normalized",
+        email="Mixed.Case@Example.INVALID",
+        password="test-only-password",
+    )
+
+    assert user.email == "mixed.case@example.invalid"

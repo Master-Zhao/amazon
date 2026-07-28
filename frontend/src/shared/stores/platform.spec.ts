@@ -7,24 +7,16 @@ describe('platform store', () => {
     setActivePinia(createPinia())
   })
 
-  it('starts without fabricated auth or tenant context', () => {
+  it('starts without a fabricated request ID', () => {
     const store = usePlatformStore()
 
-    expect(store.accessToken).toBeNull()
-    expect(store.tenantId).toBeNull()
     expect(store.lastRequestId).toBeNull()
   })
 
-  it('captures request IDs and clears future auth context', () => {
+  it('captures request IDs', () => {
     const store = usePlatformStore()
     store.captureRequestId('req_123')
-    store.accessToken = 'test-memory-token'
-    store.tenantId = 'tenant-test'
-
-    store.clearFutureAuthContext()
 
     expect(store.lastRequestId).toBe('req_123')
-    expect(store.accessToken).toBeNull()
-    expect(store.tenantId).toBeNull()
   })
 })

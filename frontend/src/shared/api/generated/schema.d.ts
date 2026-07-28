@@ -21,6 +21,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 使用邮箱和密码登录
+         * @description 响应体返回短期 Access Token 和基本用户信息；长期 Refresh Token 仅通过受环境配置约束的 HttpOnly Cookie 设置，不出现在 JSON 中。
+         */
+        post: operations["api_v1_auth_login_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 撤销当前刷新令牌并清除 Cookie
+         * @description 操作幂等；始终以原 Path、Secure、HttpOnly 和 SameSite 属性清除 Cookie。
+         */
+        post: operations["api_v1_auth_logout_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 获取当前账号基本信息
+         * @description Authorization Header 必须使用 Bearer Access Token。
+         */
+        get: operations["api_v1_auth_me_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 使用 HttpOnly Cookie 刷新访问令牌
+         * @description 从 Refresh Cookie 读取令牌，返回新的 Access Token。按配置轮换 Refresh Cookie 并撤销旧刷新会话。
+         */
+        post: operations["api_v1_auth_refresh_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -58,7 +138,51 @@ export interface paths {
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: never;
+    schemas: {
+        AccessTokenResponse: {
+            code: string;
+            message: string;
+            data: components["schemas"]["AccessTokenResult"];
+            requestId: string;
+        };
+        AccessTokenResult: {
+            accessToken: string;
+        };
+        AuthenticatedUser: {
+            id: string;
+            /** Format: email */
+            email: string;
+            username: string;
+            firstName: string;
+            lastName: string;
+        };
+        CurrentUserResponse: {
+            code: string;
+            message: string;
+            data: components["schemas"]["AuthenticatedUser"];
+            requestId: string;
+        };
+        EmptyResponse: {
+            code: string;
+            message: string;
+            requestId: string;
+        };
+        LoginRequest: {
+            /** Format: email */
+            email: string;
+            password: string;
+        };
+        LoginResponse: {
+            code: string;
+            message: string;
+            data: components["schemas"]["LoginResult"];
+            requestId: string;
+        };
+        LoginResult: {
+            accessToken: string;
+            user: components["schemas"]["AuthenticatedUser"];
+        };
+    };
     responses: never;
     parameters: never;
     requestBodies: never;
@@ -78,6 +202,95 @@ export interface operations {
         responses: {
             /** @description Phase 1 platform information */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_auth_login_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LoginRequest"];
+                "multipart/form-data": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+        };
+    };
+    api_v1_auth_logout_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmptyResponse"];
+                };
+            };
+        };
+    };
+    api_v1_auth_me_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+        };
+    };
+    api_v1_auth_refresh_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessTokenResponse"];
+                };
+            };
+            /** @description 刷新令牌缺失、无效、过期或已撤销 */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -30,3 +30,25 @@
 自动化浏览器 E2E 不属于本清单的 Phase 1 阻塞项。本次没有新增 E2E 依赖或脚本；此前真实浏览器验收有效，但不能解释为可重复自动化 E2E 已完成。后续业务前端联调和 Phase 7 必须补充。
 
 Phase 1 之外仍未验证：性能与并发目标、正式 TLS、备份恢复、生产监控/高可用、真实 Amazon 三类脱敏报表，以及任何 Phase 2—7 业务链路。
+
+## Phase 2A 认证验收
+
+| # | 验收标准 | 状态 | 最终真实证据 |
+|---:|---|---|---|
+| 1 | 登录成功且 Access Token 位于响应体 | PASS | local HTTP smoke：`login=SUCCESS`、Access Token 非空 |
+| 2 | JSON 不返回 Refresh Token | PASS | HTTP body 检查 `refreshAbsentFromJson=True` |
+| 3 | Refresh Cookie 为 HttpOnly | PASS | HTTP `Set-Cookie` 检查 `httpOnlyRefreshCookie=True` |
+| 4 | local/test/prod Cookie 安全配置 | PASS | 设置测试覆盖；prod 强制 Secure/HttpOnly |
+| 5 | `/auth/me` 认证和字符串 User ID | PASS | HTTP smoke + 后端测试 |
+| 6 | Refresh、轮换与旧 Token 撤销 | PASS | HTTP smoke：刷新成功，旧 Token 返回 `AUTH_TOKEN_REVOKED` |
+| 7 | logout 幂等并清除 Cookie | PASS | 后端测试与 HTTP smoke |
+| 8 | 禁用用户及稳定认证错误码 | PASS | 后端测试 |
+| 9 | 密码、Token、Cookie 不进入应用日志 | PASS | 日志安全测试 |
+| 10 | SQLite 完整测试 | PASS | 51 passed |
+| 11 | MySQL 8.4 从零迁移与集成测试 | PASS | `pytest --create-db -q`：51 passed |
+| 12 | 前端 lint/typecheck | PASS | 均 exit 0 |
+| 13 | 前端单元测试与生产构建 | PASS | 8 files / 28 tests；Vite build 101 modules |
+| 14 | OpenAPI 与生成类型同步 | PASS | 四个 auth 路径、Bearer scheme 与响应信封已生成 |
+| 15 | 自动浏览器登录/退出与控制台 | NOT VERIFIED | Codex 浏览器控制工具初始化和连接失败；强制收口后未继续尝试 |
+
+Phase 2A 汇总：`PASS 14 / FAIL 0 / NOT VERIFIED 1`。浏览器未验证不否定已通过的 API、后端、前端单元测试和构建。

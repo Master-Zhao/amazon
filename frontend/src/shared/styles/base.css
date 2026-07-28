@@ -56,7 +56,8 @@ button:disabled {
 
 .topbar h1,
 .hero-card h2,
-.diagnostic-card h2 {
+.diagnostic-card h2,
+.login-card h2 {
   margin: 0;
   font-family: Georgia, "Noto Serif SC", serif;
 }
@@ -99,12 +100,75 @@ button:disabled {
 }
 
 .hero-card,
-.diagnostic-card {
+.diagnostic-card,
+.login-card {
   border: 1px solid rgba(38, 63, 53, 0.16);
   border-radius: 1.5rem;
   padding: clamp(1.5rem, 4vw, 3.5rem);
   background: rgba(255, 255, 255, 0.72);
   box-shadow: 0 24px 80px rgba(42, 48, 44, 0.08);
+}
+
+.account-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.account-email {
+  color: #526159;
+  font-size: 0.9rem;
+}
+
+.secondary-button {
+  border-color: rgba(38, 63, 53, 0.28);
+  color: #263f35;
+  background: transparent;
+}
+
+.login-card {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(18rem, 1.1fr);
+  gap: clamp(2rem, 6vw, 5rem);
+  width: min(900px, 100%);
+  margin: 0 auto;
+}
+
+.login-card > div > p:not(.eyebrow) {
+  color: #526159;
+  line-height: 1.7;
+}
+
+.login-card form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.login-card label {
+  color: #263f35;
+  font-weight: 700;
+}
+
+.login-card input {
+  width: 100%;
+  border: 1px solid rgba(38, 63, 53, 0.3);
+  border-radius: 0.8rem;
+  padding: 0.85rem 1rem;
+  color: #18211d;
+  background: #fff;
+  font: inherit;
+}
+
+.login-card button {
+  margin-top: 0.5rem;
+}
+
+.account-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  border-top: 1px solid rgba(38, 63, 53, 0.15);
+  padding-top: 1rem;
 }
 
 .hero-card h2 {
@@ -203,13 +267,15 @@ button:disabled {
 
 @media (max-width: 720px) {
   .topbar,
-  .diagnostic-heading {
+  .diagnostic-heading,
+  .account-actions {
     align-items: start;
     flex-direction: column;
   }
 
   .capability-grid,
-  .status-list {
+  .status-list,
+  .login-card {
     grid-template-columns: 1fr;
   }
 

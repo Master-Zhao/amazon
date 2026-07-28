@@ -2,7 +2,8 @@ openapi: 3.0.3
 info:
   title: Amazon Ads Optimizer API
   version: 0.1.0
-  description: Phase 1 platform and health API. Business APIs are not implemented.
+  description: Phase 2A account authentication plus Phase 1 platform and health APIs.
+    Tenant and business APIs are not implemented.
 paths:
   /api/v1/:
     get:
@@ -13,6 +14,79 @@ paths:
       responses:
         '200':
           description: Phase 1 platform information
+  /api/v1/auth/login:
+    post:
+      operationId: api_v1_auth_login_create
+      description: 响应体返回短期 Access Token 和基本用户信息；长期 Refresh Token 仅通过受环境配置约束的 HttpOnly
+        Cookie 设置，不出现在 JSON 中。
+      summary: 使用邮箱和密码登录
+      tags:
+      - authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+          description: ''
+  /api/v1/auth/logout:
+    post:
+      operationId: api_v1_auth_logout_create
+      description: 操作幂等；始终以原 Path、Secure、HttpOnly 和 SameSite 属性清除 Cookie。
+      summary: 撤销当前刷新令牌并清除 Cookie
+      tags:
+      - authentication
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyResponse'
+          description: ''
+  /api/v1/auth/me:
+    get:
+      operationId: api_v1_auth_me_retrieve
+      description: Authorization Header 必须使用 Bearer Access Token。
+      summary: 获取当前账号基本信息
+      tags:
+      - authentication
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUserResponse'
+          description: ''
+  /api/v1/auth/refresh:
+    post:
+      operationId: api_v1_auth_refresh_create
+      description: 从 Refresh Cookie 读取令牌，返回新的 Access Token。按配置轮换 Refresh Cookie 并撤销旧刷新会话。
+      summary: 使用 HttpOnly Cookie 刷新访问令牌
+      tags:
+      - authentication
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenResponse'
+          description: ''
+        '401':
+          description: 刷新令牌缺失、无效、过期或已撤销
   /health/live:
     get:
       operationId: health_live_retrieve
@@ -33,4 +107,124 @@ paths:
           description: Required dependencies are available
         '503':
           description: One or more dependencies are unavailable
-components: {}
+components:
+  schemas:
+    AccessTokenResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/AccessTokenResult'
+        requestId:
+          type: string
+      required:
+      - code
+      - data
+      - message
+      - requestId
+    AccessTokenResult:
+      type: object
+      properties:
+        accessToken:
+          type: string
+      required:
+      - accessToken
+    AuthenticatedUser:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+      required:
+      - email
+      - firstName
+      - id
+      - lastName
+      - username
+    CurrentUserResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/AuthenticatedUser'
+        requestId:
+          type: string
+      required:
+      - code
+      - data
+      - message
+      - requestId
+    EmptyResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        requestId:
+          type: string
+      required:
+      - code
+      - message
+      - requestId
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+          maxLength: 128
+      required:
+      - email
+      - password
+    LoginResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/LoginResult'
+        requestId:
+          type: string
+      required:
+      - code
+      - data
+      - message
+      - requestId
+    LoginResult:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/AuthenticatedUser'
+      required:
+      - accessToken
+      - user
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

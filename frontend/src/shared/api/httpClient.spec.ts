@@ -1,6 +1,13 @@
-import type { AxiosResponse } from 'axios'
+import { AxiosError, type AxiosAdapter, type AxiosResponse } from 'axios'
+import { afterEach, vi } from 'vitest'
 
-import { normalizeApiError, readRequestId } from '@/shared/api/httpClient'
+import {
+  httpClient,
+  normalizeApiError,
+  readRequestId,
+  setAccessTokenProvider,
+  setRefreshHandler,
+} from '@/shared/api/httpClient'
 
 function response(overrides: Partial<AxiosResponse> = {}): AxiosResponse {
   return {
@@ -162,5 +169,105 @@ describe('HTTP client error and requestId handling', () => {
       fieldErrors: {},
       retryable: true,
     })
+  })
+})
+
+describe('HTTP client authentication flow', () => {
+  const originalAdapter = httpClient.defaults.adapter
+
+  afterEach(() => {
+    httpClient.defaults.adapter = originalAdapter
+    setAccessTokenProvider(() => null)
+    setRefreshHandler(null)
+  })
+
+  it('injects the in-memory access token as Bearer authorization', async () => {
+    setAccessTokenProvider(() => 'memory-access')
+    httpClient.defaults.adapter = (async (config) => ({
+      data: { code: 'SUCCESS', message: 'ok', data: {}, requestId: 'req_auth' },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config,
+    })) as AxiosAdapter
+
+    const result = await httpClient.get('/protected')
+
+    expect(result.config.headers.Authorization).toBe('Bearer memory-access')
+  })
+
+  it('merges concurrent 401 responses into one refresh then replays both', async () => {
+    let token = 'expired-access'
+    let protectedCalls = 0
+    const refresh = vi.fn(async () => {
+      await Promise.resolve()
+      token = 'fresh-access'
+    })
+    setAccessTokenProvider(() => token)
+    setRefreshHandler(refresh)
+    httpClient.defaults.adapter = (async (config) => {
+      protectedCalls += 1
+      if (config.headers.Authorization === 'Bearer expired-access') {
+        throw new AxiosError(
+          'unauthorized',
+          'ERR_BAD_REQUEST',
+          config,
+          undefined,
+          {
+            data: {},
+            status: 401,
+            statusText: 'Unauthorized',
+            headers: {},
+            config,
+          },
+        )
+      }
+      return {
+        data: { code: 'SUCCESS', message: 'ok', data: {}, requestId: 'req_ok' },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      }
+    }) as AxiosAdapter
+
+    const results = await Promise.all([
+      httpClient.get('/protected/one'),
+      httpClient.get('/protected/two'),
+    ])
+
+    expect(refresh).toHaveBeenCalledOnce()
+    expect(protectedCalls).toBe(4)
+    expect(results.every((item) => item.status === 200)).toBe(true)
+  })
+
+  it('does not recurse when the refresh endpoint itself returns 401', async () => {
+    const refresh = vi.fn(async () => undefined)
+    setRefreshHandler(refresh)
+    httpClient.defaults.adapter = (async (config) => {
+      throw new AxiosError(
+        'unauthorized',
+        'ERR_BAD_REQUEST',
+        config,
+        undefined,
+        {
+          data: {
+            code: 'AUTH_TOKEN_REVOKED',
+            message: 'revoked',
+            data: { errors: {} },
+            requestId: 'req_revoked',
+          },
+          status: 401,
+          statusText: 'Unauthorized',
+          headers: {},
+          config,
+        },
+      )
+    }) as AxiosAdapter
+
+    await expect(httpClient.post('/api/v1/auth/refresh')).rejects.toMatchObject({
+      code: 'AUTH_TOKEN_REVOKED',
+    })
+    expect(refresh).not.toHaveBeenCalled()
   })
 })

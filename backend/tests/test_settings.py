@@ -50,6 +50,9 @@ def test_explicit_test_settings_are_loaded():
     assert settings.DEBUG is False
     assert settings.AUTH_USER_MODEL == "accounts.User"
     assert settings.DEFAULT_AUTO_FIELD == "django.db.models.BigAutoField"
+    assert settings.JWT_COOKIE_HTTP_ONLY is True
+    assert settings.JWT_COOKIE_SECURE is False
+    assert settings.JWT_COOKIE_SAME_SITE == "Lax"
 
 
 def test_phase_one_does_not_install_business_apps():
@@ -80,6 +83,9 @@ def test_local_settings_load_and_explicitly_parse_debug():
     payload = json.loads(result.stdout)
     assert payload["debug"] is False
     assert payload["jwtAccessMinutes"] == 20
+    assert payload["jwtCookieHttpOnly"] is True
+    assert payload["jwtCookieSecure"] is False
+    assert payload["jwtCookieSameSite"] == "Lax"
 
 
 def test_prod_settings_load_with_complete_configuration_and_force_debug_off():
@@ -150,3 +156,35 @@ def test_invalid_jwt_configuration_fails_without_exposing_values():
     assert result.returncode != 0
     assert "JWT_COOKIE_SAME_SITE must be one of" in result.stderr
     assert invalid_value not in result.stdout + result.stderr
+
+
+def test_prod_settings_reject_insecure_refresh_cookie():
+    result = run_settings_import(
+        "config.settings.prod",
+        {
+            "DJANGO_SECRET_KEY": "prod-test-secret",
+            "DB_PASSWORD": "prod-test-password",
+            "DJANGO_ALLOWED_HOSTS": "example.invalid",
+            "JWT_COOKIE_SECURE": "false",
+            "JWT_COOKIE_HTTP_ONLY": "true",
+        },
+    )
+
+    assert result.returncode != 0
+    assert "JWT_COOKIE_SECURE must be true in production" in result.stderr
+
+
+def test_prod_settings_reject_script_readable_refresh_cookie():
+    result = run_settings_import(
+        "config.settings.prod",
+        {
+            "DJANGO_SECRET_KEY": "prod-test-secret",
+            "DB_PASSWORD": "prod-test-password",
+            "DJANGO_ALLOWED_HOSTS": "example.invalid",
+            "JWT_COOKIE_SECURE": "true",
+            "JWT_COOKIE_HTTP_ONLY": "false",
+        },
+    )
+
+    assert result.returncode != 0
+    assert "JWT_COOKIE_HTTP_ONLY must be true in production" in result.stderr

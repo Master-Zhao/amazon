@@ -16,9 +16,15 @@ interface RetriableRequestConfig extends InternalAxiosRequestConfig {
 }
 
 let accessTokenProvider: ValueProvider = () => null
-let tenantIdProvider: ValueProvider = () => null
 let refreshHandler: RefreshHandler | null = null
 let requestIdObserver: RequestIdObserver = () => undefined
+let refreshPromise: Promise<void> | null = null
+
+const AUTH_RETRY_EXCLUDED_PATHS = [
+  '/api/v1/auth/login',
+  '/api/v1/auth/refresh',
+  '/api/v1/auth/logout',
+]
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -35,10 +41,6 @@ export const httpClient: AxiosInstance = axios.create({
 
 export function setAccessTokenProvider(provider: ValueProvider): void {
   accessTokenProvider = provider
-}
-
-export function setTenantIdProvider(provider: ValueProvider): void {
-  tenantIdProvider = provider
 }
 
 export function setRefreshHandler(handler: RefreshHandler | null): void {
@@ -105,16 +107,29 @@ export function normalizeApiError(error: unknown): ApiError {
 
 httpClient.interceptors.request.use((config) => {
   const accessToken = accessTokenProvider()
-  const tenantId = tenantIdProvider()
 
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`
   }
-  if (tenantId) {
-    config.headers['X-Tenant-ID'] = tenantId
-  }
   return config
 })
+
+function canAttemptRefresh(config: RetriableRequestConfig): boolean {
+  const url = config.url ?? ''
+  return !AUTH_RETRY_EXCLUDED_PATHS.some((path) => url.includes(path))
+}
+
+async function runSingleRefresh(): Promise<void> {
+  if (!refreshHandler) {
+    throw new Error('Refresh handler is not installed')
+  }
+  if (!refreshPromise) {
+    refreshPromise = refreshHandler().finally(() => {
+      refreshPromise = null
+    })
+  }
+  return refreshPromise
+}
 
 httpClient.interceptors.response.use(
   (response) => {
@@ -130,10 +145,11 @@ httpClient.interceptors.response.use(
       error.response?.status === 401 &&
       config &&
       !config._refreshAttempted &&
+      canAttemptRefresh(config) &&
       refreshHandler
     ) {
       config._refreshAttempted = true
-      await refreshHandler()
+      await runSingleRefresh()
       return httpClient.request(config)
     }
 

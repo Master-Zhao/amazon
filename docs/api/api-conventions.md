@@ -8,7 +8,7 @@
 - 健康检查：`/health/live`、`/health/ready`
 - 仓库契约快照：`openapi/schema.yaml`
 
-Phase 1 的 `/api/v1/` 仅返回平台版本和 `businessCapabilities: "not_implemented"`，不是业务接口。
+Phase 1 的 `/api/v1/` 继续只返回平台版本和 `businessCapabilities: "not_implemented"`。Phase 2A 新增 `/api/v1/auth/*`，仅证明全局 User 身份，不返回 Tenant、角色、Store 或 Profile。
 
 ## 响应信封
 
@@ -49,8 +49,21 @@ HTTP 状态表达传输结果，`code` 表达稳定的应用结果。错误详�
 - UUID 序列化为字符串。
 - 金额业务接口未来必须同时提供 currency，Phase 1 未定义金额接口。
 
-Phase 1 测试使用真实 `User.BigAutoField` 整数主键验证顶层、嵌套和列表 ID 输出为字符串；不是预先构造字符串测试数据。当前仍没有业务 ID API。
+`GET /api/v1/auth/me` 和登录响应把真实 `User.BigAutoField` 主键序列化为字符串。当前仍没有业务 ID API。
 
 ## 客户端
 
-前端统一通过 `shared/api/httpClient.ts` 调用。Access Token、Tenant、刷新流程均为显式扩展点，当前不提供默认值。禁止绕过统一客户端伪造认证上下文。
+前端统一通过 `shared/api/httpClient.ts` 调用。Access Token 由 Pinia 认证 Store 仅保存在内存，并以 `Authorization: Bearer <token>` 注入。Refresh Token 由浏览器作为 HttpOnly Cookie 管理，Vue 不读取其值。
+
+受保护请求收到 401 时，客户端最多刷新一次；并发 401 合并为同一个刷新请求。登录、刷新和退出接口不触发自动刷新，防止循环。刷新失败会清空认证内存态并跳转登录页。Tenant 请求头和选择器不属于 Phase 2A。
+
+## 认证接口与 Cookie
+
+| 方法 | 路径 | 认证/凭据 | 成功结果 |
+|---|---|---|---|
+| POST | `/api/v1/auth/login` | JSON 邮箱、密码 | JSON 返回 Access Token 与基本用户；设置 Refresh Cookie |
+| POST | `/api/v1/auth/refresh` | Refresh HttpOnly Cookie | JSON 返回新 Access Token；按配置轮换 Cookie |
+| POST | `/api/v1/auth/logout` | Refresh HttpOnly Cookie（可缺失） | 撤销已有刷新会话并清除 Cookie；可重复调用 |
+| GET | `/api/v1/auth/me` | Bearer Access Token | 返回当前用户基本信息 |
+
+Refresh Cookie 默认名称 `refresh_token`，Path 为 `/api/v1/auth/`，HttpOnly 必须为真；Secure 和 SameSite 由环境配置。生产配置强制 Secure 与 HttpOnly 为真。Cookie 不出现在 OpenAPI 响应体，API 契约以说明文字标记其传输方式。

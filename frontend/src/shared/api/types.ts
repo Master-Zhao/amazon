@@ -18,3 +18,20 @@ export interface HealthData {
   status: 'alive' | 'ready' | 'not_ready'
   dependencies?: Record<string, string>
 }
+
+export interface AuthenticatedUser {
+  id: string
+  email: string
+  username: string
+  firstName: string
+  lastName: string
+}
+
+export interface LoginData {
+  accessToken: string
+  user: AuthenticatedUser
+}
+
+export interface AccessTokenData {
+  accessToken: string
+}

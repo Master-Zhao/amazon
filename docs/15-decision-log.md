@@ -64,6 +64,21 @@
 | D-139 | 已确认 | ECharts 不在 Phase 1 安装；首次实现真实 Dashboard 或趋势图页面时再引入 | 避免添加当前未使用依赖，不改变主规格最终技术栈 |
 | D-140 | 已确认 | 自动化浏览器 E2E 不作为 Phase 1 的 20 项阻塞条件；后续业务联调和 Phase 7 再实现 | 现有真实浏览器验收有效，但不得描述为已完成可重复自动化 E2E |
 
+## 2.3 Phase 2A 认证决策（2026-07-28）
+
+确认依据：项目发起人明确授权“Phase 2A：账号认证与 JWT 双 Token”，并禁止进入 Phase 2B。
+
+| ID | 状态 | Phase 2A 决策 | 说明 |
+|---|---|---|---|
+| D-141 | 已确认 | 使用 `djangorestframework-simplejwt 5.5.x` 负责 JWT 签名和校验 | 该版本支持 Python 3.13、Django 5.2；不自行实现密码学 |
+| D-142 | 已确认 | Refresh Token 原文只存在于 HttpOnly Cookie；项目以 SHA-256 摘要记录活动刷新会话 | 自有表 `sys_refresh_token` 满足项目表名前缀并支持轮换、撤销、重放拒绝 |
+| D-143 | 已确认 | 邮箱执行 `strip + casefold`，并以现有唯一约束加 `Lower(email)` 唯一约束保证大小写唯一 | 新增 `accounts.0002_authentication`，不修改 `0001_initial` |
+| D-144 | 已确认 | local/test Cookie 为 HttpOnly、Secure=false、SameSite=Lax；prod 强制 HttpOnly=true、Secure=true，SameSite 可配置 | `SameSite=None` 额外要求 Secure |
+| D-145 | 已确认 | 前端 Access Token 只存内存；并发 401 合并为一次 Refresh；登录/刷新/退出不参与自动刷新 | Refresh 失败清空认证状态并跳转登录，不引入 Tenant 上下文 |
+| D-146 | 已确认 | `audit_auth_event` 只追加认证事件，记录邮箱哈希和 requestId，不记录凭据或 Token | 完整 AuditLog 业务模块不属于 Phase 2A |
+
+Phase 2A 验证状态：API 认证链路、SQLite/MySQL 后端测试、前端单元测试与生产构建通过。自动浏览器验收为 `NOT VERIFIED`，原因是 Codex 浏览器控制工具初始化和连接失败；未继续尝试工具修复。Phase 2B 未获授权。
+
 ## 3. 强制待确认事项
 
 说明：D-101、D-102、D-103、D-104、D-105、D-106、D-109、D-111、D-115、D-117、D-118、D-119 已由 2.1 节确认。其原始行保留为历史背景，执行状态以 2.1 节为准。D-120 仍是三类报表最终验收阻塞。

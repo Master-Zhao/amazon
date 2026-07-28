@@ -98,6 +98,12 @@
 
 ## Phase 2：认证、多租户、Store/Profile 与权限
 
+### 当前阶段状态（2026-07-28）
+
+Phase 2A“账号认证与 JWT 双 Token”已实现并收口，仅包含全局 User 登录、刷新、退出、当前用户、认证审计基础和前端认证会话。自动浏览器验收为 `NOT VERIFIED`（Codex 浏览器控制工具初始化和连接失败）；API、后端测试、前端单元测试与构建独立通过。
+
+Phase 2B 未获授权。下方 Tenant、Team、Store、Marketplace、AdvertisingProfile 和 RBAC 内容仍是后续计划，不代表已实现或可开始。
+
 ### 实现目标
 
 在 Phase 1 全局 User 基础上实现认证、Tenant/Team/RBAC、StoreMarketplace/Profile 层级、JWT 双 Token、Store/Profile 授权与前端上下文切换，形成真实隔离链路。
