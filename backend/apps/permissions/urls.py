@@ -2,28 +2,42 @@ from django.urls import path
 
 from apps.permissions.views import (
     PermissionListView,
-    RoleAssignmentView,
+    ProfileAccessGrantView,
+    RoleCopyView,
+    RoleDetailView,
     RoleListCreateView,
-    UserProfileGrantView,
-    UserStoreGrantView,
+    StoreAccessGrantView,
 )
 
 urlpatterns = [
-    path("", PermissionListView.as_view(), name="permission-list"),
-    path("roles", RoleListCreateView.as_view(), name="role-list-create"),
     path(
-        "roles/<uuid:role_id>/assignments",
-        RoleAssignmentView.as_view(),
-        name="role-assignment",
+        "tenants/<str:tenant_id>/permissions",
+        PermissionListView.as_view(),
+        name="permission-list",
     ),
     path(
-        "stores/<uuid:store_id>/user-grants",
-        UserStoreGrantView.as_view(),
-        name="user-store-grant",
+        "tenants/<str:tenant_id>/roles",
+        RoleListCreateView.as_view(),
+        name="role-list-create",
     ),
     path(
-        "profiles/<uuid:profile_id>/user-grants",
-        UserProfileGrantView.as_view(),
-        name="user-profile-grant",
+        "tenants/<str:tenant_id>/roles/<str:role_id>",
+        RoleDetailView.as_view(),
+        name="role-detail",
+    ),
+    path(
+        "tenants/<str:tenant_id>/roles/<str:role_id>/copy",
+        RoleCopyView.as_view(),
+        name="role-copy",
+    ),
+    path(
+        "tenants/<str:tenant_id>/store-access",
+        StoreAccessGrantView.as_view(),
+        name="store-access-grant",
+    ),
+    path(
+        "tenants/<str:tenant_id>/profile-access",
+        ProfileAccessGrantView.as_view(),
+        name="profile-access-grant",
     ),
 ]

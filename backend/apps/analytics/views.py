@@ -1,39 +1,234 @@
-from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework.exceptions import ValidationError
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from apps.analytics.selectors import dashboard, search_term_metrics, targeting_metrics
+from apps.analytics.selectors import (
+    analytics_configuration,
+    campaign_detail,
+    campaign_metric_rows,
+    dashboard_rows,
+    search_term_metric_rows,
+    targeting_metric_rows,
+)
+from apps.analytics.serializers import (
+    AnalyticsConfigurationSerializer,
+    AnomalyRuleCreateSerializer,
+    AnomalyRuleVersionSerializer,
+    CampaignDetailSerializer,
+    CampaignMetricRowSerializer,
+    DashboardRowSerializer,
+    SearchTermMetricRowSerializer,
+    TargetingMetricRowSerializer,
+    TargetAcosUpdateSerializer,
+)
+from apps.analytics.services import (
+    create_anomaly_rule_version,
+    set_target_acos,
+)
 from apps.core.responses import api_response
 
 
-class AnalyticsView(APIView):
+class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
-    selector = None
 
     @extend_schema(
-        summary="查询独立权威粒度广告指标",
-        responses={200: OpenApiResponse(description="指标与异常")},
+        summary="Get Campaign-grain dashboard groups without cross-currency totals",
+        parameters=[
+            OpenApiParameter("startDate", str, required=False),
+            OpenApiParameter("endDate", str, required=False),
+        ],
+        responses={200: DashboardRowSerializer(many=True)},
         tags=["analytics"],
     )
-    def get(self, request):
-        tenant_id = request.headers.get("X-Tenant-ID")
-        profile_id = request.query_params.get("profileId")
-        if not tenant_id or not profile_id:
-            raise ValidationError({"context": "tenantId/profileId 必填"})
+    def get(self, request, tenant_id, profile_id):
+        rows = dashboard_rows(
+            user=request.user,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+            start_date=request.query_params.get("startDate"),
+            end_date=request.query_params.get("endDate"),
+        )
         return api_response(
-            request, data=self.selector(request.user, tenant_id, profile_id)
+            request,
+            data=DashboardRowSerializer(rows, many=True).data,
         )
 
 
-class DashboardView(AnalyticsView):
-    selector = staticmethod(dashboard)
+class CampaignMetricListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="List authoritative Campaign daily metrics and deterministic anomalies",
+        parameters=[
+            OpenApiParameter("startDate", str, required=False),
+            OpenApiParameter("endDate", str, required=False),
+        ],
+        responses={200: CampaignMetricRowSerializer(many=True)},
+        tags=["analytics"],
+    )
+    def get(self, request, tenant_id, profile_id):
+        rows = campaign_metric_rows(
+            user=request.user,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+            start_date=request.query_params.get("startDate"),
+            end_date=request.query_params.get("endDate"),
+        )
+        return api_response(
+            request,
+            data=CampaignMetricRowSerializer(rows, many=True).data,
+        )
 
 
-class TargetingAnalyticsView(AnalyticsView):
-    selector = staticmethod(targeting_metrics)
+class CampaignMetricDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Get Campaign detail and daily trend",
+        parameters=[
+            OpenApiParameter("startDate", str, required=False),
+            OpenApiParameter("endDate", str, required=False),
+        ],
+        responses={200: CampaignDetailSerializer},
+        tags=["analytics"],
+    )
+    def get(self, request, tenant_id, profile_id, campaign_id):
+        result = campaign_detail(
+            user=request.user,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+            campaign_id=campaign_id,
+            start_date=request.query_params.get("startDate"),
+            end_date=request.query_params.get("endDate"),
+        )
+        return api_response(
+            request,
+            data=CampaignDetailSerializer(result).data,
+        )
 
 
-class SearchTermAnalyticsView(AnalyticsView):
-    selector = staticmethod(search_term_metrics)
+class AnalyticsConfigurationView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="Get effective target ACOS and latest anomaly rule versions",
+        responses={200: AnalyticsConfigurationSerializer},
+        tags=["analytics"],
+    )
+    def get(self, request, tenant_id, profile_id):
+        result = analytics_configuration(
+            user=request.user,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+        )
+        return api_response(
+            request,
+            data=AnalyticsConfigurationSerializer(result).data,
+        )
+
+
+class TargetAcosConfigurationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Configure Tenant, Profile or Campaign target ACOS",
+        request=TargetAcosUpdateSerializer,
+        responses={200: AnalyticsConfigurationSerializer},
+        tags=["analytics"],
+    )
+    def put(self, request, tenant_id, profile_id):
+        serializer = TargetAcosUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        set_target_acos(
+            request=request,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+            **serializer.validated_data,
+        )
+        result = analytics_configuration(
+            user=request.user,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+        )
+        return api_response(
+            request,
+            data=AnalyticsConfigurationSerializer(result).data,
+        )
+
+
+class AnomalyRuleConfigurationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Append a scoped anomaly rule version",
+        request=AnomalyRuleCreateSerializer,
+        responses={201: AnomalyRuleVersionSerializer},
+        tags=["analytics"],
+    )
+    def post(self, request, tenant_id, profile_id):
+        serializer = AnomalyRuleCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        rule = create_anomaly_rule_version(
+            request=request,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+            **serializer.validated_data,
+        )
+        return api_response(
+            request,
+            data=AnomalyRuleVersionSerializer(rule).data,
+            status=201,
+            message="Anomaly rule version created.",
+        )
+
+
+class TargetingMetricListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="List authoritative Targeting daily metrics",
+        parameters=[
+            OpenApiParameter("startDate", str, required=False),
+            OpenApiParameter("endDate", str, required=False),
+        ],
+        responses={200: TargetingMetricRowSerializer(many=True)},
+        tags=["analytics"],
+    )
+    def get(self, request, tenant_id, profile_id):
+        rows = targeting_metric_rows(
+            user=request.user,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+            start_date=request.query_params.get("startDate"),
+            end_date=request.query_params.get("endDate"),
+        )
+        return api_response(
+            request,
+            data=TargetingMetricRowSerializer(rows, many=True).data,
+        )
+
+
+class SearchTermMetricListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="List authoritative Search Term daily metrics",
+        parameters=[
+            OpenApiParameter("startDate", str, required=False),
+            OpenApiParameter("endDate", str, required=False),
+        ],
+        responses={200: SearchTermMetricRowSerializer(many=True)},
+        tags=["analytics"],
+    )
+    def get(self, request, tenant_id, profile_id):
+        rows = search_term_metric_rows(
+            user=request.user,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+            start_date=request.query_params.get("startDate"),
+            end_date=request.query_params.get("endDate"),
+        )
+        return api_response(
+            request,
+            data=SearchTermMetricRowSerializer(rows, many=True).data,
+        )

@@ -1,28 +1,12 @@
-from dataclasses import dataclass
-from typing import BinaryIO, Iterable, Protocol
-
-
-@dataclass(frozen=True, slots=True)
-class StoredFile:
-    path: str
-    size_bytes: int
-    sha256: str
-
-
-class FileStorageError(RuntimeError):
-    retryable = False
-
-
-class FileStorageUnavailable(FileStorageError):
-    retryable = True
+from collections.abc import Iterable
+from typing import BinaryIO, Protocol
 
 
 class FileStorage(Protocol):
-    timeout_seconds: int
-    max_retries: int
+    def save(self, *, key: str, chunks: Iterable[bytes]) -> int: ...
 
-    def save_stream(self, *, namespace: str, filename: str, chunks: Iterable[bytes]) -> StoredFile: ...
+    def open(self, *, key: str) -> BinaryIO: ...
 
-    def open_binary(self, path: str) -> BinaryIO: ...
+    def exists(self, *, key: str) -> bool: ...
 
-    def write_bytes(self, *, namespace: str, filename: str, content: bytes) -> str: ...
+    def delete(self, *, key: str) -> None: ...

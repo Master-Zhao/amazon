@@ -1,48 +1,75 @@
-from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework.exceptions import ValidationError
+from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from apps.advertising.selectors import campaigns, search_terms, targeting
-from apps.core.pagination import page_spec, pagination_payload
+from apps.advertising.selectors import (
+    campaign_rows,
+    search_term_rows,
+    targeting_rows,
+)
+from apps.advertising.serializers import (
+    CampaignRowSerializer,
+    SearchTermRowSerializer,
+    TargetingRowSerializer,
+)
 from apps.core.responses import api_response
 
 
-class AdvertisingListView(APIView):
+class CampaignListView(APIView):
     permission_classes = [IsAuthenticated]
-    selector = None
 
     @extend_schema(
-        summary="查询导入后的广告对象",
-        responses={200: OpenApiResponse(description="广告对象列表")},
+        summary="List normalized Sponsored Products Campaign entities",
+        responses={200: CampaignRowSerializer(many=True)},
         tags=["advertising"],
     )
-    def get(self, request):
-        tenant_id = request.headers.get("X-Tenant-ID")
-        profile_id = request.query_params.get("profileId")
-        if not tenant_id or not profile_id:
-            raise ValidationError({"context": "tenantId/profileId 必填"})
-        spec = page_spec(request)
-        items, total = self.selector(
-            request.user,
-            tenant_id,
-            profile_id,
-            offset=spec.offset,
-            limit=spec.page_size,
+    def get(self, request, tenant_id, profile_id):
+        rows = campaign_rows(
+            user=request.user,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
         )
         return api_response(
             request,
-            data={"items": items, "pagination": pagination_payload(spec, total)},
+            data=CampaignRowSerializer(rows, many=True).data,
         )
 
 
-class CampaignListView(AdvertisingListView):
-    selector = staticmethod(campaigns)
+class TargetingListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="List normalized Keyword and Product Target entities",
+        responses={200: TargetingRowSerializer(many=True)},
+        tags=["advertising"],
+    )
+    def get(self, request, tenant_id, profile_id):
+        rows = targeting_rows(
+            user=request.user,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+        )
+        return api_response(
+            request,
+            data=TargetingRowSerializer(rows, many=True).data,
+        )
 
 
-class TargetingListView(AdvertisingListView):
-    selector = staticmethod(targeting)
+class SearchTermListView(APIView):
+    permission_classes = [IsAuthenticated]
 
-
-class SearchTermListView(AdvertisingListView):
-    selector = staticmethod(search_terms)
+    @extend_schema(
+        summary="List normalized customer Search Term entities",
+        responses={200: SearchTermRowSerializer(many=True)},
+        tags=["advertising"],
+    )
+    def get(self, request, tenant_id, profile_id):
+        rows = search_term_rows(
+            user=request.user,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+        )
+        return api_response(
+            request,
+            data=SearchTermRowSerializer(rows, many=True).data,
+        )

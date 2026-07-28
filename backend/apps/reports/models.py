@@ -1,8 +1,7 @@
-import uuid
-
 from django.conf import settings
 from django.db import models
 
+from apps.core.models import AppendOnlyModel
 from apps.stores.models import AdvertisingProfile
 from apps.tenants.models import Tenant
 
@@ -10,95 +9,151 @@ from apps.tenants.models import Tenant
 class ReportType(models.TextChoices):
     CAMPAIGN = "CAMPAIGN", "Campaign"
     TARGETING = "TARGETING", "Targeting"
-    SEARCH_TERM = "SEARCH_TERM", "Search Term"
+    SEARCH_TERM = "SEARCH_TERM", "Search term"
 
 
-class ImportStatus(models.TextChoices):
+class ReportSourceType(models.TextChoices):
+    FILE_UPLOAD = "FILE_UPLOAD", "File upload"
+    THIRD_PARTY = "THIRD_PARTY", "Third party"
+    AMAZON_ADS_API = "AMAZON_ADS_API", "Amazon Ads API"
+
+
+class ImportTaskStatus(models.TextChoices):
     QUEUED = "QUEUED", "Queued"
     RUNNING = "RUNNING", "Running"
     SUCCEEDED = "SUCCEEDED", "Succeeded"
-    PARTIAL_SUCCEEDED = "PARTIAL_SUCCEEDED", "Partial succeeded"
+    PARTIAL_SUCCEEDED = "PARTIAL_SUCCEEDED", "Partially succeeded"
     FAILED = "FAILED", "Failed"
 
 
-class ReportUpload(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT)
-    profile = models.ForeignKey(AdvertisingProfile, on_delete=models.PROTECT)
+class ReportUpload(AppendOnlyModel):
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="report_uploads",
+    )
+    profile = models.ForeignKey(
+        AdvertisingProfile,
+        on_delete=models.PROTECT,
+        related_name="report_uploads",
+    )
     report_type = models.CharField(max_length=32, choices=ReportType.choices)
-    original_name = models.CharField(max_length=255)
-    content_type = models.CharField(max_length=128)
+    source_type = models.CharField(
+        max_length=32,
+        choices=ReportSourceType.choices,
+        default=ReportSourceType.FILE_UPLOAD,
+    )
+    original_filename = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=128, blank=True)
     size_bytes = models.PositiveBigIntegerField()
     sha256 = models.CharField(max_length=64)
-    storage_path = models.CharField(max_length=500)
-    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
-    uploaded_at = models.DateTimeField(auto_now_add=True)
-    is_duplicate = models.BooleanField(default=False)
+    storage_key = models.CharField(max_length=500)
+    duplicate_of = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="duplicates",
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="report_uploads",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "report_upload"
         indexes = [
             models.Index(
-                fields=["profile", "report_type", "sha256"],
-                name="report_upload_duplicate_idx",
-            )
+                fields=["tenant", "profile", "report_type", "-created_at"],
+                name="report_up_scope_created_idx",
+            ),
+            models.Index(
+                fields=["tenant", "sha256"],
+                name="report_upload_tenant_hash_idx",
+            ),
         ]
 
 
 class ImportTask(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    upload = models.ForeignKey(ReportUpload, on_delete=models.PROTECT, related_name="tasks")
-    status = models.CharField(max_length=32, choices=ImportStatus.choices)
-    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
-    idempotency_key = models.CharField(max_length=128)
+    upload = models.ForeignKey(
+        ReportUpload,
+        on_delete=models.PROTECT,
+        related_name="import_tasks",
+    )
+    status = models.CharField(
+        max_length=32,
+        choices=ImportTaskStatus.choices,
+        default=ImportTaskStatus.QUEUED,
+    )
+    celery_task_id = models.CharField(max_length=128, blank=True)
+    total_rows = models.PositiveIntegerField(default=0)
+    success_rows = models.PositiveIntegerField(default=0)
+    error_rows = models.PositiveIntegerField(default=0)
+    error_code = models.CharField(max_length=96, blank=True)
+    error_message = models.TextField(blank=True)
+    reprocessed_from = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="reprocess_attempts",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="report_import_tasks",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
-    started_at = models.DateTimeField(null=True)
-    completed_at = models.DateTimeField(null=True)
-    error_code = models.CharField(max_length=64, blank=True)
-    error_message = models.CharField(max_length=500, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "report_import_task"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["upload", "idempotency_key"],
-                name="report_task_upload_idempotency_uniq",
-            )
-        ]
         indexes = [
-            models.Index(fields=["status", "created_at"], name="report_task_status_time_idx")
+            models.Index(
+                fields=["status", "created_at"],
+                name="report_task_status_created_idx",
+            )
         ]
 
 
 class ImportBatch(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    task = models.OneToOneField(ImportTask, on_delete=models.PROTECT, related_name="batch")
-    status = models.CharField(max_length=32, choices=ImportStatus.choices)
-    total_rows = models.PositiveIntegerField(default=0)
-    succeeded_rows = models.PositiveIntegerField(default=0)
-    failed_rows = models.PositiveIntegerField(default=0)
-    normalized_rows_path = models.CharField(max_length=500, blank=True)
+    task = models.OneToOneField(
+        ImportTask,
+        on_delete=models.PROTECT,
+        related_name="batch",
+    )
+    schema_version = models.CharField(max_length=32)
+    idempotency_key = models.CharField(max_length=128, unique=True)
+    normalized_storage_key = models.CharField(max_length=500, blank=True)
+    row_count = models.PositiveIntegerField(default=0)
+    published_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    completed_at = models.DateTimeField(null=True)
 
     class Meta:
         db_table = "report_import_batch"
 
 
-class ImportRowError(models.Model):
-    batch = models.ForeignKey(ImportBatch, on_delete=models.PROTECT, related_name="row_errors")
+class ImportRowError(AppendOnlyModel):
+    task = models.ForeignKey(
+        ImportTask,
+        on_delete=models.PROTECT,
+        related_name="row_errors",
+    )
     row_number = models.PositiveIntegerField()
-    code = models.CharField(max_length=64)
-    field = models.CharField(max_length=128, blank=True)
-    message = models.CharField(max_length=500)
-    raw_excerpt = models.JSONField(default=dict)
+    error_code = models.CharField(max_length=96)
+    message = models.CharField(max_length=1000)
+    field_name = models.CharField(max_length=128, blank=True)
+    rejected_value = models.CharField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "report_import_row_error"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["batch", "row_number", "code", "field"],
-                name="report_row_error_uniq",
+        indexes = [
+            models.Index(
+                fields=["task", "row_number"],
+                name="report_row_error_task_row_idx",
             )
         ]
-

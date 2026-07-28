@@ -1,127 +1,105 @@
-from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import status
-from rest_framework.parsers import MultiPartParser
-from rest_framework.exceptions import NotFound, ValidationError
+from django.http import FileResponse
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
-from apps.core.pagination import page_spec, paginate_queryset
 from apps.core.responses import api_response
-from apps.reports.models import ImportTask
-from apps.reports.selectors import task_for_user
-from apps.reports.serializers import ReportUploadSerializer, TaskResponseSerializer
-from apps.reports.services import create_upload_task, reprocess
-from apps.permissions.services import authorize
-from apps.stores.models import AdvertisingProfile
+from apps.reports.selectors import (
+    authorized_import_task,
+    import_tasks_for_profile,
+)
+from apps.reports.serializers import (
+    ImportRowErrorSerializer,
+    ImportTaskSerializer,
+    ReportUploadRequestSerializer,
+)
+from apps.reports.services import create_report_import, reprocess_import
+from integrations.storage.local import LocalFileStorage
 
 
 class ReportUploadView(APIView):
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser]
 
     @extend_schema(
-        responses={200: OpenApiResponse(description="导入任务列表")},
+        summary="Upload a report and enqueue its asynchronous import",
+        request=ReportUploadRequestSerializer,
+        responses={202: ImportTaskSerializer},
         tags=["reports"],
     )
-    def get(self, request):
-        tenant_id = _tenant_id(request)
-        profile_id = request.query_params.get("profileId")
-        if not profile_id:
-            raise ValidationError({"profileId": "必须提供当前 Profile"})
-        try:
-            profile = AdvertisingProfile.objects.select_related(
-                "store_marketplace__store"
-            ).get(pk=profile_id)
-        except (AdvertisingProfile.DoesNotExist, ValueError) as exc:
-            raise NotFound("广告 Profile 不存在") from exc
-        authorize(
+    def post(self, request, tenant_id, profile_id):
+        serializer = ReportUploadRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        task = create_report_import(
+            request=request,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+            report_type=serializer.validated_data["report_type"],
+            uploaded_file=serializer.validated_data["file"],
+        )
+        return api_response(
+            request,
+            data=ImportTaskSerializer(task).data,
+            message="Report import queued.",
+            status=202,
+        )
+
+
+class ImportTaskListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="List import tasks for an AdvertisingProfile",
+        responses={200: ImportTaskSerializer(many=True)},
+        tags=["reports"],
+    )
+    def get(self, request, tenant_id, profile_id):
+        tasks = import_tasks_for_profile(
             user=request.user,
             tenant_id=tenant_id,
-            permission_code="reports.view",
-            profile=profile,
-        )
-        tasks_query = (
-            ImportTask.objects.filter(
-                upload__tenant_id=tenant_id, upload__profile=profile
-            )
-            .select_related("upload", "batch")
-            .order_by("-created_at")
-        )
-        tasks, pagination = paginate_queryset(tasks_query, page_spec(request))
-        return api_response(
-            request,
-            data={
-                "items": [
-                    {
-                        "task_id": str(task.pk),
-                        "report_type": task.upload.report_type,
-                        "original_name": task.upload.original_name,
-                        "status": task.status,
-                        "is_duplicate": task.upload.is_duplicate,
-                        "created_at": task.created_at,
-                        "total_rows": getattr(task, "batch", None)
-                        and task.batch.total_rows,
-                        "failed_rows": getattr(task, "batch", None)
-                        and task.batch.failed_rows,
-                    }
-                    for task in tasks
-                ],
-                "pagination": pagination,
-            },
-        )
-
-    @extend_schema(
-        summary="上传三类广告报表并创建异步导入任务",
-        request=ReportUploadSerializer,
-        responses={202: TaskResponseSerializer},
-        tags=["reports"],
-    )
-    def post(self, request):
-        serializer = ReportUploadSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        task = create_upload_task(
-            user=request.user,
-            tenant_id=data["tenantId"],
-            profile_id=data["profileId"],
-            report_type=data["reportType"],
-            uploaded_file=data["file"],
-            idempotency_key=request.headers.get("Idempotency-Key", ""),
+            profile_id=profile_id,
         )
         return api_response(
             request,
-            data={
-                "task_id": str(task.pk),
-                "status": task.status,
-                "is_duplicate": task.upload.is_duplicate,
-                "task_url": f"/api/v1/reports/tasks/{task.pk}",
-            },
-            message="导入任务已创建",
-            status=status.HTTP_202_ACCEPTED,
+            data=ImportTaskSerializer(tasks, many=True).data,
         )
-
-
-def _tenant_id(request):
-    value = request.headers.get("X-Tenant-ID") or request.query_params.get("tenantId")
-    if not value:
-        raise ValidationError({"tenantId": "必须提供当前卖家空间"})
-    return value
 
 
 class ImportTaskDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
-        summary="查看导入任务、批次计数和行级错误",
-        responses={200: OpenApiResponse(description="导入任务详情")},
+        summary="Get import task status and counters",
+        responses={200: ImportTaskSerializer},
         tags=["reports"],
     )
-    def get(self, request, task_id):
+    def get(self, request, tenant_id, task_id):
+        task = authorized_import_task(
+            user=request.user,
+            tenant_id=tenant_id,
+            task_id=task_id,
+        )
+        return api_response(request, data=ImportTaskSerializer(task).data)
+
+
+class ImportTaskErrorListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="List row-level import errors",
+        responses={200: ImportRowErrorSerializer(many=True)},
+        tags=["reports"],
+    )
+    def get(self, request, tenant_id, task_id):
+        task = authorized_import_task(
+            user=request.user,
+            tenant_id=tenant_id,
+            task_id=task_id,
+        )
+        errors = task.row_errors.order_by("row_number", "id")
         return api_response(
             request,
-            data=task_for_user(
-                user=request.user, tenant_id=_tenant_id(request), task_id=task_id
-            ),
+            data=ImportRowErrorSerializer(errors, many=True).data,
         )
 
 
@@ -129,29 +107,43 @@ class ImportTaskReprocessView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
-        summary="重处理历史 Upload 并创建新 Task/Batch",
+        summary="Create a new append-only import attempt from an existing upload",
         request=None,
-        responses={202: TaskResponseSerializer},
+        responses={202: ImportTaskSerializer},
         tags=["reports"],
     )
-    def post(self, request, task_id):
-        try:
-            task = ImportTask.objects.select_related(
-                "upload__profile__store_marketplace__store"
-            ).get(pk=task_id)
-        except ImportTask.DoesNotExist as exc:
-            raise NotFound("导入任务不存在") from exc
-        new_task = reprocess(
-            user=request.user, tenant_id=_tenant_id(request), task=task
+    def post(self, request, tenant_id, task_id):
+        task = reprocess_import(
+            request=request,
+            tenant_id=tenant_id,
+            task_id=task_id,
         )
         return api_response(
             request,
-            data={
-                "task_id": str(new_task.pk),
-                "status": new_task.status,
-                "is_duplicate": new_task.upload.is_duplicate,
-                "task_url": f"/api/v1/reports/tasks/{new_task.pk}",
-            },
-            message="重处理任务已创建",
-            status=status.HTTP_202_ACCEPTED,
+            data=ImportTaskSerializer(task).data,
+            message="Report reprocessing queued.",
+            status=202,
+        )
+
+
+class ImportTaskSourceDownloadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Download the authorized original report source",
+        responses={(200, "application/octet-stream"): OpenApiTypes.BINARY},
+        tags=["reports"],
+    )
+    def get(self, request, tenant_id, task_id):
+        task = authorized_import_task(
+            user=request.user,
+            tenant_id=tenant_id,
+            task_id=task_id,
+        )
+        stream = LocalFileStorage().open(key=task.upload.storage_key)
+        return FileResponse(
+            stream,
+            as_attachment=True,
+            filename=task.upload.original_filename,
+            content_type=task.upload.content_type or "application/octet-stream",
         )

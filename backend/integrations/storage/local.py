@@ -1,57 +1,40 @@
-import hashlib
-import re
-import uuid
-from pathlib import Path
+from collections.abc import Iterable
+from pathlib import Path, PurePosixPath
+from typing import BinaryIO
 
 from django.conf import settings
 
-from integrations.storage.base import StoredFile
-
-_SAFE_SUFFIX = re.compile(r"^\.[a-zA-Z0-9]{1,8}$")
-
 
 class LocalFileStorage:
-    timeout_seconds = 0
-    max_retries = 0
-
     def __init__(self, root: Path | None = None):
-        self.root = Path(root or settings.MEDIA_ROOT).resolve()
+        self.root = Path(root or settings.REPORT_STORAGE_ROOT).resolve()
 
-    def _path(self, namespace: str, filename: str) -> Path:
-        directory = (self.root / namespace).resolve()
-        if self.root not in directory.parents and directory != self.root:
-            raise ValueError("Invalid storage namespace")
-        directory.mkdir(parents=True, exist_ok=True)
-        return directory / filename
+    def _path(self, key: str) -> Path:
+        normalized = PurePosixPath(key)
+        if normalized.is_absolute() or ".." in normalized.parts:
+            raise ValueError("Unsafe storage key")
+        target = (self.root / Path(*normalized.parts)).resolve()
+        if self.root != target and self.root not in target.parents:
+            raise ValueError("Storage key escapes configured root")
+        return target
 
-    def save_stream(self, *, namespace: str, filename: str, chunks) -> StoredFile:
-        suffix = Path(filename).suffix.lower()
-        if not _SAFE_SUFFIX.match(suffix):
-            suffix = ".bin"
-        relative = f"{namespace}/{uuid.uuid4().hex}{suffix}"
-        target = self._path(namespace, Path(relative).name)
-        digest = hashlib.sha256()
+    def save(self, *, key: str, chunks: Iterable[bytes]) -> int:
+        target = self._path(key)
+        target.parent.mkdir(parents=True, exist_ok=True)
         size = 0
-        try:
-            with target.open("wb") as handle:
-                for chunk in chunks:
-                    if not chunk:
-                        continue
-                    handle.write(chunk)
-                    digest.update(chunk)
-                    size += len(chunk)
-        except Exception:
-            target.unlink(missing_ok=True)
-            raise
-        return StoredFile(relative, size, digest.hexdigest())
+        with target.open("xb") as output:
+            for chunk in chunks:
+                output.write(chunk)
+                size += len(chunk)
+        return size
 
-    def open_binary(self, path: str):
-        target = (self.root / path).resolve()
-        if self.root not in target.parents:
-            raise ValueError("Invalid storage path")
-        return target.open("rb")
+    def open(self, *, key: str) -> BinaryIO:
+        return self._path(key).open("rb")
 
-    def write_bytes(self, *, namespace: str, filename: str, content: bytes) -> str:
-        target = self._path(namespace, filename)
-        target.write_bytes(content)
-        return f"{namespace}/{filename}"
+    def exists(self, *, key: str) -> bool:
+        return self._path(key).is_file()
+
+    def delete(self, *, key: str) -> None:
+        target = self._path(key)
+        if target.is_file():
+            target.unlink()

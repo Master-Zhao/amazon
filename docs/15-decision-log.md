@@ -90,6 +90,7 @@ Phase 2A 验证状态：API 认证链路、SQLite/MySQL 后端测试、前端单
 | D-149 | 已确认 | Store 与 Profile 分别使用 User/Team 白名单，Profile 等级按 VIEW→OPERATE→APPROVE→EXECUTE→MANAGE 取最高 | 无显式 DENY |
 | D-150 | 已确认 | 功能权限码由迁移维护固定目录；Tenant 自定义角色只能组合目录内权限 | 系统角色不可通过业务 API 删除 |
 | D-151 | 已确认 | 完全越出 Tenant/Store/Profile 范围返回 404；当前 Tenant 内缺功能或动作等级返回 403 | API 绕过前端同样执行 |
+| D-152 | 已确认（兼容覆盖 D-147 的物理主键部分） | 现有 MySQL 已由 bigint 主键历史迁移创建且保存跨模块关联数据；本次 RC1 协调保留该物理主键谱系，不做破坏性 UUID 重写 | 当前任务明确规定冲突时数据安全优先；API ID 仍统一输出字符串，Amazon 外部 ID 仍使用独立字符串字段；详见 `MIGRATION_RECONCILIATION.md` |
 
 ## 3. 强制待确认事项
 

@@ -1,53 +1,45 @@
 from rest_framework.exceptions import NotFound
 
-from apps.permissions.services import authorize
+from apps.permissions.models import ProfileAccessLevel
+from apps.permissions.services import require_profile_scope
 from apps.reports.models import ImportTask
 
 
-def task_for_user(*, user, tenant_id, task_id):
-    try:
-        task = (
-            ImportTask.objects.select_related("upload__profile__store_marketplace__store")
-            .prefetch_related("batch__row_errors")
-            .get(pk=task_id)
-        )
-    except (ImportTask.DoesNotExist, ValueError) as exc:
-        raise NotFound("导入任务不存在") from exc
-    authorize(
+def import_tasks_for_profile(*, user, tenant_id, profile_id):
+    scope = require_profile_scope(
         user=user,
         tenant_id=tenant_id,
+        profile_id=profile_id,
         permission_code="reports.view",
-        profile=task.upload.profile,
+        minimum_level=ProfileAccessLevel.VIEW,
     )
-    batch = getattr(task, "batch", None)
-    return {
-        "task_id": str(task.pk),
-        "upload_id": str(task.upload_id),
-        "report_type": task.upload.report_type,
-        "status": task.status,
-        "is_duplicate": task.upload.is_duplicate,
-        "created_at": task.created_at,
-        "started_at": task.started_at,
-        "completed_at": task.completed_at,
-        "error_code": task.error_code,
-        "batch": (
-            {
-                "id": str(batch.pk),
-                "total_rows": batch.total_rows,
-                "succeeded_rows": batch.succeeded_rows,
-                "failed_rows": batch.failed_rows,
-                "errors": [
-                    {
-                        "row_number": error.row_number,
-                        "code": error.code,
-                        "field": error.field,
-                        "message": error.message,
-                    }
-                    for error in batch.row_errors.all()
-                ],
-            }
-            if batch
-            else None
-        ),
-    }
+    return ImportTask.objects.filter(
+        upload__tenant=scope.membership.tenant,
+        upload__profile=scope.profile,
+    ).select_related(
+        "upload",
+        "reprocessed_from",
+    ).order_by("-created_at")
 
+
+def authorized_import_task(*, user, tenant_id, task_id) -> ImportTask:
+    task = (
+        ImportTask.objects.select_related(
+            "upload__tenant",
+            "upload__profile",
+            "upload__duplicate_of",
+            "reprocessed_from",
+        )
+        .filter(pk=task_id, upload__tenant_id=tenant_id)
+        .first()
+    )
+    if task is None:
+        raise NotFound("Import task does not exist in the current tenant scope.")
+    require_profile_scope(
+        user=user,
+        tenant_id=tenant_id,
+        profile_id=task.upload.profile_id,
+        permission_code="reports.view",
+        minimum_level=ProfileAccessLevel.VIEW,
+    )
+    return task

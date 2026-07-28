@@ -2,5 +2,10 @@ from django.urls import path
 
 from apps.recommendations.views import RecommendationListView
 
-urlpatterns = [path("", RecommendationListView.as_view())]
-
+urlpatterns = [
+    path(
+        "tenants/<str:tenant_id>/profiles/<str:profile_id>",
+        RecommendationListView.as_view(),
+        name="recommendation-list",
+    ),
+]

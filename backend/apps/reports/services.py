@@ -1,312 +1,483 @@
 import gzip
+import hashlib
 import json
 import uuid
-from decimal import Decimal, InvalidOperation
+from dataclasses import dataclass
+from pathlib import Path
 
-from django.db import IntegrityError, transaction
+from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import NotFound
+from rest_framework.serializers import ValidationError
 
-from apps.advertising.models import (
-    AdGroup,
-    Campaign,
-    EntityState,
-    Keyword,
-    MatchType,
-    ProductTarget,
-    SearchTerm,
+from apps.advertising.services import (
+    upsert_campaign_report_entities,
+    upsert_search_term_report_entities,
+    upsert_targeting_report_entities,
 )
+from apps.audit.services import append_audit_log
 from apps.permissions.models import ProfileAccessLevel
-from apps.permissions.services import authorize
+from apps.permissions.services import require_profile_scope
 from apps.reports.models import (
     ImportBatch,
     ImportRowError,
-    ImportStatus,
     ImportTask,
+    ImportTaskStatus,
+    ReportSourceType,
     ReportType,
     ReportUpload,
 )
-from apps.reports.parsers import ReportFileError, iter_rows
-from apps.stores.models import AdvertisingProfile
+from apps.reports.parsers import (
+    ReportStructureError,
+    iter_report_rows,
+    normalize_report_row,
+    schema_version_for,
+)
+from integrations.advertising_data.sources import FileUploadReportSource
 from integrations.storage.local import LocalFileStorage
 
-REQUIRED_FIELDS = {
-    ReportType.CAMPAIGN: {"date", "campaign_id", "campaign_name", "state", "currency"},
-    ReportType.TARGETING: {
-        "campaign_id",
-        "date",
-        "campaign_name",
-        "ad_group_id",
-        "ad_group_name",
-        "targeting_type",
-        "targeting_id",
-        "targeting_text",
-        "state",
-        "currency",
-    },
-    ReportType.SEARCH_TERM: {
-        "campaign_id",
-        "date",
-        "campaign_name",
-        "search_term",
-        "targeting_text",
-        "currency",
-    },
-}
+
+@dataclass(frozen=True, slots=True)
+class SystemRequest:
+    request_id: str
 
 
-def _decimal(value, field, *, nullable=True):
-    if value in {None, ""} and nullable:
-        return None
-    try:
-        parsed = Decimal(str(value))
-    except (InvalidOperation, ValueError) as exc:
-        raise ValueError(f"{field}:INVALID_DECIMAL") from exc
-    if parsed < 0:
-        raise ValueError(f"{field}:NEGATIVE")
-    return parsed
-
-
-def _campaign(profile, row, batch):
-    state = str(row["state"]).upper()
-    if state not in EntityState.values:
-        raise ValueError("state:INVALID_STATE")
-    campaign, _ = Campaign.objects.update_or_create(
-        profile=profile,
-        external_campaign_id=str(row["campaign_id"]),
-        defaults={
-            "name": str(row["campaign_name"]),
-            "state": state,
-            "daily_budget": _decimal(row.get("budget"), "budget"),
-            "currency": str(row["currency"]).upper(),
-            "source_batch_id": batch.pk,
-        },
-    )
-    return campaign
-
-
-def _normalize_row(profile, report_type, row, batch):
-    if row.get("profile_id") and str(row["profile_id"]) != profile.external_profile_id:
-        raise ValueError("profile_id:PROFILE_MISMATCH")
-    missing = [field for field in REQUIRED_FIELDS[report_type] if not row.get(field)]
-    if missing:
-        raise ValueError(f"{missing[0]}:REQUIRED")
-    if str(row["currency"]).upper() != profile.currency:
-        raise ValueError("currency:PROFILE_MISMATCH")
-    campaign = _campaign(
-        profile,
-        {
-            **row,
-            "state": row.get("campaign_state") or row.get("state") or "ENABLED",
-        },
-        batch,
-    )
-    if report_type == ReportType.CAMPAIGN:
-        return campaign
-    if report_type == ReportType.TARGETING:
-        ad_group, _ = AdGroup.objects.update_or_create(
-            campaign=campaign,
-            external_ad_group_id=str(row["ad_group_id"]),
-            defaults={
-                "name": str(row["ad_group_name"]),
-                "state": str(row.get("ad_group_state") or "ENABLED").upper(),
-            },
+def _safe_extension(filename: str) -> str:
+    suffix = Path(filename).suffix.lower()
+    if suffix not in {".csv", ".xlsx"}:
+        raise ValidationError(
+            {"file": ["Only CSV and XLSX report files are accepted."]}
         )
-        target_type = str(row["targeting_type"]).upper()
-        if target_type == "KEYWORD":
-            match_type = str(row.get("match_type") or "EXACT").upper()
-            if match_type not in MatchType.values:
-                raise ValueError("match_type:INVALID")
-            target, _ = Keyword.objects.update_or_create(
-                ad_group=ad_group,
-                external_keyword_id=str(row["targeting_id"]),
-                defaults={
-                    "text": str(row["targeting_text"]),
-                    "match_type": match_type,
-                    "state": str(row["state"]).upper(),
-                    "bid": _decimal(row.get("bid"), "bid"),
-                },
-            )
-        elif target_type == "PRODUCT":
-            target, _ = ProductTarget.objects.update_or_create(
-                ad_group=ad_group,
-                external_target_id=str(row["targeting_id"]),
-                defaults={
-                    "expression": str(row["targeting_text"]),
-                    "state": str(row["state"]).upper(),
-                    "bid": _decimal(row.get("bid"), "bid"),
-                },
-            )
-        else:
-            raise ValueError("targeting_type:INVALID")
-        return target
-    term, _ = SearchTerm.objects.update_or_create(
-        profile=profile,
-        query_text=str(row["search_term"]),
-        targeting_text=str(row["targeting_text"]),
-        defaults={
-            "campaign": campaign,
-            "source_batch_id": batch.pk,
+    return suffix
+
+
+def _validate_upload_signature(*, uploaded_file, suffix: str) -> None:
+    content_type = (uploaded_file.content_type or "").split(";", 1)[0].lower()
+    allowed_types = {
+        ".csv": {
+            "",
+            "application/csv",
+            "application/octet-stream",
+            "application/vnd.ms-excel",
+            "text/csv",
+            "text/plain",
         },
-    )
-    return term
+        ".xlsx": {
+            "",
+            "application/octet-stream",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/zip",
+        },
+    }
+    if content_type not in allowed_types[suffix]:
+        raise ValidationError(
+            {"file": ["The content type does not match the report extension."]}
+        )
+    header = uploaded_file.read(4096)
+    uploaded_file.seek(0)
+    if suffix == ".xlsx" and not header.startswith(b"PK\x03\x04"):
+        raise ValidationError({"file": ["The XLSX file signature is invalid."]})
+    if suffix == ".csv" and b"\x00" in header:
+        raise ValidationError({"file": ["The CSV file contains binary data."]})
 
 
 @transaction.atomic
-def create_upload_task(*, user, tenant_id, profile_id, report_type, uploaded_file, idempotency_key):
-    try:
-        profile = AdvertisingProfile.objects.select_related(
-            "store_marketplace__store__tenant"
-        ).get(pk=profile_id)
-    except (AdvertisingProfile.DoesNotExist, ValueError) as exc:
-        from rest_framework.exceptions import NotFound
-
-        raise NotFound("广告 Profile 不存在") from exc
-    authorize(
-        user=user,
-        tenant_id=tenant_id,
-        permission_code="reports.import",
-        profile=profile,
-        minimum_profile_level=ProfileAccessLevel.OPERATE,
-    )
+def create_report_import(
+    *,
+    request,
+    tenant_id,
+    profile_id,
+    report_type: str,
+    uploaded_file,
+) -> ImportTask:
     if report_type not in ReportType.values:
-        raise ValidationError({"reportType": "不支持的报表类型"})
-    if uploaded_file.size > 25 * 1024 * 1024:
-        raise ValidationError({"file": "文件超过 25 MiB 保守限制"})
-    suffix = str(uploaded_file.name).lower()
-    if not suffix.endswith((".csv", ".xlsx")):
-        raise ValidationError({"file": "仅支持 CSV 或 XLSX"})
-    stored = LocalFileStorage().save_stream(
-        namespace="reports", filename=uploaded_file.name, chunks=uploaded_file.chunks()
-    )
-    duplicate = ReportUpload.objects.filter(
-        profile=profile, report_type=report_type, sha256=stored.sha256
-    ).exists()
-    upload = ReportUpload.objects.create(
+        raise ValidationError({"report_type": ["Unsupported report type."]})
+    scope = require_profile_scope(
+        user=request.user,
         tenant_id=tenant_id,
-        profile=profile,
-        report_type=report_type,
-        original_name=uploaded_file.name,
-        content_type=uploaded_file.content_type or "application/octet-stream",
-        size_bytes=stored.size_bytes,
-        sha256=stored.sha256,
-        storage_path=stored.path,
-        uploaded_by=user,
-        is_duplicate=duplicate,
+        profile_id=profile_id,
+        permission_code="reports.upload",
+        minimum_level=ProfileAccessLevel.OPERATE,
     )
+    suffix = _safe_extension(uploaded_file.name)
+    _validate_upload_signature(uploaded_file=uploaded_file, suffix=suffix)
+    declared_size = int(uploaded_file.size or 0)
+    if declared_size <= 0:
+        raise ValidationError({"file": ["The report file is empty."]})
+    if declared_size > settings.REPORT_MAX_UPLOAD_BYTES:
+        raise ValidationError({"file": ["The report exceeds the upload size limit."]})
+
+    storage = LocalFileStorage()
+    storage_key = (
+        f"{scope.membership.tenant_id}/{scope.profile.pk}/"
+        f"{timezone.now():%Y/%m/%d}/{uuid.uuid4().hex}{suffix}"
+    )
+    digest = hashlib.sha256()
+    observed_size = 0
+
+    def checked_chunks():
+        nonlocal observed_size
+        for chunk in uploaded_file.chunks():
+            observed_size += len(chunk)
+            if observed_size > settings.REPORT_MAX_UPLOAD_BYTES:
+                raise ValidationError(
+                    {"file": ["The report exceeds the upload size limit."]}
+                )
+            digest.update(chunk)
+            yield chunk
+
+    try:
+        storage.save(key=storage_key, chunks=checked_chunks())
+    except Exception:
+        storage.delete(key=storage_key)
+        raise
+
+    sha256 = digest.hexdigest()
+    duplicate = (
+        ReportUpload.objects.filter(
+            tenant=scope.membership.tenant,
+            profile=scope.profile,
+            report_type=report_type,
+            sha256=sha256,
+        )
+        .order_by("created_at")
+        .first()
+    )
+    upload = ReportUpload.objects.create(
+        tenant=scope.membership.tenant,
+        profile=scope.profile,
+        report_type=report_type,
+        source_type=ReportSourceType.FILE_UPLOAD,
+        original_filename=Path(uploaded_file.name).name,
+        content_type=uploaded_file.content_type or "",
+        size_bytes=observed_size,
+        sha256=sha256,
+        storage_key=storage_key,
+        duplicate_of=duplicate,
+        uploaded_by=request.user,
+    )
+    celery_task_id = uuid.uuid4().hex
     task = ImportTask.objects.create(
         upload=upload,
-        status=ImportStatus.QUEUED,
-        requested_by=user,
-        idempotency_key=idempotency_key or uuid.uuid4().hex,
+        created_by=request.user,
+        celery_task_id=celery_task_id,
     )
+    append_audit_log(
+        request=request,
+        tenant=scope.membership.tenant,
+        actor=request.user,
+        event="report.uploaded",
+        object_type="ReportUpload",
+        object_id=upload.pk,
+        task_id=str(task.pk),
+        after_data={
+            "profile_id": str(scope.profile.pk),
+            "report_type": report_type,
+            "filename": upload.original_filename,
+            "size_bytes": observed_size,
+            "sha256": sha256,
+            "duplicate_of": str(duplicate.pk) if duplicate else "",
+        },
+    )
+
     from apps.reports.tasks import process_import_task
 
-    transaction.on_commit(lambda: process_import_task.delay(str(task.pk)))
+    transaction.on_commit(
+        lambda: process_import_task.apply_async(
+            args=[task.pk],
+            task_id=celery_task_id,
+        )
+    )
     return task
 
 
-def process_task(task_id):
+def _failure(
+    *,
+    task_id: int,
+    code: str,
+    message: str,
+) -> ImportTask:
     with transaction.atomic():
-        task = ImportTask.objects.select_for_update().select_related("upload__profile").get(
-            pk=task_id
+        task = (
+            ImportTask.objects.select_for_update()
+            .select_related("upload__tenant", "created_by")
+            .get(pk=task_id)
         )
-        if task.status != ImportStatus.QUEUED:
-            return task
-        task.status = ImportStatus.RUNNING
-        task.started_at = timezone.now()
-        task.save(update_fields=["status", "started_at"])
-        batch = ImportBatch.objects.create(task=task, status=ImportStatus.RUNNING)
-    total = succeeded = failed = 0
-    normalized_path = ""
-
-    def normalized_chunks():
-        nonlocal total, succeeded, failed
-        for row_number, row in iter_rows(task.upload.storage_path):
-            total += 1
-            try:
-                with transaction.atomic():
-                    normalized_object = _normalize_row(
-                        task.upload.profile, task.upload.report_type, row, batch
-                    )
-                    from apps.analytics.services import upsert_daily_metric
-
-                    upsert_daily_metric(
-                        report_type=task.upload.report_type,
-                        profile=task.upload.profile,
-                        batch=batch,
-                        row=row,
-                        normalized_object=normalized_object,
-                    )
-                    normalized = {
-                        "objectId": str(normalized_object.pk),
-                        "objectType": normalized_object.__class__.__name__,
-                    }
-                succeeded += 1
-                yield gzip.compress(json.dumps(normalized).encode("utf-8") + b"\n")
-            except (ValueError, IntegrityError) as exc:
-                failed += 1
-                detail = str(exc).split(":", 1)
-                ImportRowError.objects.create(
-                    batch=batch,
-                    row_number=row_number,
-                    code=detail[-1] if len(detail) > 1 else "INVALID_ROW",
-                    field=detail[0] if len(detail) > 1 else "",
-                    message=str(exc)[:500],
-                    raw_excerpt={key: str(value)[:100] for key, value in row.items()},
-                )
-
-    try:
-        stored = LocalFileStorage().save_stream(
-            namespace="normalized",
-            filename=f"{batch.pk}.jsonl.gz",
-            chunks=normalized_chunks(),
-        )
-        normalized_path = stored.path
-    except ReportFileError as exc:
-        task.status = ImportStatus.FAILED
-        task.error_code = str(exc)
-        task.error_message = "文件级校验失败"
-    else:
-        if total == 0 or succeeded == 0:
-            task.status = ImportStatus.FAILED
-        elif failed:
-            task.status = ImportStatus.PARTIAL_SUCCEEDED
-        else:
-            task.status = ImportStatus.SUCCEEDED
-    now = timezone.now()
-    with transaction.atomic():
-        batch = ImportBatch.objects.select_for_update().get(pk=batch.pk)
-        batch.status = task.status
-        batch.total_rows = total
-        batch.succeeded_rows = succeeded
-        batch.failed_rows = failed
-        batch.normalized_rows_path = normalized_path
-        batch.completed_at = now
-        batch.save()
-        task.completed_at = now
+        task.status = ImportTaskStatus.FAILED
+        task.error_code = code
+        task.error_message = message[:2000]
+        task.finished_at = timezone.now()
         task.save(
-            update_fields=["status", "completed_at", "error_code", "error_message"]
+            update_fields=[
+                "status",
+                "error_code",
+                "error_message",
+                "finished_at",
+            ]
         )
-    return task
+        append_audit_log(
+            request=SystemRequest(request_id=f"import-task-{task.pk}"),
+            tenant=task.upload.tenant,
+            actor=task.created_by,
+            event="report.import_failed",
+            object_type="ImportTask",
+            object_id=task.pk,
+            task_id=str(task.pk),
+            after_data={"error_code": code, "error_message": message[:500]},
+        )
+        return task
+
+
+def process_report_import(*, task_id: int) -> ImportTask:
+    with transaction.atomic():
+        task = (
+            ImportTask.objects.select_for_update()
+            .select_related(
+                "upload__tenant",
+                "upload__profile",
+                "created_by",
+            )
+            .get(pk=task_id)
+        )
+        if task.status in {
+            ImportTaskStatus.SUCCEEDED,
+            ImportTaskStatus.PARTIAL_SUCCEEDED,
+        }:
+            return task
+        if task.status == ImportTaskStatus.RUNNING:
+            return task
+        task.status = ImportTaskStatus.RUNNING
+        task.started_at = timezone.now()
+        task.error_code = ""
+        task.error_message = ""
+        task.save(
+            update_fields=[
+                "status",
+                "started_at",
+                "error_code",
+                "error_message",
+            ]
+        )
+
+    upload = task.upload
+    source = FileUploadReportSource(
+        storage=LocalFileStorage(),
+        storage_key=upload.storage_key,
+    )
+    normalized_rows: list[dict[str, object]] = []
+    row_errors: list[ImportRowError] = []
+    total_rows = 0
+    try:
+        with source.open() as stream:
+            for parsed in iter_report_rows(
+                stream=stream,
+                filename=upload.original_filename,
+                report_type=upload.report_type,
+            ):
+                total_rows += 1
+                try:
+                    normalized_rows.append(
+                        normalize_report_row(
+                            parsed,
+                            report_type=upload.report_type,
+                            expected_profile_id=upload.profile.external_profile_id,
+                            expected_currency=upload.profile.currency_code,
+                        )
+                    )
+                except ValueError as exc:
+                    message = str(exc)
+                    field_name = message.split(" ", 1)[0] if " " in message else ""
+                    row_errors.append(
+                        ImportRowError(
+                            task_id=task.pk,
+                            row_number=parsed.row_number,
+                            error_code="ROW_VALIDATION_ERROR",
+                            message=message,
+                            field_name=field_name[:128],
+                            rejected_value="",
+                        )
+                    )
+    except ReportStructureError as exc:
+        return _failure(
+            task_id=task.pk,
+            code="REPORT_STRUCTURE_ERROR",
+            message=str(exc),
+        )
+    except (OSError, UnicodeError, ValueError) as exc:
+        return _failure(
+            task_id=task.pk,
+            code="REPORT_READ_ERROR",
+            message=str(exc),
+        )
+
+    if total_rows == 0:
+        return _failure(
+            task_id=task.pk,
+            code="REPORT_EMPTY",
+            message="The report contains no data rows.",
+        )
+    if not normalized_rows:
+        with transaction.atomic():
+            ImportRowError.objects.bulk_create(row_errors)
+            task = ImportTask.objects.select_for_update().get(pk=task.pk)
+            task.total_rows = total_rows
+            task.error_rows = len(row_errors)
+            task.status = ImportTaskStatus.FAILED
+            task.error_code = "ALL_ROWS_INVALID"
+            task.error_message = "All report rows failed validation."
+            task.finished_at = timezone.now()
+            task.save(
+                update_fields=[
+                    "total_rows",
+                    "error_rows",
+                    "status",
+                    "error_code",
+                    "error_message",
+                    "finished_at",
+                ]
+            )
+        return task
+
+    payload = gzip.compress(
+        b"".join(
+            (
+                json.dumps(row, ensure_ascii=False, separators=(",", ":")).encode(
+                    "utf-8"
+                )
+                + b"\n"
+            )
+            for row in normalized_rows
+        )
+    )
+    normalized_key = (
+        f"{upload.tenant_id}/{upload.profile_id}/normalized/"
+        f"{uuid.uuid4().hex}.jsonl.gz"
+    )
+    LocalFileStorage().save(key=normalized_key, chunks=[payload])
+
+    with transaction.atomic():
+        locked = (
+            ImportTask.objects.select_for_update()
+            .select_related("upload__tenant", "upload__profile", "created_by")
+            .get(pk=task.pk)
+        )
+        batch = ImportBatch.objects.create(
+            task=locked,
+            schema_version=schema_version_for(upload.report_type),
+            idempotency_key=f"{upload.sha256}:{upload.profile_id}:{task.pk}",
+            normalized_storage_key=normalized_key,
+            row_count=len(normalized_rows),
+        )
+        from apps.analytics.services import (
+            publish_campaign_metrics,
+            publish_search_term_metrics,
+            publish_targeting_metrics,
+        )
+
+        if upload.report_type == ReportType.CAMPAIGN:
+            upsert_campaign_report_entities(batch=batch, rows=normalized_rows)
+            published_metrics = publish_campaign_metrics(
+                batch=batch,
+                rows=normalized_rows,
+            )
+        elif upload.report_type == ReportType.TARGETING:
+            upsert_targeting_report_entities(batch=batch, rows=normalized_rows)
+            published_metrics = publish_targeting_metrics(
+                batch=batch,
+                rows=normalized_rows,
+            )
+        else:
+            upsert_search_term_report_entities(batch=batch, rows=normalized_rows)
+            published_metrics = publish_search_term_metrics(
+                batch=batch,
+                rows=normalized_rows,
+            )
+        if row_errors:
+            ImportRowError.objects.bulk_create(row_errors)
+        locked.total_rows = total_rows
+        locked.success_rows = len(normalized_rows)
+        locked.error_rows = len(row_errors)
+        locked.status = (
+            ImportTaskStatus.PARTIAL_SUCCEEDED
+            if row_errors
+            else ImportTaskStatus.SUCCEEDED
+        )
+        locked.finished_at = timezone.now()
+        locked.save(
+            update_fields=[
+                "total_rows",
+                "success_rows",
+                "error_rows",
+                "status",
+                "finished_at",
+            ]
+        )
+        batch.published_at = locked.finished_at
+        batch.save(update_fields=["published_at"])
+        append_audit_log(
+            request=SystemRequest(request_id=f"import-task-{locked.pk}"),
+            tenant=upload.tenant,
+            actor=locked.created_by,
+            event="report.import_completed",
+            object_type="ImportTask",
+            object_id=locked.pk,
+            task_id=str(locked.pk),
+            after_data={
+                "status": locked.status,
+                "total_rows": total_rows,
+                "success_rows": len(normalized_rows),
+                "error_rows": len(row_errors),
+                "batch_id": str(batch.pk),
+                "report_type": upload.report_type,
+                "published_metrics": len(published_metrics),
+            },
+        )
+        return locked
 
 
 @transaction.atomic
-def reprocess(*, user, tenant_id, task):
-    authorize(
-        user=user,
-        tenant_id=tenant_id,
-        permission_code="reports.import",
-        profile=task.upload.profile,
-        minimum_profile_level=ProfileAccessLevel.OPERATE,
+def reprocess_import(*, request, tenant_id, task_id) -> ImportTask:
+    original = (
+        ImportTask.objects.select_related("upload__profile")
+        .filter(
+            pk=task_id,
+            upload__tenant_id=tenant_id,
+        )
+        .first()
     )
-    new_task = ImportTask.objects.create(
-        upload=task.upload,
-        status=ImportStatus.QUEUED,
-        requested_by=user,
-        idempotency_key=uuid.uuid4().hex,
+    if original is None:
+        raise NotFound("Import task does not exist in the current tenant scope.")
+    scope = require_profile_scope(
+        user=request.user,
+        tenant_id=tenant_id,
+        profile_id=original.upload.profile_id,
+        permission_code="reports.upload",
+        minimum_level=ProfileAccessLevel.OPERATE,
+    )
+    celery_task_id = uuid.uuid4().hex
+    task = ImportTask.objects.create(
+        upload=original.upload,
+        created_by=request.user,
+        celery_task_id=celery_task_id,
+        reprocessed_from=original,
+    )
+    append_audit_log(
+        request=request,
+        tenant=scope.membership.tenant,
+        actor=request.user,
+        event="report.reprocess_requested",
+        object_type="ImportTask",
+        object_id=task.pk,
+        task_id=str(task.pk),
+        after_data={"reprocessed_from": str(original.pk)},
     )
     from apps.reports.tasks import process_import_task
 
-    transaction.on_commit(lambda: process_import_task.delay(str(new_task.pk)))
-    return new_task
+    transaction.on_commit(
+        lambda: process_import_task.apply_async(
+            args=[task.pk],
+            task_id=celery_task_id,
+        )
+    )
+    return task

@@ -2,10 +2,12 @@ from dataclasses import dataclass
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Max, Q, QuerySet
 from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.serializers import ValidationError
 
+from apps.audit.services import append_audit_log
 from apps.permissions.models import (
-    PROFILE_LEVEL_RANK,
     Permission,
     ProfileAccessLevel,
     Role,
@@ -17,232 +19,433 @@ from apps.permissions.models import (
     UserStoreAccess,
 )
 from apps.stores.models import AdvertisingProfile, AmazonStore
-from apps.tenants.models import MembershipRole, TeamMember, Tenant, TenantMembership
-
-PERMISSION_CATALOG = {
-    "context.view": "查看卖家空间上下文",
-    "members.manage": "管理成员",
-    "roles.manage": "管理角色",
-    "stores.manage": "管理店铺",
-    "profiles.manage": "管理广告 Profile",
-    "reports.view": "查看报表",
-    "reports.import": "导入报表",
-    "analytics.view": "查看广告分析",
-    "analysis.run": "运行智能分析",
-    "recommendations.view": "查看建议",
-    "actions.submit": "提交动作方案",
-    "actions.approve": "审批动作方案",
-    "actions.execute": "回填人工执行",
-    "audit.view": "查看审计日志",
-    "knowledge.view": "查看知识中心",
-}
+from apps.tenants.models import MembershipRole, Team, TeamMember, TenantMembership
 
 
 @dataclass(frozen=True, slots=True)
-class AuthorizationContext:
+class AuthorizedProfileScope:
     membership: TenantMembership
-    permission_codes: frozenset[str]
-    profile_level: str | None = None
+    profile: AdvertisingProfile
+    access_level: int
 
 
-def _active_membership(*, user, tenant_id) -> TenantMembership:
-    try:
-        return TenantMembership.objects.select_related("tenant").get(
+def require_membership(*, user, tenant_id) -> TenantMembership:
+    membership = (
+        TenantMembership.objects.select_related("tenant")
+        .filter(
             tenant_id=tenant_id,
             user=user,
             is_active=True,
             tenant__is_active=True,
         )
-    except (TenantMembership.DoesNotExist, ValueError, TypeError) as exc:
-        raise NotFound("资源不存在或不在当前卖家空间范围") from exc
+        .first()
+    )
+    if membership is None:
+        raise NotFound("卖家空间不存在或不在当前数据范围")
+    return membership
 
 
-def permission_codes_for(*, user, tenant: Tenant) -> frozenset[str]:
-    membership = _active_membership(user=user, tenant_id=tenant.pk)
-    if membership.role in {MembershipRole.OWNER, MembershipRole.ADMIN}:
-        return frozenset(PERMISSION_CATALOG)
-    return frozenset(
+def _is_tenant_manager(membership: TenantMembership) -> bool:
+    return membership.membership_role in {
+        MembershipRole.OWNER,
+        MembershipRole.ADMIN,
+    }
+
+
+def _team_ids(membership: TenantMembership) -> QuerySet:
+    return TeamMember.objects.filter(
+        membership=membership,
+        team__is_active=True,
+    ).values_list("team_id", flat=True)
+
+
+def feature_permission_codes(membership: TenantMembership) -> set[str]:
+    if _is_tenant_manager(membership):
+        return set(Permission.objects.values_list("code", flat=True))
+    return set(
         Permission.objects.filter(
-            roles__userrole__tenant=tenant,
-            roles__userrole__user=user,
+            role_permissions__role__user_roles__membership=membership,
+            role_permissions__role__is_active=True,
         ).values_list("code", flat=True)
     )
 
 
-def accessible_store_ids(*, user, tenant: Tenant) -> set:
-    membership = _active_membership(user=user, tenant_id=tenant.pk)
-    if membership.role in {MembershipRole.OWNER, MembershipRole.ADMIN}:
-        return set(
-            AmazonStore.objects.filter(tenant=tenant, is_active=True).values_list(
-                "id", flat=True
-            )
-        )
-    team_ids = TeamMember.objects.filter(
+def require_feature_permission(
+    membership: TenantMembership,
+    permission_code: str,
+) -> None:
+    if _is_tenant_manager(membership):
+        return
+    if not UserRole.objects.filter(
         membership=membership,
-        team__is_active=True,
-    ).values_list("team_id", flat=True)
-    direct = UserStoreAccess.objects.filter(
-        user=user, store__tenant=tenant, store__is_active=True
-    ).values_list("store_id", flat=True)
-    team = TeamStoreAccess.objects.filter(
-        team_id__in=team_ids, store__tenant=tenant, store__is_active=True
-    ).values_list("store_id", flat=True)
-    return set(direct).union(team)
+        role__is_active=True,
+        role__role_permissions__permission__code=permission_code,
+    ).exists():
+        raise PermissionDenied("当前卖家空间内缺少功能权限")
 
 
-def effective_profile_level(*, user, profile: AdvertisingProfile) -> str | None:
-    tenant = profile.store_marketplace.store.tenant
-    membership = _active_membership(user=user, tenant_id=tenant.pk)
-    if membership.role in {MembershipRole.OWNER, MembershipRole.ADMIN}:
-        return ProfileAccessLevel.MANAGE
-    if profile.store_marketplace.store_id not in accessible_store_ids(
-        user=user, tenant=tenant
-    ):
-        return None
-    levels = list(
-        UserProfileAccess.objects.filter(user=user, profile=profile).values_list(
-            "level", flat=True
+def accessible_stores(
+    *,
+    membership: TenantMembership,
+) -> QuerySet[AmazonStore]:
+    base = AmazonStore.objects.filter(
+        tenant=membership.tenant,
+        is_active=True,
+    )
+    if _is_tenant_manager(membership):
+        return base.order_by("name", "id")
+
+    return (
+        base.filter(
+            Q(user_access_grants__user=membership.user)
+            | Q(team_access_grants__team_id__in=_team_ids(membership))
         )
+        .distinct()
+        .order_by("name", "id")
     )
-    team_ids = TeamMember.objects.filter(
-        membership=membership, team__is_active=True
-    ).values_list("team_id", flat=True)
-    levels.extend(
-        TeamProfileAccess.objects.filter(
-            team_id__in=team_ids, profile=profile
-        ).values_list("level", flat=True)
-    )
-    if not levels:
-        return None
-    return max(levels, key=lambda level: PROFILE_LEVEL_RANK[level])
 
 
-def authorize(
+def profile_access_level(
+    *,
+    membership: TenantMembership,
+    profile: AdvertisingProfile,
+) -> int | None:
+    if _is_tenant_manager(membership):
+        return int(ProfileAccessLevel.MANAGE)
+
+    direct = UserProfileAccess.objects.filter(
+        user=membership.user,
+        profile=profile,
+    ).aggregate(level=Max("access_level"))["level"]
+    team = TeamProfileAccess.objects.filter(
+        team_id__in=_team_ids(membership),
+        profile=profile,
+    ).aggregate(level=Max("access_level"))["level"]
+    levels = [level for level in (direct, team) if level is not None]
+    return max(levels) if levels else None
+
+
+def accessible_profiles(
+    *,
+    membership: TenantMembership,
+    store_marketplace_id=None,
+) -> list[tuple[AdvertisingProfile, int]]:
+    profiles = AdvertisingProfile.objects.filter(
+        store_marketplace__store__tenant=membership.tenant,
+        store_marketplace__store__is_active=True,
+        store_marketplace__is_active=True,
+        is_active=True,
+    ).select_related(
+        "store_marketplace",
+        "store_marketplace__store",
+        "store_marketplace__marketplace",
+    )
+    if store_marketplace_id is not None:
+        profiles = profiles.filter(store_marketplace_id=store_marketplace_id)
+
+    store_ids = set(
+        accessible_stores(membership=membership).values_list("id", flat=True)
+    )
+    result: list[tuple[AdvertisingProfile, int]] = []
+    for profile in profiles.order_by("name", "id"):
+        if profile.store_marketplace.store_id not in store_ids:
+            continue
+        level = profile_access_level(membership=membership, profile=profile)
+        if level is not None:
+            result.append((profile, level))
+    return result
+
+
+def require_profile_scope(
     *,
     user,
     tenant_id,
-    permission_code: str | None = None,
-    store: AmazonStore | None = None,
-    profile: AdvertisingProfile | None = None,
-    minimum_profile_level: str = ProfileAccessLevel.VIEW,
-) -> AuthorizationContext:
-    membership = _active_membership(user=user, tenant_id=tenant_id)
-    tenant = membership.tenant
-    codes = permission_codes_for(user=user, tenant=tenant)
-    if permission_code and permission_code not in codes:
-        raise PermissionDenied("当前卖家空间内缺少功能权限")
-    if store is not None:
-        if store.tenant_id != tenant.pk:
-            raise NotFound("资源不存在或不在当前卖家空间范围")
-        if store.pk not in accessible_store_ids(user=user, tenant=tenant):
-            raise NotFound("资源不存在或不在当前卖家空间范围")
-    level = None
-    if profile is not None:
-        if profile.store_marketplace.store.tenant_id != tenant.pk:
-            raise NotFound("资源不存在或不在当前卖家空间范围")
-        level = effective_profile_level(user=user, profile=profile)
-        if level is None:
-            raise NotFound("资源不存在或不在当前卖家空间范围")
-        if PROFILE_LEVEL_RANK[level] < PROFILE_LEVEL_RANK[minimum_profile_level]:
-            raise PermissionDenied("当前广告 Profile 操作等级不足")
-    return AuthorizationContext(membership, codes, level)
-
-
-@transaction.atomic
-def seed_permission_catalog() -> None:
-    for code, name in PERMISSION_CATALOG.items():
-        Permission.objects.update_or_create(code=code, defaults={"name": name})
-
-
-@transaction.atomic
-def create_role(
-    *, actor, tenant: Tenant, code: str, name: str, permission_codes: list[str]
-) -> Role:
-    authorize(
-        user=actor, tenant_id=tenant.pk, permission_code="roles.manage"
+    profile_id,
+    permission_code: str,
+    minimum_level: ProfileAccessLevel,
+) -> AuthorizedProfileScope:
+    membership = require_membership(user=user, tenant_id=tenant_id)
+    profile = (
+        AdvertisingProfile.objects.select_related(
+            "store_marketplace",
+            "store_marketplace__store",
+            "store_marketplace__marketplace",
+        )
+        .filter(
+            pk=profile_id,
+            store_marketplace__store__tenant=membership.tenant,
+            store_marketplace__store__is_active=True,
+            store_marketplace__is_active=True,
+            is_active=True,
+        )
+        .first()
     )
-    permissions = list(Permission.objects.filter(code__in=set(permission_codes)))
-    if len(permissions) != len(set(permission_codes)):
-        raise ValueError("Custom roles can only use existing permission codes")
+    if profile is None:
+        raise NotFound("AdvertisingProfile 不存在或不在当前数据范围")
+
+    if not accessible_stores(membership=membership).filter(
+        pk=profile.store_marketplace.store_id
+    ).exists():
+        raise NotFound("AdvertisingProfile 不存在或不在当前数据范围")
+
+    level = profile_access_level(membership=membership, profile=profile)
+    if level is None:
+        raise NotFound("AdvertisingProfile 不存在或不在当前数据范围")
+
+    require_feature_permission(membership, permission_code)
+    if level < int(minimum_level):
+        raise PermissionDenied("当前 AdvertisingProfile 权限等级不足")
+    return AuthorizedProfileScope(
+        membership=membership,
+        profile=profile,
+        access_level=level,
+    )
+
+
+def require_tenant_management(*, user, tenant_id) -> TenantMembership:
+    membership = require_membership(user=user, tenant_id=tenant_id)
+    require_feature_permission(membership, "rbac.manage")
+    return membership
+
+
+@transaction.atomic
+def create_custom_role(
+    *,
+    request,
+    tenant_id,
+    name: str,
+    code: str,
+    permission_codes: list[str],
+) -> Role:
+    membership = require_tenant_management(user=request.user, tenant_id=tenant_id)
+    requested = set(permission_codes)
+    permissions = list(Permission.objects.filter(code__in=requested))
+    found = {item.code for item in permissions}
+    unknown = sorted(requested - found)
+    if unknown:
+        raise ValidationError(
+            {"permission_codes": [f"未知权限码: {', '.join(unknown)}"]}
+        )
+    if Role.objects.filter(code=code).exists():
+        raise ValidationError({"code": ["角色编码已存在"]})
+
     role = Role.objects.create(
-        tenant=tenant,
-        code=code.strip().lower(),
-        name=name.strip(),
+        tenant=membership.tenant,
+        name=name,
+        code=code,
         is_system=False,
     )
     RolePermission.objects.bulk_create(
         [RolePermission(role=role, permission=permission) for permission in permissions]
     )
+    append_audit_log(
+        request=request,
+        tenant=membership.tenant,
+        actor=request.user,
+        event="role.created",
+        object_type="Role",
+        object_id=role.pk,
+        after_data={
+            "name": role.name,
+            "code": role.code,
+            "permission_codes": sorted(found),
+        },
+    )
     return role
 
 
 @transaction.atomic
-def assign_role(*, actor, tenant: Tenant, role: Role, user_id) -> UserRole:
-    authorize(
-        user=actor, tenant_id=tenant.pk, permission_code="roles.manage"
+def copy_role(
+    *,
+    request,
+    tenant_id,
+    source_role_id,
+    name: str,
+    code: str,
+) -> Role:
+    membership = require_tenant_management(user=request.user, tenant_id=tenant_id)
+    source = (
+        Role.objects.filter(
+            Q(tenant=membership.tenant) | Q(tenant__isnull=True),
+            pk=source_role_id,
+            is_active=True,
+        )
+        .prefetch_related("role_permissions__permission")
+        .first()
     )
-    if role.tenant_id not in {None, tenant.pk}:
-        raise NotFound("角色不存在或不属于当前卖家空间")
-    user_model = get_user_model()
-    try:
-        target = user_model.objects.get(pk=user_id)
-        TenantMembership.objects.get(tenant=tenant, user=target, is_active=True)
-    except (user_model.DoesNotExist, TenantMembership.DoesNotExist) as exc:
-        raise NotFound("成员不存在") from exc
-    assignment, _ = UserRole.objects.get_or_create(
-        tenant=tenant, user=target, role=role
+    if source is None:
+        raise NotFound("角色不存在或不在当前数据范围")
+    return create_custom_role(
+        request=request,
+        tenant_id=tenant_id,
+        name=name,
+        code=code,
+        permission_codes=[
+            item.permission.code for item in source.role_permissions.all()
+        ],
     )
-    return assignment
-
-
-def _tenant_member_user(*, tenant: Tenant, user_id):
-    user_model = get_user_model()
-    try:
-        target = user_model.objects.get(pk=user_id)
-        TenantMembership.objects.get(tenant=tenant, user=target, is_active=True)
-    except (user_model.DoesNotExist, TenantMembership.DoesNotExist) as exc:
-        raise NotFound("成员不存在") from exc
-    return target
 
 
 @transaction.atomic
-def grant_user_store_access(
-    *, actor, tenant: Tenant, store: AmazonStore, user_id
-) -> UserStoreAccess:
-    authorize(
-        user=actor,
-        tenant_id=tenant.pk,
-        permission_code="stores.manage",
-        store=store,
+def deactivate_custom_role(*, request, tenant_id, role_id) -> Role:
+    membership = require_tenant_management(user=request.user, tenant_id=tenant_id)
+    role = (
+        Role.objects.select_for_update()
+        .filter(pk=role_id, tenant=membership.tenant, is_active=True)
+        .first()
     )
-    target = _tenant_member_user(tenant=tenant, user_id=user_id)
-    grant, _ = UserStoreAccess.objects.get_or_create(store=store, user=target)
+    if role is None:
+        if Role.objects.filter(pk=role_id, is_system=True).exists():
+            raise PermissionDenied("系统内置角色不可删除")
+        raise NotFound("角色不存在或不在当前数据范围")
+    before = {"is_active": role.is_active}
+    role.is_active = False
+    role.save(update_fields=["is_active"])
+    append_audit_log(
+        request=request,
+        tenant=membership.tenant,
+        actor=request.user,
+        event="role.deactivated",
+        object_type="Role",
+        object_id=role.pk,
+        before_data=before,
+        after_data={"is_active": False},
+    )
+    return role
+
+
+def _authorized_user_for_tenant(*, tenant, user_id):
+    user_model = get_user_model()
+    user = user_model.objects.filter(
+        pk=user_id,
+        is_active=True,
+        tenant_memberships__tenant=tenant,
+        tenant_memberships__is_active=True,
+    ).first()
+    if user is None:
+        raise NotFound("用户不存在或不在当前卖家空间")
+    return user
+
+
+def _authorized_team_for_tenant(*, tenant, team_id):
+    team = Team.objects.filter(pk=team_id, tenant=tenant, is_active=True).first()
+    if team is None:
+        raise NotFound("Team 不存在或不在当前卖家空间")
+    return team
+
+
+@transaction.atomic
+def grant_store_access(
+    *,
+    request,
+    tenant_id,
+    store_id,
+    user_id=None,
+    team_id=None,
+):
+    membership = require_tenant_management(user=request.user, tenant_id=tenant_id)
+    if bool(user_id) == bool(team_id):
+        raise ValidationError("user_id 与 team_id 必须且只能提供一个")
+    store = AmazonStore.objects.filter(
+        pk=store_id,
+        tenant=membership.tenant,
+        is_active=True,
+    ).first()
+    if store is None:
+        raise NotFound("店铺不存在或不在当前数据范围")
+
+    if user_id:
+        grantee = _authorized_user_for_tenant(
+            tenant=membership.tenant,
+            user_id=user_id,
+        )
+        grant, created = UserStoreAccess.objects.get_or_create(
+            user=grantee,
+            store=store,
+        )
+        grantee_type = "User"
+    else:
+        grantee = _authorized_team_for_tenant(
+            tenant=membership.tenant,
+            team_id=team_id,
+        )
+        grant, created = TeamStoreAccess.objects.get_or_create(
+            team=grantee,
+            store=store,
+        )
+        grantee_type = "Team"
+    if created:
+        append_audit_log(
+            request=request,
+            tenant=membership.tenant,
+            actor=request.user,
+            event="store_access.granted",
+            object_type="AmazonStore",
+            object_id=store.pk,
+            after_data={
+                "grantee_type": grantee_type,
+                "grantee_id": str(grantee.pk),
+            },
+        )
     return grant
 
 
 @transaction.atomic
-def grant_user_profile_access(
+def grant_profile_access(
     *,
-    actor,
-    tenant: Tenant,
-    profile: AdvertisingProfile,
-    user_id,
-    level: str,
-) -> UserProfileAccess:
-    if level not in ProfileAccessLevel.values:
-        raise ValueError("Unsupported profile access level")
-    authorize(
-        user=actor,
-        tenant_id=tenant.pk,
-        permission_code="profiles.manage",
-        profile=profile,
-        minimum_profile_level=ProfileAccessLevel.MANAGE,
-    )
-    target = _tenant_member_user(tenant=tenant, user_id=user_id)
-    grant, _ = UserProfileAccess.objects.update_or_create(
-        profile=profile, user=target, defaults={"level": level}
-    )
-    UserStoreAccess.objects.get_or_create(
-        store=profile.store_marketplace.store, user=target
+    request,
+    tenant_id,
+    profile_id,
+    access_level: int,
+    user_id=None,
+    team_id=None,
+):
+    membership = require_tenant_management(user=request.user, tenant_id=tenant_id)
+    if bool(user_id) == bool(team_id):
+        raise ValidationError("user_id 与 team_id 必须且只能提供一个")
+    if access_level not in ProfileAccessLevel.values:
+        raise ValidationError({"access_level": ["无效的 Profile 权限等级"]})
+    profile = AdvertisingProfile.objects.filter(
+        pk=profile_id,
+        store_marketplace__store__tenant=membership.tenant,
+        is_active=True,
+    ).first()
+    if profile is None:
+        raise NotFound("AdvertisingProfile 不存在或不在当前数据范围")
+
+    if user_id:
+        grantee = _authorized_user_for_tenant(
+            tenant=membership.tenant,
+            user_id=user_id,
+        )
+        grant, _ = UserProfileAccess.objects.update_or_create(
+            user=grantee,
+            profile=profile,
+            defaults={"access_level": access_level},
+        )
+        grantee_type = "User"
+    else:
+        grantee = _authorized_team_for_tenant(
+            tenant=membership.tenant,
+            team_id=team_id,
+        )
+        grant, _ = TeamProfileAccess.objects.update_or_create(
+            team=grantee,
+            profile=profile,
+            defaults={"access_level": access_level},
+        )
+        grantee_type = "Team"
+    append_audit_log(
+        request=request,
+        tenant=membership.tenant,
+        actor=request.user,
+        event="profile_access.granted",
+        object_type="AdvertisingProfile",
+        object_id=profile.pk,
+        after_data={
+            "grantee_type": grantee_type,
+            "grantee_id": str(grantee.pk),
+            "access_level": ProfileAccessLevel(access_level).label,
+        },
     )
     return grant

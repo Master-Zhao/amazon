@@ -1,24 +1,63 @@
 from rest_framework import serializers
 
+from apps.reports.models import (
+    ImportRowError,
+    ImportTask,
+    ReportType,
+)
 
-class ReportUploadSerializer(serializers.Serializer):
-    tenantId = serializers.UUIDField()
-    profileId = serializers.UUIDField()
+
+class ReportUploadRequestSerializer(serializers.Serializer):
     reportType = serializers.ChoiceField(
-        choices=["CAMPAIGN", "TARGETING", "SEARCH_TERM"]
+        choices=ReportType.choices,
+        source="report_type",
     )
     file = serializers.FileField()
 
 
-class TaskDataSerializer(serializers.Serializer):
-    taskId = serializers.CharField()
-    status = serializers.CharField()
-    isDuplicate = serializers.BooleanField()
-    taskUrl = serializers.CharField()
+class ReportUploadSummarySerializer(serializers.Serializer):
+    id = serializers.CharField()
+    report_type = serializers.CharField()
+    original_filename = serializers.CharField()
+    content_type = serializers.CharField()
+    size_bytes = serializers.IntegerField()
+    sha256 = serializers.CharField()
+    duplicate_of_id = serializers.CharField(allow_null=True)
+    created_at = serializers.DateTimeField()
 
 
-class TaskResponseSerializer(serializers.Serializer):
-    code = serializers.CharField()
-    message = serializers.CharField()
-    data = TaskDataSerializer()
-    requestId = serializers.CharField()
+class ImportTaskSerializer(serializers.ModelSerializer):
+    upload = ReportUploadSummarySerializer(read_only=True)
+    reprocessed_from_id = serializers.CharField(allow_null=True)
+
+    class Meta:
+        model = ImportTask
+        fields = (
+            "id",
+            "status",
+            "celery_task_id",
+            "total_rows",
+            "success_rows",
+            "error_rows",
+            "error_code",
+            "error_message",
+            "reprocessed_from_id",
+            "created_at",
+            "started_at",
+            "finished_at",
+            "upload",
+        )
+
+
+class ImportRowErrorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ImportRowError
+        fields = (
+            "id",
+            "row_number",
+            "error_code",
+            "message",
+            "field_name",
+            "rejected_value",
+            "created_at",
+        )

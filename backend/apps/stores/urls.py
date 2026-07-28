@@ -1,28 +1,34 @@
 from django.urls import path
 
 from apps.stores.views import (
-    ProfileContextListView,
-    StoreContextListView,
-    StoreMarketplaceContextListView,
-    TenantContextListView,
+    ContextCapabilitiesView,
+    MarketplaceOptionsView,
+    ProfileOptionsView,
+    StoreOptionsView,
+    TenantOptionsView,
 )
 
 urlpatterns = [
-    path("tenants", TenantContextListView.as_view(), name="context-tenants"),
+    path("tenants", TenantOptionsView.as_view(), name="context-tenants"),
     path(
-        "tenants/<uuid:tenant_id>/stores",
-        StoreContextListView.as_view(),
+        "tenants/<str:tenant_id>/capabilities",
+        ContextCapabilitiesView.as_view(),
+        name="context-capabilities",
+    ),
+    path(
+        "tenants/<str:tenant_id>/stores",
+        StoreOptionsView.as_view(),
         name="context-stores",
     ),
     path(
-        "tenants/<uuid:tenant_id>/stores/<uuid:store_id>/marketplaces",
-        StoreMarketplaceContextListView.as_view(),
+        "tenants/<str:tenant_id>/stores/<str:store_id>/marketplaces",
+        MarketplaceOptionsView.as_view(),
         name="context-marketplaces",
     ),
     path(
-        "tenants/<uuid:tenant_id>/store-marketplaces/<uuid:store_marketplace_id>/profiles",
-        ProfileContextListView.as_view(),
+        "tenants/<str:tenant_id>/store-marketplaces/"
+        "<str:store_marketplace_id>/profiles",
+        ProfileOptionsView.as_view(),
         name="context-profiles",
     ),
 ]
-

@@ -1,9 +1,11 @@
 from django.urls import path
 
-from apps.agents.views import AnalysisCreateView, AnalysisDetailView
+from apps.agents.views import AgentRunListCreateView
 
 urlpatterns = [
-    path("tasks", AnalysisCreateView.as_view()),
-    path("tasks/<uuid:task_id>", AnalysisDetailView.as_view()),
+    path(
+        "tenants/<str:tenant_id>/profiles/<str:profile_id>/runs",
+        AgentRunListCreateView.as_view(),
+        name="agent-run-list-create",
+    ),
 ]
-

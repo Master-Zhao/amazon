@@ -1,81 +1,58 @@
 from rest_framework import serializers
 
 
-class RoleCreateSerializer(serializers.Serializer):
-    tenant_id = serializers.UUIDField()
-    code = serializers.RegexField(r"^[a-z][a-z0-9_.-]{1,62}$")
-    name = serializers.CharField(max_length=128)
-    permission_codes = serializers.ListField(
-        child=serializers.CharField(max_length=64), allow_empty=True
-    )
-
-
-class RoleAssignmentSerializer(serializers.Serializer):
-    tenant_id = serializers.UUIDField()
-    user_id = serializers.IntegerField()
-
-
-class UserStoreGrantSerializer(serializers.Serializer):
-    tenant_id = serializers.UUIDField()
-    user_id = serializers.IntegerField()
-
-
-class UserProfileGrantSerializer(UserStoreGrantSerializer):
-    level = serializers.ChoiceField(
-        choices=["VIEW", "OPERATE", "APPROVE", "EXECUTE", "MANAGE"]
-    )
-
-
-class PermissionSerializer(serializers.Serializer):
-    code = serializers.CharField()
-    name = serializers.CharField()
-    description = serializers.CharField()
-
-
-class RoleSerializer(serializers.Serializer):
+class PermissionOptionSerializer(serializers.Serializer):
     id = serializers.CharField()
-    tenantId = serializers.CharField(allow_null=True)
     code = serializers.CharField()
     name = serializers.CharField()
+
+
+class RoleOptionSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    name = serializers.CharField()
+    code = serializers.CharField()
     isSystem = serializers.BooleanField()
     permissionCodes = serializers.ListField(child=serializers.CharField())
 
 
-class PermissionListDataSerializer(serializers.Serializer):
-    items = PermissionSerializer(many=True)
+class CreateRoleSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=160)
+    code = serializers.RegexField(r"^[a-z][a-z0-9_.-]{2,95}$")
+    permission_codes = serializers.ListField(
+        child=serializers.CharField(max_length=96),
+        allow_empty=True,
+    )
 
 
-class RoleListDataSerializer(serializers.Serializer):
-    items = RoleSerializer(many=True)
+class CopyRoleSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=160)
+    code = serializers.RegexField(r"^[a-z][a-z0-9_.-]{2,95}$")
 
 
-class AssignmentDataSerializer(serializers.Serializer):
-    id = serializers.CharField()
+class StoreAccessGrantSerializer(serializers.Serializer):
+    store_id = serializers.CharField()
+    user_id = serializers.CharField(required=False, allow_null=True)
+    team_id = serializers.CharField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        if bool(attrs.get("user_id")) == bool(attrs.get("team_id")):
+            raise serializers.ValidationError(
+                "userId 与 teamId 必须且只能提供一个"
+            )
+        return attrs
 
 
-class PermissionListResponseSerializer(serializers.Serializer):
-    code = serializers.CharField()
-    message = serializers.CharField()
-    data = PermissionListDataSerializer()
-    requestId = serializers.CharField()
+class ProfileAccessGrantSerializer(serializers.Serializer):
+    profile_id = serializers.CharField()
+    access_level = serializers.ChoiceField(
+        choices=["VIEW", "OPERATE", "APPROVE", "EXECUTE", "MANAGE"]
+    )
+    user_id = serializers.CharField(required=False, allow_null=True)
+    team_id = serializers.CharField(required=False, allow_null=True)
 
-
-class RoleListResponseSerializer(serializers.Serializer):
-    code = serializers.CharField()
-    message = serializers.CharField()
-    data = RoleListDataSerializer()
-    requestId = serializers.CharField()
-
-
-class RoleResponseSerializer(serializers.Serializer):
-    code = serializers.CharField()
-    message = serializers.CharField()
-    data = RoleSerializer()
-    requestId = serializers.CharField()
-
-
-class AssignmentResponseSerializer(serializers.Serializer):
-    code = serializers.CharField()
-    message = serializers.CharField()
-    data = AssignmentDataSerializer()
-    requestId = serializers.CharField()
+    def validate(self, attrs):
+        if bool(attrs.get("user_id")) == bool(attrs.get("team_id")):
+            raise serializers.ValidationError(
+                "userId 与 teamId 必须且只能提供一个"
+            )
+        return attrs
