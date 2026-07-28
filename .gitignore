@@ -3,6 +3,7 @@
 
 # User-owned artifacts outside this delivery baseline: never stage or inspect.
 /.arts/
+/backups/
 /亚马逊广告智能投放平台需求分析与系统构成.docx
 /亚马逊广告智能投放系统——项目定位与核心痛点分析.docx
 
@@ -40,6 +41,7 @@ media/
 staticfiles/
 uploads/
 local_uploads/
+backend/test-artifacts/
 *.log
 logs/
 celerybeat-schedule*

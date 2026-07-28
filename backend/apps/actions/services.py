@@ -2,6 +2,7 @@ import hashlib
 import json
 from decimal import Decimal, InvalidOperation
 
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.serializers import ValidationError
@@ -357,8 +358,11 @@ def create_action_preview(*, request, tenant_id, recommendation_id) -> ActionPre
     ).first()
     if existing is not None:
         return existing
-    campaign = _campaign_for_revision(revision, profile_id=scope.profile.pk)
-    _validate_before_value(campaign=campaign, revision=revision)
+    action_payload = _revision_payload(revision)
+    target = _validate_action_payload(
+        payload=action_payload,
+        profile_id=scope.profile.pk,
+    )
     preview = ActionPreview.objects.create(
         tenant=scope.membership.tenant,
         profile=scope.profile,
@@ -368,18 +372,8 @@ def create_action_preview(*, request, tenant_id, recommendation_id) -> ActionPre
     ActionPreviewVersion.objects.create(
         preview=preview,
         version_number=1,
-        action_payload={
-            "schemaVersion": revision.schema_version,
-            "actionType": revision.action_type,
-            "objectType": revision.object_type,
-            "objectId": revision.object_id,
-            "beforeValue": revision.before_value,
-            "afterValue": revision.after_value,
-            "reason": revision.reason,
-            "evidence": revision.evidence,
-            "riskLevel": revision.risk_level,
-        },
-        object_state_version=_state_version(campaign),
+        action_payload=action_payload,
+        object_state_version=_state_version(target),
         created_by=request.user,
     )
     append_audit_log(
@@ -423,14 +417,15 @@ def submit_action_preview(*, request, tenant_id, preview_id) -> ActionPreview:
         raise ValidationError(
             {"status": ["Only a DRAFT Action Preview can be submitted."]}
         )
-    campaign = _campaign_for_revision(
-        preview.recommendation_revision,
+    version = _current_version(preview)
+    target = _validate_action_payload(
+        payload=version.action_payload,
         profile_id=scope.profile.pk,
     )
-    _validate_before_value(
-        campaign=campaign,
-        revision=preview.recommendation_revision,
-    )
+    if _state_version(target) != version.object_state_version:
+        raise ValidationError(
+            {"before_value": ["Object state drift detected since preview creation."]}
+        )
     preview.status = ActionPreviewStatus.PENDING_APPROVAL
     preview.submitted_by = request.user
     preview.save(update_fields=["status", "submitted_by", "updated_at"])
@@ -503,15 +498,15 @@ def decide_action_preview(
         raise PermissionDenied(
             "TEAM/COMPANY submitters cannot approve their own Action Preview."
         )
-    campaign = _campaign_for_revision(
-        preview.recommendation_revision,
+    version = _current_version(preview)
+    target = _validate_action_payload(
+        payload=version.action_payload,
         profile_id=scope.profile.pk,
     )
-    _validate_before_value(
-        campaign=campaign,
-        revision=preview.recommendation_revision,
-    )
-    version = _current_version(preview)
+    if _state_version(target) != version.object_state_version:
+        raise ValidationError(
+            {"before_value": ["Object state drift detected since preview creation."]}
+        )
     try:
         record = ApprovalRecord.objects.create(
             preview=preview,

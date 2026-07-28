@@ -1,3 +1,3 @@
-date,profile_id,campaign_id,campaign_name,campaign_state,ad_group_id,ad_group_name,ad_group_state,targeting_type,targeting_id,targeting_text,match_type,state,bid,currency,impressions,clicks,spend,orders,sales
-2026-07-20,DEMO-PROFILE-001,C-100,Brand Core,ENABLED,AG-100,Exact Group,ENABLED,KEYWORD,K-100,running shoes,EXACT,ENABLED,1.25,USD,700,35,55.00,8,300.00
-2026-07-20,DEMO-PROFILE-001,C-100,Brand Core,ENABLED,AG-100,Exact Group,ENABLED,PRODUCT,T-100,asin=B000DEMO01,,PAUSED,0.85,USD,300,15,25.00,2,100.00
+date,profile_id,campaign_id,campaign_name,ad_group_id,ad_group_name,target_type,target_id,target_text,match_type,target_status,bid,currency,impressions,clicks,spend,orders,sales
+2026-07-20,DEMO-PROFILE-US-001,campaign-001,Demo Running Shoes,ad-group-001,Demo Shoes Keywords,KEYWORD,keyword-001,running shoes,EXACT,ENABLED,1.25,USD,300,20,25.00,5,125.00
+2026-07-20,DEMO-PROFILE-US-001,campaign-001,Demo Running Shoes,ad-group-001,Demo Shoes Keywords,PRODUCT_TARGET,target-001,asin=DEMOASIN001,,PAUSED,0.85,USD,140,7,9.00,1,40.00

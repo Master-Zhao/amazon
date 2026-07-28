@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import timedelta
+from decimal import Decimal
 
 from kombu import Queue
 
@@ -103,6 +104,18 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_ROOT = BASE_DIR / "media"
 MEDIA_URL = "/media/"
+REPORT_STORAGE_ROOT = Path(
+    env("REPORT_STORAGE_ROOT", str(MEDIA_ROOT / "reports"))
+)
+REPORT_MAX_UPLOAD_BYTES = env_positive_int(
+    "REPORT_MAX_UPLOAD_BYTES",
+    50 * 1024 * 1024,
+)
+LLM_PROVIDER = env_choice("LLM_PROVIDER", "mock", ("mock",))
+ACTION_MIN_DAILY_BUDGET = Decimal(env("ACTION_MIN_DAILY_BUDGET", "1.00"))
+ACTION_MAX_DAILY_BUDGET = Decimal(env("ACTION_MAX_DAILY_BUDGET", "100000.00"))
+ACTION_MIN_BID = Decimal(env("ACTION_MIN_BID", "0.02"))
+ACTION_MAX_BID = Decimal(env("ACTION_MAX_BID", "1000.00"))
 FILE_RETENTION_DAYS = env_positive_int("FILE_RETENTION_DAYS", 365)
 ACTION_EVIDENCE_MAX_BYTES = env_positive_int(
     "ACTION_EVIDENCE_MAX_BYTES", 10 * 1024 * 1024

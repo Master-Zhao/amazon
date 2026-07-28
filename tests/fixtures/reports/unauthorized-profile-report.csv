@@ -1,2 +1,2 @@
-date,profile_id,campaign_id,campaign_name,state,budget,currency,impressions,clicks,spend,orders,sales
-2026-07-20,OTHER-PROFILE,C-900,Unauthorized,ENABLED,99.00,USD,100,5,10.00,0,0
+date,profile_id,campaign_id,campaign_name,campaign_status,daily_budget,currency,impressions,clicks,spend,orders,sales
+2026-07-20,another-profile,campaign-005,Wrong Profile Campaign,ENABLED,10.00,USD,100,5,8.00,1,12.00

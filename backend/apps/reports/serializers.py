@@ -8,10 +8,7 @@ from apps.reports.models import (
 
 
 class ReportUploadRequestSerializer(serializers.Serializer):
-    reportType = serializers.ChoiceField(
-        choices=ReportType.choices,
-        source="report_type",
-    )
+    report_type = serializers.ChoiceField(choices=ReportType.choices)
     file = serializers.FileField()
 
 

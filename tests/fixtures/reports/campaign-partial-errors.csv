@@ -1,3 +1,3 @@
-date,profile_id,campaign_id,campaign_name,state,budget,currency,impressions,clicks,spend,orders,sales
-2026-07-21,DEMO-PROFILE-001,C-300,Valid Campaign,ENABLED,30.00,USD,300,20,20.00,2,80.00
-2026-07-21,DEMO-PROFILE-001,C-301,Bad Budget,ENABLED,not-money,USD,100,5,10.00,0,0
+date,profile_id,campaign_id,campaign_name,campaign_status,daily_budget,currency,impressions,clicks,spend,orders,sales
+2026-07-21,DEMO-PROFILE-US-001,campaign-003,Demo Sandals,ENABLED,25.00,USD,500,25,30.00,4,120.00
+2026-07-21,DEMO-PROFILE-US-001,campaign-004,Invalid Spend Campaign,ENABLED,20.00,USD,300,12,not-a-number,1,20.00
