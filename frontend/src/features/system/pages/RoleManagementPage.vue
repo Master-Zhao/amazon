@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
-import { useTenantContextStore } from '@/features/tenant-context/stores/context'
+import { useTenantContextStore } from '@/features/tenant-context/stores/tenantContext'
 import {
   createRole,
   fetchRoles,
@@ -9,7 +9,7 @@ import {
 } from '@/features/system/api/permissionApi'
 
 const context = useTenantContextStore()
-const canManage = computed(() => context.permissionCodes.includes('roles.manage'))
+const canManage = computed(() => context.permissionCodes.includes('rbac.manage'))
 const roles = ref<Role[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -17,11 +17,11 @@ const code = ref('')
 const name = ref('')
 
 async function loadRoles(): Promise<void> {
-  if (!context.selectedTenantId) return
+  if (!context.tenantId) return
   loading.value = true
   error.value = null
   try {
-    roles.value = await fetchRoles(context.selectedTenantId)
+    roles.value = await fetchRoles(context.tenantId)
   } catch {
     error.value = '角色列表加载失败'
   } finally {
@@ -30,19 +30,19 @@ async function loadRoles(): Promise<void> {
 }
 
 async function submit(): Promise<void> {
-  if (!context.selectedTenantId) return
-  const role = await createRole({
-    tenantId: context.selectedTenantId,
+  if (!context.tenantId) return
+  await createRole({
+    tenantId: context.tenantId,
     code: code.value,
     name: name.value,
     permissionCodes: ['context.view'],
   })
-  roles.value.push(role)
+  await loadRoles()
   code.value = ''
   name.value = ''
 }
 
-watch(() => context.selectedTenantId, loadRoles, { immediate: true })
+watch(() => context.tenantId, loadRoles, { immediate: true })
 </script>
 
 <template>
@@ -50,12 +50,12 @@ watch(() => context.selectedTenantId, loadRoles, { immediate: true })
     <p class="eyebrow">SYSTEM MANAGEMENT</p>
     <h2>角色与权限</h2>
     <div class="button-row">
-      <RouterLink class="primary-link" to="/seller-context">Tenant / Store / Profile</RouterLink>
+      <RouterLink class="primary-link" to="/context">Tenant / Store / Profile</RouterLink>
       <RouterLink class="primary-link" to="/audit">审计日志</RouterLink>
       <RouterLink class="primary-link" to="/diagnostics/health">运行诊断</RouterLink>
       <a class="primary-link" href="/api/docs/" target="_blank" rel="noreferrer">OpenAPI</a>
     </div>
-    <p v-if="!context.selectedTenantId">请先选择卖家空间。</p>
+    <p v-if="!context.tenantId">请先选择卖家空间。</p>
     <p v-else-if="!canManage" class="error-banner">当前卖家空间内无角色管理权限。</p>
     <p v-else-if="loading" role="status">正在加载角色…</p>
     <p v-else-if="error" class="error-banner">{{ error }}</p>

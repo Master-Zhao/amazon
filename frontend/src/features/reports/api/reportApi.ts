@@ -1,67 +1,117 @@
+import type { AxiosProgressEvent } from 'axios'
+
 import { httpClient } from '@/shared/api/httpClient'
 import type { ApiEnvelope } from '@/shared/api/types'
 
+export type ImportTaskStatus =
+  | 'QUEUED'
+  | 'RUNNING'
+  | 'SUCCEEDED'
+  | 'PARTIAL_SUCCEEDED'
+  | 'FAILED'
+
 export type ReportType = 'CAMPAIGN' | 'TARGETING' | 'SEARCH_TERM'
 
-export interface ImportTask {
-  taskId: string
+export interface ReportUploadSummary {
+  id: string
   reportType: ReportType
-  status: 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'PARTIAL_SUCCEEDED' | 'FAILED'
-  isDuplicate: boolean
-  batch: null | {
-    id: string
-    totalRows: number
-    succeededRows: number
-    failedRows: number
-    errors: Array<{
-      rowNumber: number
-      code: string
-      field: string
-      message: string
-    }>
-  }
-}
-
-export interface ImportTaskSummary {
-  taskId: string
-  reportType: ReportType
-  originalName: string
-  status: ImportTask['status']
-  isDuplicate: boolean
+  originalFilename: string
+  contentType: string
+  sizeBytes: number
+  sha256: string
+  duplicateOfId: string | null
   createdAt: string
-  totalRows: number | null
-  failedRows: number | null
 }
 
-export async function uploadReport(input: {
-  tenantId: string
-  profileId: string
-  reportType: ReportType
-  file: File
-}): Promise<{ taskId: string; status: string; isDuplicate: boolean }> {
-  const body = new FormData()
-  body.append('tenantId', input.tenantId)
-  body.append('profileId', input.profileId)
-  body.append('reportType', input.reportType)
-  body.append('file', input.file)
-  const response = await httpClient.post<
-    ApiEnvelope<{ taskId: string; status: string; isDuplicate: boolean }>
-  >('/api/v1/reports/uploads', body)
-  return response.data.data
+export interface ImportTask {
+  id: string
+  status: ImportTaskStatus
+  celeryTaskId: string
+  totalRows: number
+  successRows: number
+  errorRows: number
+  errorCode: string
+  errorMessage: string
+  reprocessedFromId: string | null
+  createdAt: string
+  startedAt: string | null
+  finishedAt: string | null
+  upload: ReportUploadSummary
 }
 
-export async function fetchImportTask(taskId: string): Promise<ImportTask> {
-  const response = await httpClient.get<ApiEnvelope<ImportTask>>(
-    `/api/v1/reports/tasks/${taskId}`,
-  )
-  return response.data.data
+export interface ImportRowError {
+  id: string
+  rowNumber: number
+  errorCode: string
+  message: string
+  fieldName: string
+  rejectedValue: string
+  createdAt: string
 }
 
-export async function fetchImportTasks(
+async function data<T>(request: Promise<{ data: ApiEnvelope<T> }>): Promise<T> {
+  return (await request).data.data
+}
+
+export function uploadReport(
+  tenantId: string,
   profileId: string,
-): Promise<ImportTaskSummary[]> {
-  const response = await httpClient.get<
-    ApiEnvelope<{ items: ImportTaskSummary[] }>
-  >('/api/v1/reports/uploads', { params: { profileId } })
-  return response.data.data.items
+  reportType: ReportType,
+  file: File,
+  onUploadProgress?: (event: AxiosProgressEvent) => void,
+): Promise<ImportTask> {
+  const form = new FormData()
+  form.append('reportType', reportType)
+  form.append('file', file)
+  return data(
+    httpClient.post(
+      `/api/v1/reports/tenants/${tenantId}/profiles/${profileId}/uploads`,
+      form,
+      { onUploadProgress },
+    ),
+  )
+}
+
+export function fetchImportTasks(
+  tenantId: string,
+  profileId: string,
+): Promise<ImportTask[]> {
+  return data(
+    httpClient.get(
+      `/api/v1/reports/tenants/${tenantId}/profiles/${profileId}/tasks`,
+    ),
+  )
+}
+
+export function fetchImportErrors(
+  tenantId: string,
+  taskId: string,
+): Promise<ImportRowError[]> {
+  return data(
+    httpClient.get(
+      `/api/v1/reports/tenants/${tenantId}/tasks/${taskId}/errors`,
+    ),
+  )
+}
+
+export function reprocessImport(
+  tenantId: string,
+  taskId: string,
+): Promise<ImportTask> {
+  return data(
+    httpClient.post(
+      `/api/v1/reports/tenants/${tenantId}/tasks/${taskId}/reprocess`,
+    ),
+  )
+}
+
+export async function downloadImportSource(
+  tenantId: string,
+  taskId: string,
+): Promise<Blob> {
+  const response = await httpClient.get(
+    `/api/v1/reports/tenants/${tenantId}/tasks/${taskId}/source`,
+    { responseType: 'blob' },
+  )
+  return response.data as Blob
 }

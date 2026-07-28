@@ -3,8 +3,9 @@ import { fileURLToPath, URL } from 'node:url'
 
 const frontendDir = fileURLToPath(new URL('.', import.meta.url))
 const e2eDatabase = fileURLToPath(
-  new URL('../backend/e2e.sqlite3', import.meta.url),
+  new URL(`../backend/e2e-${process.pid}.sqlite3`, import.meta.url),
 )
+process.env.E2E_DATABASE_PATH = e2eDatabase
 
 export default defineConfig({
   testDir: './e2e',

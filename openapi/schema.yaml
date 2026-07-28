@@ -14,75 +14,485 @@ paths:
       responses:
         '200':
           description: Phase 1 platform information
-  /api/v1/actions/execution-items/{item_id}/records:
+  /api/v1/access/tenants/{tenant_id}/member-roles:
     post:
-      operationId: api_v1_actions_execution_items_records_create
+      operationId: api_v1_access_tenants_member_roles_create
       parameters:
       - in: path
-        name: item_id
+        name: tenant_id
         schema:
           type: string
-          format: uuid
         required: true
       tags:
-      - actions
+      - tenant-management
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ExecutionRecordRequest'
+              $ref: '#/components/schemas/AssignRoleRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ExecutionRecordRequest'
+              $ref: '#/components/schemas/AssignRoleRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ExecutionRecordRequest'
+              $ref: '#/components/schemas/AssignRoleRequest'
         required: true
       security:
       - bearerAuth: []
       responses:
         '201':
           description: No response body
-  /api/v1/actions/previews:
+  /api/v1/access/tenants/{tenant_id}/members:
     get:
-      operationId: api_v1_actions_previews_retrieve
+      operationId: api_v1_access_tenants_members_list
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
       tags:
-      - actions
+      - tenant-management
       security:
       - bearerAuth: []
       responses:
         '200':
-          description: 动作预览与执行列表
-    post:
-      operationId: api_v1_actions_previews_create
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MembershipOption'
+          description: ''
+  /api/v1/access/tenants/{tenant_id}/permissions:
+    get:
+      operationId: api_v1_access_tenants_permissions_list
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
       tags:
-      - actions
+      - permissions
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PermissionOption'
+          description: ''
+  /api/v1/access/tenants/{tenant_id}/profile-access:
+    post:
+      operationId: api_v1_access_tenants_profile_access_create
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - permissions
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PreviewCreateRequest'
+              $ref: '#/components/schemas/ProfileAccessGrantRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PreviewCreateRequest'
+              $ref: '#/components/schemas/ProfileAccessGrantRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PreviewCreateRequest'
+              $ref: '#/components/schemas/ProfileAccessGrantRequest'
         required: true
       security:
       - bearerAuth: []
       responses:
         '201':
           description: No response body
-  /api/v1/actions/previews/{preview_id}/decisions:
+  /api/v1/access/tenants/{tenant_id}/roles:
+    get:
+      operationId: api_v1_access_tenants_roles_list
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - permissions
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoleOption'
+          description: ''
     post:
-      operationId: api_v1_actions_previews_decisions_create
+      operationId: api_v1_access_tenants_roles_create
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - permissions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleOption'
+          description: ''
+  /api/v1/access/tenants/{tenant_id}/roles/{role_id}:
+    delete:
+      operationId: api_v1_access_tenants_roles_destroy
+      parameters:
+      - in: path
+        name: role_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - permissions
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/access/tenants/{tenant_id}/roles/{role_id}/copy:
+    post:
+      operationId: api_v1_access_tenants_roles_copy_create
+      parameters:
+      - in: path
+        name: role_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - permissions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CopyRoleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CopyRoleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CopyRoleRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleOption'
+          description: ''
+  /api/v1/access/tenants/{tenant_id}/store-access:
+    post:
+      operationId: api_v1_access_tenants_store_access_create
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - permissions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreAccessGrantRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StoreAccessGrantRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StoreAccessGrantRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/v1/access/tenants/{tenant_id}/teams:
+    get:
+      operationId: api_v1_access_tenants_teams_list
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - tenant-management
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeamOption'
+          description: ''
+    post:
+      operationId: api_v1_access_tenants_teams_create
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - tenant-management
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTeamRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateTeamRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateTeamRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamOption'
+          description: ''
+  /api/v1/access/tenants/{tenant_id}/teams/{team_id}/members:
+    post:
+      operationId: api_v1_access_tenants_teams_members_create
+      parameters:
+      - in: path
+        name: team_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - tenant-management
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddTeamMemberRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AddTeamMemberRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AddTeamMemberRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/v1/actions/tenants/{tenant_id}/previews/{preview_id}/decision:
+    post:
+      operationId: api_v1_actions_tenants_previews_decision_create
+      summary: Record one append-only approval decision
       parameters:
       - in: path
         name: preview_id
         schema:
           type: string
-          format: uuid
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - approvals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalDecisionRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ApprovalDecisionRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApprovalDecisionRequestRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionPreview'
+          description: ''
+  /api/v1/actions/tenants/{tenant_id}/previews/{preview_id}/evaluations:
+    post:
+      operationId: api_v1_actions_tenants_previews_evaluations_create
+      summary: Append a basic post-execution effect evaluation
+      parameters:
+      - in: path
+        name: preview_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - executions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EffectEvaluationRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EffectEvaluationRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EffectEvaluationRequestRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectEvaluation'
+          description: ''
+  /api/v1/actions/tenants/{tenant_id}/previews/{preview_id}/executions:
+    post:
+      operationId: api_v1_actions_tenants_previews_executions_create
+      summary: Backfill one manual Amazon console execution result
+      parameters:
+      - in: path
+        name: preview_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - executions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualExecutionRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ManualExecutionRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ManualExecutionRequestRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionPreview'
+          description: ''
+  /api/v1/actions/tenants/{tenant_id}/previews/{preview_id}/submit:
+    post:
+      operationId: api_v1_actions_tenants_previews_submit_create
+      summary: Submit a DRAFT Action Preview for single-level approval
+      parameters:
+      - in: path
+        name: preview_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - actions
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionPreview'
+          description: ''
+  /api/v1/actions/tenants/{tenant_id}/previews/{preview_id}/versions:
+    post:
+      operationId: api_v1_actions_tenants_previews_versions_create
+      summary: Append a revised immutable version after RETURNED
+      parameters:
+      - in: path
+        name: preview_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
         required: true
       tags:
       - actions
@@ -90,28 +500,37 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DecisionRequest'
+              $ref: '#/components/schemas/ReturnedVersionRequestRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/DecisionRequest'
+              $ref: '#/components/schemas/ReturnedVersionRequestRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/DecisionRequest'
+              $ref: '#/components/schemas/ReturnedVersionRequestRequest'
         required: true
       security:
       - bearerAuth: []
       responses:
-        '200':
-          description: No response body
-  /api/v1/actions/previews/{preview_id}/submit:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionPreview'
+          description: ''
+  /api/v1/actions/tenants/{tenant_id}/previews/{preview_id}/withdraw:
     post:
-      operationId: api_v1_actions_previews_submit_create
+      operationId: api_v1_actions_tenants_previews_withdraw_create
+      summary: Withdraw a creator-owned Action Preview
       parameters:
       - in: path
         name: preview_id
         schema:
           type: string
-          format: uuid
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
         required: true
       tags:
       - actions
@@ -119,131 +538,514 @@ paths:
       - bearerAuth: []
       responses:
         '200':
-          description: No response body
-  /api/v1/advertising/campaigns:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionPreview'
+          description: ''
+  /api/v1/actions/tenants/{tenant_id}/profiles/{profile_id}/previews:
     get:
-      operationId: api_v1_advertising_campaigns_retrieve
-      summary: 查询导入后的广告对象
-      tags:
-      - advertising
-      security:
-      - bearerAuth: []
-      responses:
-        '200':
-          description: 广告对象列表
-  /api/v1/advertising/search-terms:
-    get:
-      operationId: api_v1_advertising_search_terms_retrieve
-      summary: 查询导入后的广告对象
-      tags:
-      - advertising
-      security:
-      - bearerAuth: []
-      responses:
-        '200':
-          description: 广告对象列表
-  /api/v1/advertising/targeting:
-    get:
-      operationId: api_v1_advertising_targeting_retrieve
-      summary: 查询导入后的广告对象
-      tags:
-      - advertising
-      security:
-      - bearerAuth: []
-      responses:
-        '200':
-          description: 广告对象列表
-  /api/v1/analysis/tasks:
-    get:
-      operationId: analysis_task_list
-      tags:
-      - analysis
-      security:
-      - bearerAuth: []
-      responses:
-        '200':
-          description: 分析任务列表
-    post:
-      operationId: api_v1_analysis_tasks_create
-      tags:
-      - analysis
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AnalysisCreateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/AnalysisCreateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/AnalysisCreateRequest'
+      operationId: api_v1_actions_tenants_profiles_previews_list
+      summary: List Action Previews, approvals and manual execution records
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: string
         required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - actions
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ActionPreview'
+          description: ''
+  /api/v1/actions/tenants/{tenant_id}/recommendations/{recommendation_id}/previews:
+    post:
+      operationId: api_v1_actions_tenants_recommendations_previews_create
+      summary: Create an immutable Action Preview version from a Recommendation
+      parameters:
+      - in: path
+        name: recommendation_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - actions
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionPreview'
+          description: ''
+  /api/v1/advertising/tenants/{tenant_id}/profiles/{profile_id}/campaigns:
+    get:
+      operationId: api_v1_advertising_tenants_profiles_campaigns_list
+      summary: List normalized Sponsored Products Campaign entities
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - advertising
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CampaignRow'
+          description: ''
+  /api/v1/advertising/tenants/{tenant_id}/profiles/{profile_id}/search-terms:
+    get:
+      operationId: api_v1_advertising_tenants_profiles_search_terms_list
+      summary: List normalized customer Search Term entities
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - advertising
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SearchTermRow'
+          description: ''
+  /api/v1/advertising/tenants/{tenant_id}/profiles/{profile_id}/targeting:
+    get:
+      operationId: api_v1_advertising_tenants_profiles_targeting_list
+      summary: List normalized Keyword and Product Target entities
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - advertising
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TargetingRow'
+          description: ''
+  /api/v1/analysis/tenants/{tenant_id}/profiles/{profile_id}/runs:
+    get:
+      operationId: api_v1_analysis_tenants_profiles_runs_list
+      summary: List AI analysis runs for an AdvertisingProfile
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - analysis
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgentRun'
+          description: ''
+    post:
+      operationId: api_v1_analysis_tenants_profiles_runs_create
+      summary: Queue a four-agent analysis using MockLLMProvider
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - analysis
       security:
       - bearerAuth: []
       responses:
         '202':
-          description: 分析任务
-  /api/v1/analysis/tasks/{task_id}:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRun'
+          description: ''
+  /api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/campaigns:
     get:
-      operationId: analysis_task_retrieve
+      operationId: api_v1_analytics_tenants_profiles_campaigns_list
+      summary: List authoritative Campaign daily metrics and deterministic anomalies
       parameters:
-      - in: path
-        name: task_id
+      - in: query
+        name: endDate
         schema:
           type: string
-          format: uuid
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: startDate
+        schema:
+          type: string
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
         required: true
       tags:
-      - analysis
+      - analytics
       security:
       - bearerAuth: []
       responses:
         '200':
-          description: 分析结果
-  /api/v1/analytics/dashboard:
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CampaignMetricRow'
+          description: ''
+  /api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/campaigns/{campaign_id}:
     get:
-      operationId: api_v1_analytics_dashboard_retrieve
-      summary: 查询独立权威粒度广告指标
+      operationId: api_v1_analytics_tenants_profiles_campaigns_retrieve
+      summary: Get Campaign detail and daily trend
+      parameters:
+      - in: path
+        name: campaign_id
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: endDate
+        schema:
+          type: string
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: startDate
+        schema:
+          type: string
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
       tags:
       - analytics
       security:
       - bearerAuth: []
       responses:
         '200':
-          description: 指标与异常
-  /api/v1/analytics/search-terms:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignDetail'
+          description: ''
+  /api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/configuration:
     get:
-      operationId: api_v1_analytics_search_terms_retrieve
-      summary: 查询独立权威粒度广告指标
+      operationId: api_v1_analytics_tenants_profiles_configuration_retrieve
+      summary: Get effective target ACOS and latest anomaly rule versions
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
       tags:
       - analytics
       security:
       - bearerAuth: []
       responses:
         '200':
-          description: 指标与异常
-  /api/v1/analytics/targeting:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsConfiguration'
+          description: ''
+  /api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/configuration/rules:
+    post:
+      operationId: api_v1_analytics_tenants_profiles_configuration_rules_create
+      summary: Append a scoped anomaly rule version
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - analytics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnomalyRuleCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AnomalyRuleCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AnomalyRuleCreateRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnomalyRuleVersion'
+          description: ''
+  /api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/configuration/target-acos:
+    put:
+      operationId: api_v1_analytics_tenants_profiles_configuration_target_acos_update
+      summary: Configure Tenant, Profile or Campaign target ACOS
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - analytics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TargetAcosUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TargetAcosUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TargetAcosUpdateRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsConfiguration'
+          description: ''
+  /api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/dashboard:
     get:
-      operationId: api_v1_analytics_targeting_retrieve
-      summary: 查询独立权威粒度广告指标
+      operationId: api_v1_analytics_tenants_profiles_dashboard_list
+      summary: Get Campaign-grain dashboard groups without cross-currency totals
+      parameters:
+      - in: query
+        name: endDate
+        schema:
+          type: string
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: startDate
+        schema:
+          type: string
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
       tags:
       - analytics
       security:
       - bearerAuth: []
       responses:
         '200':
-          description: 指标与异常
-  /api/v1/audit/:
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DashboardRow'
+          description: ''
+  /api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/search-terms:
     get:
-      operationId: api_v1_audit_retrieve
+      operationId: api_v1_analytics_tenants_profiles_search_terms_list
+      summary: List authoritative Search Term daily metrics
+      parameters:
+      - in: query
+        name: endDate
+        schema:
+          type: string
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: startDate
+        schema:
+          type: string
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - analytics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SearchTermMetricRow'
+          description: ''
+  /api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/targeting:
+    get:
+      operationId: api_v1_analytics_tenants_profiles_targeting_list
+      summary: List authoritative Targeting daily metrics
+      parameters:
+      - in: query
+        name: endDate
+        schema:
+          type: string
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: startDate
+        schema:
+          type: string
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - analytics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TargetingMetricRow'
+          description: ''
+  /api/v1/audit/tenants/{tenant_id}:
+    get:
+      operationId: api_v1_audit_tenants_list
+      summary: List append-only business audit events
+      parameters:
+      - in: query
+        name: event
+        schema:
+          type: string
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
       tags:
       - audit
       security:
       - bearerAuth: []
       responses:
         '200':
-          description: 审计日志
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLog'
+          description: ''
   /api/v1/auth/login:
     post:
       operationId: api_v1_auth_login_create
@@ -319,10 +1121,10 @@ paths:
           description: 刷新令牌缺失、无效、过期或已撤销
   /api/v1/context/tenants:
     get:
-      operationId: api_v1_context_tenants_retrieve
-      summary: 获取当前用户可访问卖家空间
+      operationId: api_v1_context_tenants_list
+      summary: 获取当前用户可进入的卖家空间
       tags:
-      - context
+      - tenant-context
       security:
       - bearerAuth: []
       responses:
@@ -330,27 +1132,48 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TenantContextResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/TenantOption'
+          description: ''
+  /api/v1/context/tenants/{tenant_id}/capabilities:
+    get:
+      operationId: api_v1_context_tenants_capabilities_retrieve
+      summary: 获取当前卖家空间的功能权限和 Membership 角色
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - tenant-context
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContextCapabilities'
           description: ''
   /api/v1/context/tenants/{tenant_id}/store-marketplaces/{store_marketplace_id}/profiles:
     get:
-      operationId: api_v1_context_tenants_store_marketplaces_profiles_retrieve
-      summary: 获取站点范围内可访问广告 Profile
+      operationId: api_v1_context_tenants_store_marketplaces_profiles_list
+      summary: 获取 StoreMarketplace 下可访问的 AdvertisingProfile
       parameters:
       - in: path
         name: store_marketplace_id
         schema:
           type: string
-          format: uuid
         required: true
       - in: path
         name: tenant_id
         schema:
           type: string
-          format: uuid
         required: true
       tags:
-      - context
+      - tenant-context
       security:
       - bearerAuth: []
       responses:
@@ -358,21 +1181,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProfileContextResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProfileOption'
           description: ''
   /api/v1/context/tenants/{tenant_id}/stores:
     get:
-      operationId: api_v1_context_tenants_stores_retrieve
-      summary: 获取卖家空间可访问店铺
+      operationId: api_v1_context_tenants_stores_list
+      summary: 获取卖家空间内可访问的店铺
       parameters:
       - in: path
         name: tenant_id
         schema:
           type: string
-          format: uuid
         required: true
       tags:
-      - context
+      - tenant-context
       security:
       - bearerAuth: []
       responses:
@@ -380,27 +1204,27 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StoreContextResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/StoreOption'
           description: ''
   /api/v1/context/tenants/{tenant_id}/stores/{store_id}/marketplaces:
     get:
-      operationId: api_v1_context_tenants_stores_marketplaces_retrieve
-      summary: 获取店铺站点范围
+      operationId: api_v1_context_tenants_stores_marketplaces_list
+      summary: 获取店铺的 Marketplace 关联
       parameters:
       - in: path
         name: store_id
         schema:
           type: string
-          format: uuid
         required: true
       - in: path
         name: tenant_id
         schema:
           type: string
-          format: uuid
         required: true
       tags:
-      - context
+      - tenant-context
       security:
       - bearerAuth: []
       responses:
@@ -408,7 +1232,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StoreMarketplaceContextResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/StoreMarketplaceOption'
           description: ''
   /api/v1/knowledge/:
     get:
@@ -420,59 +1246,15 @@ paths:
       responses:
         '200':
           description: 知识文章
-  /api/v1/permissions/:
+  /api/v1/permissions/tenants/{tenant_id}/permissions:
     get:
-      operationId: api_v1_permissions_retrieve
-      summary: 获取固定功能权限目录
-      tags:
-      - permissions
-      security:
-      - bearerAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PermissionListResponse'
-          description: ''
-  /api/v1/permissions/profiles/{profile_id}/user-grants:
-    post:
-      operationId: api_v1_permissions_profiles_user_grants_create
-      summary: 给 Tenant 成员授予 Profile 操作等级
+      operationId: api_v1_permissions_tenants_permissions_list
       parameters:
       - in: path
-        name: profile_id
+        name: tenant_id
         schema:
           type: string
-          format: uuid
         required: true
-      tags:
-      - permissions
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UserProfileGrantRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/UserProfileGrantRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/UserProfileGrantRequest'
-        required: true
-      security:
-      - bearerAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AssignmentResponse'
-          description: ''
-  /api/v1/permissions/roles:
-    get:
-      operationId: api_v1_permissions_roles_retrieve
-      summary: 获取系统和当前卖家空间角色
       tags:
       - permissions
       security:
@@ -482,24 +1264,81 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RoleListResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/PermissionOption'
           description: ''
+  /api/v1/permissions/tenants/{tenant_id}/profile-access:
     post:
-      operationId: api_v1_permissions_roles_create
-      summary: 创建 Tenant 自定义角色
+      operationId: api_v1_permissions_tenants_profile_access_create
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
       tags:
       - permissions
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RoleCreateRequest'
+              $ref: '#/components/schemas/ProfileAccessGrantRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/RoleCreateRequest'
+              $ref: '#/components/schemas/ProfileAccessGrantRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/RoleCreateRequest'
+              $ref: '#/components/schemas/ProfileAccessGrantRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/v1/permissions/tenants/{tenant_id}/roles:
+    get:
+      operationId: api_v1_permissions_tenants_roles_list
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - permissions
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoleOption'
+          description: ''
+    post:
+      operationId: api_v1_permissions_tenants_roles_create
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - permissions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
         required: true
       security:
       - bearerAuth: []
@@ -508,52 +1347,42 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RoleResponse'
+                $ref: '#/components/schemas/RoleOption'
           description: ''
-  /api/v1/permissions/roles/{role_id}/assignments:
-    post:
-      operationId: api_v1_permissions_roles_assignments_create
-      summary: 给 Tenant 成员分配角色
+  /api/v1/permissions/tenants/{tenant_id}/roles/{role_id}:
+    delete:
+      operationId: api_v1_permissions_tenants_roles_destroy
       parameters:
       - in: path
         name: role_id
         schema:
           type: string
-          format: uuid
         required: true
-      tags:
-      - permissions
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RoleAssignmentRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/RoleAssignmentRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/RoleAssignmentRequest'
-        required: true
-      security:
-      - bearerAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AssignmentResponse'
-          description: ''
-  /api/v1/permissions/stores/{store_id}/user-grants:
-    post:
-      operationId: api_v1_permissions_stores_user_grants_create
-      summary: 给 Tenant 成员授予店铺范围
-      parameters:
       - in: path
-        name: store_id
+        name: tenant_id
         schema:
           type: string
-          format: uuid
+        required: true
+      tags:
+      - permissions
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/permissions/tenants/{tenant_id}/roles/{role_id}/copy:
+    post:
+      operationId: api_v1_permissions_tenants_roles_copy_create
+      parameters:
+      - in: path
+        name: role_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
         required: true
       tags:
       - permissions
@@ -561,13 +1390,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserStoreGrantRequest'
+              $ref: '#/components/schemas/CopyRoleRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/UserStoreGrantRequest'
+              $ref: '#/components/schemas/CopyRoleRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/UserStoreGrantRequest'
+              $ref: '#/components/schemas/CopyRoleRequest'
         required: true
       security:
       - bearerAuth: []
@@ -576,78 +1405,213 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AssignmentResponse'
+                $ref: '#/components/schemas/RoleOption'
           description: ''
-  /api/v1/recommendations/:
+  /api/v1/permissions/tenants/{tenant_id}/store-access:
+    post:
+      operationId: api_v1_permissions_tenants_store_access_create
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - permissions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreAccessGrantRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StoreAccessGrantRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StoreAccessGrantRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/v1/products/tenants/{tenant_id}:
     get:
-      operationId: api_v1_recommendations_retrieve
+      operationId: api_v1_products_tenants_list
+      summary: List Tenant products with ASIN/SKU listings
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - products
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductRow'
+          description: ''
+    post:
+      operationId: api_v1_products_tenants_create
+      summary: Create a Tenant product and its first listing
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProductCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductCreateRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductRow'
+          description: ''
+  /api/v1/products/tenants/{tenant_id}/{product_id}/listings:
+    post:
+      operationId: api_v1_products_tenants_listings_create
+      summary: Add another StoreMarketplace SKU/ASIN listing to a product
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductListingInputRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProductListingInputRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductListingInputRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductRow'
+          description: ''
+  /api/v1/recommendations/tenants/{tenant_id}/profiles/{profile_id}:
+    get:
+      operationId: api_v1_recommendations_tenants_profiles_list
+      summary: List validated structured Recommendations
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
       tags:
       - recommendations
       security:
       - bearerAuth: []
       responses:
         '200':
-          description: 建议列表
-  /api/v1/reports/tasks/{task_id}:
-    get:
-      operationId: api_v1_reports_tasks_retrieve
-      summary: 查看导入任务、批次计数和行级错误
-      parameters:
-      - in: path
-        name: task_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - reports
-      security:
-      - bearerAuth: []
-      responses:
-        '200':
-          description: 导入任务详情
-  /api/v1/reports/tasks/{task_id}/reprocess:
-    post:
-      operationId: api_v1_reports_tasks_reprocess_create
-      summary: 重处理历史 Upload 并创建新 Task/Batch
-      parameters:
-      - in: path
-        name: task_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - reports
-      security:
-      - bearerAuth: []
-      responses:
-        '202':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/Recommendation'
           description: ''
-  /api/v1/reports/uploads:
+  /api/v1/reports/tenants/{tenant_id}/profiles/{profile_id}/tasks:
     get:
-      operationId: api_v1_reports_uploads_retrieve
+      operationId: api_v1_reports_tenants_profiles_tasks_list
+      summary: List import tasks for an AdvertisingProfile
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
       tags:
       - reports
       security:
       - bearerAuth: []
       responses:
         '200':
-          description: 导入任务列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ImportTask'
+          description: ''
+  /api/v1/reports/tenants/{tenant_id}/profiles/{profile_id}/uploads:
     post:
-      operationId: api_v1_reports_uploads_create
-      summary: 上传三类广告报表并创建异步导入任务
+      operationId: api_v1_reports_tenants_profiles_uploads_create
+      summary: Upload a report and enqueue its asynchronous import
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
       tags:
       - reports
       requestBody:
         content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportUploadRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportUploadRequestRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ReportUploadRequest'
+              $ref: '#/components/schemas/ReportUploadRequestRequest'
         required: true
       security:
       - bearerAuth: []
@@ -656,7 +1620,114 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskResponse'
+                $ref: '#/components/schemas/ImportTask'
+          description: ''
+  /api/v1/reports/tenants/{tenant_id}/tasks/{task_id}:
+    get:
+      operationId: api_v1_reports_tenants_tasks_retrieve
+      summary: Get import task status and counters
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - reports
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportTask'
+          description: ''
+  /api/v1/reports/tenants/{tenant_id}/tasks/{task_id}/errors:
+    get:
+      operationId: api_v1_reports_tenants_tasks_errors_list
+      summary: List row-level import errors
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - reports
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ImportRowError'
+          description: ''
+  /api/v1/reports/tenants/{tenant_id}/tasks/{task_id}/reprocess:
+    post:
+      operationId: api_v1_reports_tenants_tasks_reprocess_create
+      summary: Create a new append-only import attempt from an existing upload
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - reports
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportTask'
+          description: ''
+  /api/v1/reports/tenants/{tenant_id}/tasks/{task_id}/source:
+    get:
+      operationId: api_v1_reports_tenants_tasks_source_retrieve
+      summary: Download the authorized original report source
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - reports
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
           description: ''
   /health/live:
     get:
@@ -680,6 +1751,20 @@ paths:
           description: One or more dependencies are unavailable
 components:
   schemas:
+    AccessLevelEnum:
+      enum:
+      - VIEW
+      - OPERATE
+      - APPROVE
+      - EXECUTE
+      - MANAGE
+      type: string
+      description: |-
+        * `VIEW` - VIEW
+        * `OPERATE` - OPERATE
+        * `APPROVE` - APPROVE
+        * `EXECUTE` - EXECUTE
+        * `MANAGE` - MANAGE
     AccessTokenResponse:
       type: object
       properties:
@@ -703,41 +1788,399 @@ components:
           type: string
       required:
       - accessToken
-    AnalysisCreateRequest:
+    ActionPreview:
       type: object
       properties:
-        tenant_id:
+        id:
+          type: integer
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/ActionPreviewStatusEnum'
+        campaign_name:
           type: string
-          format: uuid
-        profile_id:
+        action_type:
           type: string
-          format: uuid
+        created_by_email:
+          type: string
+          format: email
+        submitted_by_email:
+          type: string
+          format: email
+          nullable: true
+        current_version_number:
+          type: integer
+          maximum: 4294967295
+          minimum: 0
+          format: int64
+        current_version:
+          allOf:
+          - $ref: '#/components/schemas/ActionPreviewVersion'
+          readOnly: true
+        approvals:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalRecord'
+          readOnly: true
+        executions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutionRecord'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
       required:
-      - profile_id
-      - tenant_id
-    AssignmentData:
+      - action_type
+      - approvals
+      - campaign_name
+      - created_at
+      - created_by_email
+      - current_version
+      - executions
+      - id
+      - submitted_by_email
+      - updated_at
+    ActionPreviewStatusEnum:
+      enum:
+      - DRAFT
+      - PENDING_APPROVAL
+      - APPROVED
+      - REJECTED
+      - RETURNED
+      - WITHDRAWN
+      type: string
+      description: |-
+        * `DRAFT` - Draft
+        * `PENDING_APPROVAL` - Pending approval
+        * `APPROVED` - Approved
+        * `REJECTED` - Rejected
+        * `RETURNED` - Returned
+        * `WITHDRAWN` - Withdrawn
+    ActionPreviewVersion:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        version_number:
+          type: integer
+          maximum: 4294967295
+          minimum: 0
+          format: int64
+        action_payload: {}
+        object_state_version:
+          type: string
+          maxLength: 128
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - action_payload
+      - created_at
+      - id
+      - object_state_version
+      - version_number
+    ActionTypeEnum:
+      enum:
+      - UPDATE_CAMPAIGN_BUDGET
+      - ENABLE_CAMPAIGN
+      - PAUSE_CAMPAIGN
+      - SET_CAMPAIGN_STATE
+      - UPDATE_KEYWORD_BID
+      - ENABLE_KEYWORD
+      - PAUSE_KEYWORD
+      - SET_KEYWORD_STATE
+      - UPDATE_TARGET_BID
+      - ENABLE_TARGET
+      - PAUSE_TARGET
+      - UPDATE_PRODUCT_TARGET_BID
+      - SET_PRODUCT_TARGET_STATE
+      - ADD_KEYWORD
+      - CREATE_KEYWORD
+      - ADD_NEGATIVE_KEYWORD
+      - CREATE_NEGATIVE_KEYWORD
+      type: string
+      description: |-
+        * `UPDATE_CAMPAIGN_BUDGET` - Update Campaign budget
+        * `ENABLE_CAMPAIGN` - Enable Campaign
+        * `PAUSE_CAMPAIGN` - Pause Campaign
+        * `SET_CAMPAIGN_STATE` - Pause or enable Campaign
+        * `UPDATE_KEYWORD_BID` - Update Keyword bid
+        * `ENABLE_KEYWORD` - Enable Keyword
+        * `PAUSE_KEYWORD` - Pause Keyword
+        * `SET_KEYWORD_STATE` - Pause or enable Keyword
+        * `UPDATE_TARGET_BID` - Update Target bid
+        * `ENABLE_TARGET` - Enable Target
+        * `PAUSE_TARGET` - Pause Target
+        * `UPDATE_PRODUCT_TARGET_BID` - Update Product Target bid
+        * `SET_PRODUCT_TARGET_STATE` - Pause or enable Product Target
+        * `ADD_KEYWORD` - Add Keyword
+        * `CREATE_KEYWORD` - Create Keyword (legacy)
+        * `ADD_NEGATIVE_KEYWORD` - Add Negative Keyword
+        * `CREATE_NEGATIVE_KEYWORD` - Create Negative Keyword (legacy)
+    AddTeamMemberRequest:
+      type: object
+      properties:
+        membership_id:
+          type: string
+          minLength: 1
+      required:
+      - membership_id
+    AgentCodeEnum:
+      enum:
+      - DATA_ANALYSIS
+      - ANOMALY_DIAGNOSIS
+      - BUDGET_ANALYSIS
+      - COMPOSITE_STRATEGY
+      type: string
+      description: |-
+        * `DATA_ANALYSIS` - Data analysis
+        * `ANOMALY_DIAGNOSIS` - Anomaly diagnosis
+        * `BUDGET_ANALYSIS` - Budget analysis
+        * `COMPOSITE_STRATEGY` - Composite strategy
+    AgentRun:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        agent_code:
+          $ref: '#/components/schemas/AgentCodeEnum'
+        status:
+          $ref: '#/components/schemas/AgentRunStatusEnum'
+        schema_version:
+          type: string
+          maxLength: 32
+        celery_task_id:
+          type: string
+          maxLength: 128
+        output_result: {}
+        error_code:
+          type: string
+          maxLength: 96
+        error_message:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - celery_task_id
+      - created_at
+      - id
+    AgentRunStatusEnum:
+      enum:
+      - QUEUED
+      - RUNNING
+      - SUCCEEDED
+      - FAILED
+      type: string
+      description: |-
+        * `QUEUED` - Queued
+        * `RUNNING` - Running
+        * `SUCCEEDED` - Succeeded
+        * `FAILED` - Failed
+    AnalyticsConfiguration:
+      type: object
+      properties:
+        tenant_target_acos:
+          type: string
+          nullable: true
+        profile_target_acos:
+          type: string
+          nullable: true
+        campaigns:
+          type: array
+          items:
+            $ref: '#/components/schemas/CampaignTargetAcos'
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnomalyRuleVersion'
+      required:
+      - campaigns
+      - profile_target_acos
+      - rules
+      - tenant_target_acos
+    Anomaly:
       type: object
       properties:
         id:
           type: string
+        rule_code:
+          type: string
+        rule_version:
+          type: integer
+        status:
+          type: string
+        risk_level:
+          type: string
+          nullable: true
+        observed_value:
+          type: string
+          nullable: true
+        threshold_value:
+          type: string
+          nullable: true
+        reason_code:
+          type: string
+        explanation:
+          type: string
       required:
+      - explanation
       - id
-    AssignmentResponse:
+      - observed_value
+      - reason_code
+      - risk_level
+      - rule_code
+      - rule_version
+      - status
+      - threshold_value
+    AnomalyRuleCreateRequest:
       type: object
       properties:
         code:
           type: string
-        message:
+          minLength: 1
+        scope_type:
+          $ref: '#/components/schemas/ScopeTypeEnum'
+        campaign_id:
           type: string
-        data:
-          $ref: '#/components/schemas/AssignmentData'
-        requestId:
-          type: string
+          nullable: true
+          minLength: 1
+        configuration:
+          type: object
+          additionalProperties: {}
       required:
       - code
-      - data
-      - message
-      - requestId
+      - configuration
+      - scope_type
+    AnomalyRuleVersion:
+      type: object
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        version:
+          type: integer
+        scope_key:
+          type: string
+        configuration:
+          type: object
+          additionalProperties: {}
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - code
+      - configuration
+      - created_at
+      - id
+      - scope_key
+      - version
+    ApprovalDecisionRequestRequest:
+      type: object
+      properties:
+        decision:
+          $ref: '#/components/schemas/DecisionEnum'
+        comment:
+          type: string
+          maxLength: 1000
+        idempotency_key:
+          type: string
+          minLength: 1
+          maxLength: 128
+      required:
+      - decision
+      - idempotency_key
+    ApprovalRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        decision:
+          $ref: '#/components/schemas/DecisionEnum'
+        comment:
+          type: string
+          maxLength: 1000
+        decided_by_email:
+          type: string
+          format: email
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - decided_by_email
+      - decision
+      - id
+    AssignRoleRequest:
+      type: object
+      properties:
+        membership_id:
+          type: string
+          minLength: 1
+        role_id:
+          type: string
+          minLength: 1
+      required:
+      - membership_id
+      - role_id
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        event:
+          type: string
+          maxLength: 96
+        object_type:
+          type: string
+          maxLength: 96
+        object_id:
+          type: string
+          maxLength: 128
+        request_id:
+          type: string
+          maxLength: 128
+        task_id:
+          type: string
+          maxLength: 128
+        actor_email:
+          type: string
+          format: email
+          nullable: true
+        before_data: {}
+        after_data: {}
+        metadata: {}
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - actor_email
+      - created_at
+      - event
+      - id
+      - request_id
     AuthenticatedUser:
       type: object
       properties:
@@ -758,6 +2201,215 @@ components:
       - id
       - lastName
       - username
+    CampaignDetail:
+      type: object
+      properties:
+        campaign_id:
+          type: string
+        external_campaign_id:
+          type: string
+        campaign_name:
+          type: string
+        state:
+          type: string
+        target_acos:
+          type: string
+          nullable: true
+        metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/CampaignMetricRow'
+      required:
+      - campaign_id
+      - campaign_name
+      - external_campaign_id
+      - metrics
+      - state
+      - target_acos
+    CampaignMetricRow:
+      type: object
+      properties:
+        id:
+          type: string
+        campaign_id:
+          type: string
+        external_campaign_id:
+          type: string
+        campaign_name:
+          type: string
+        report_date:
+          type: string
+          format: date
+        currency_code:
+          type: string
+        impressions:
+          type: integer
+        clicks:
+          type: integer
+        spend:
+          type: string
+        orders:
+          type: integer
+        sales:
+          type: string
+        calculation_reasons:
+          type: object
+          additionalProperties: {}
+        daily_budget_snapshot:
+          type: string
+          nullable: true
+        snapshot_hour_local:
+          type: integer
+          nullable: true
+        state_snapshot:
+          type: string
+        target_acos:
+          type: string
+          nullable: true
+        ctr:
+          $ref: '#/components/schemas/FormulaValue'
+        cpc:
+          $ref: '#/components/schemas/FormulaValue'
+        cvr:
+          $ref: '#/components/schemas/FormulaValue'
+        acos:
+          $ref: '#/components/schemas/FormulaValue'
+        roas:
+          $ref: '#/components/schemas/FormulaValue'
+        source_batch_id:
+          type: string
+        anomalies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Anomaly'
+      required:
+      - acos
+      - anomalies
+      - calculation_reasons
+      - campaign_id
+      - campaign_name
+      - clicks
+      - cpc
+      - ctr
+      - currency_code
+      - cvr
+      - daily_budget_snapshot
+      - external_campaign_id
+      - id
+      - impressions
+      - orders
+      - report_date
+      - roas
+      - sales
+      - snapshot_hour_local
+      - source_batch_id
+      - spend
+      - state_snapshot
+      - target_acos
+    CampaignRow:
+      type: object
+      properties:
+        id:
+          type: string
+        external_campaign_id:
+          type: string
+        name:
+          type: string
+        ad_product_type:
+          type: string
+        state:
+          type: string
+        daily_budget:
+          type: string
+          nullable: true
+        currency_code:
+          type: string
+        source_batch_id:
+          type: string
+          nullable: true
+      required:
+      - ad_product_type
+      - currency_code
+      - daily_budget
+      - external_campaign_id
+      - id
+      - name
+      - source_batch_id
+      - state
+    CampaignTargetAcos:
+      type: object
+      properties:
+        campaign_id:
+          type: string
+        campaign_name:
+          type: string
+        target_acos:
+          type: string
+          nullable: true
+        effective_target_acos:
+          type: string
+          nullable: true
+      required:
+      - campaign_id
+      - campaign_name
+      - effective_target_acos
+      - target_acos
+    ContextCapabilities:
+      type: object
+      properties:
+        permissionCodes:
+          type: array
+          items:
+            type: string
+        membershipRole:
+          type: string
+      required:
+      - membershipRole
+      - permissionCodes
+    CopyRoleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        code:
+          type: string
+          minLength: 1
+          pattern: ^[a-z][a-z0-9_.-]{2,95}$
+      required:
+      - code
+      - name
+    CreateRoleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        code:
+          type: string
+          minLength: 1
+          pattern: ^[a-z][a-z0-9_.-]{2,95}$
+        permission_codes:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 96
+      required:
+      - code
+      - name
+      - permission_codes
+    CreateTeamRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+      required:
+      - name
     CurrentUserResponse:
       type: object
       properties:
@@ -774,6 +2426,58 @@ components:
       - data
       - message
       - requestId
+    DashboardRow:
+      type: object
+      properties:
+        marketplace_code:
+          type: string
+        marketplace_name:
+          type: string
+        currency_code:
+          type: string
+        campaign_count:
+          type: integer
+        impressions:
+          type: integer
+        clicks:
+          type: integer
+        spend:
+          type: string
+        orders:
+          type: integer
+        sales:
+          type: string
+        ctr:
+          $ref: '#/components/schemas/FormulaValue'
+        cpc:
+          $ref: '#/components/schemas/FormulaValue'
+        cvr:
+          $ref: '#/components/schemas/FormulaValue'
+        acos:
+          $ref: '#/components/schemas/FormulaValue'
+        roas:
+          $ref: '#/components/schemas/FormulaValue'
+        anomaly_count:
+          type: integer
+        authoritative_grain:
+          type: string
+      required:
+      - acos
+      - anomaly_count
+      - authoritative_grain
+      - campaign_count
+      - clicks
+      - cpc
+      - ctr
+      - currency_code
+      - cvr
+      - impressions
+      - marketplace_code
+      - marketplace_name
+      - orders
+      - roas
+      - sales
+      - spend
     DecisionEnum:
       enum:
       - APPROVED
@@ -781,21 +2485,74 @@ components:
       - RETURNED
       type: string
       description: |-
-        * `APPROVED` - APPROVED
-        * `REJECTED` - REJECTED
-        * `RETURNED` - RETURNED
-    DecisionRequest:
+        * `APPROVED` - Approved
+        * `REJECTED` - Rejected
+        * `RETURNED` - Returned
+    EffectEvaluation:
       type: object
       properties:
-        decision:
-          $ref: '#/components/schemas/DecisionEnum'
-        comment:
+        id:
+          type: integer
+          readOnly: true
+        status:
+          type: string
+          maxLength: 32
+        baseline_start:
+          type: string
+          format: date
+        baseline_end:
+          type: string
+          format: date
+        observation_start:
+          type: string
+          format: date
+        observation_end:
+          type: string
+          format: date
+        idempotency_key:
+          type: string
+          maxLength: 128
+        result: {}
+        reason_code:
+          type: string
+          maxLength: 96
+        error_message:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - baseline_end
+      - baseline_start
+      - created_at
+      - id
+      - idempotency_key
+      - observation_end
+      - observation_start
+      - status
+    EffectEvaluationRequestRequest:
+      type: object
+      properties:
+        execution_record_id:
           type: string
           minLength: 1
-          default: ''
-          maxLength: 500
+        observed: {}
+        evaluation_key:
+          type: string
+          minLength: 1
+          maxLength: 128
       required:
-      - decision
+      - evaluation_key
+      - execution_record_id
     EmptyResponse:
       type: object
       properties:
@@ -809,41 +2566,155 @@ components:
       - code
       - message
       - requestId
-    ExecutionRecordRequest:
+    ExecutionRecord:
       type: object
       properties:
-        result:
-          $ref: '#/components/schemas/ResultEnum'
+        id:
+          type: integer
+          readOnly: true
+        outcome:
+          $ref: '#/components/schemas/OutcomeEnum'
         actual_value: {}
         executed_at:
           type: string
           format: date-time
         note:
           type: string
-          minLength: 1
-          default: ''
-          maxLength: 500
-        evidence:
+          maxLength: 1000
+        evidence_metadata: {}
+        effect_evaluations:
+          type: array
+          items:
+            $ref: '#/components/schemas/EffectEvaluation'
+          readOnly: true
+        recorded_by_email:
           type: string
-          format: binary
-          writeOnly: true
+          format: email
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
       required:
+      - created_at
+      - effect_evaluations
       - executed_at
-      - result
-    LevelEnum:
+      - id
+      - outcome
+      - recorded_by_email
+    FormulaValue:
+      type: object
+      properties:
+        value:
+          type: string
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+      required:
+      - reason
+      - value
+    ImportRowError:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        row_number:
+          type: integer
+          maximum: 4294967295
+          minimum: 0
+          format: int64
+        error_code:
+          type: string
+          maxLength: 96
+        message:
+          type: string
+          maxLength: 1000
+        field_name:
+          type: string
+          maxLength: 128
+        rejected_value:
+          type: string
+          maxLength: 500
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - error_code
+      - id
+      - message
+      - row_number
+    ImportTask:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/ImportTaskStatusEnum'
+        celery_task_id:
+          type: string
+          maxLength: 128
+        total_rows:
+          type: integer
+          maximum: 4294967295
+          minimum: 0
+          format: int64
+        success_rows:
+          type: integer
+          maximum: 4294967295
+          minimum: 0
+          format: int64
+        error_rows:
+          type: integer
+          maximum: 4294967295
+          minimum: 0
+          format: int64
+        error_code:
+          type: string
+          maxLength: 96
+        error_message:
+          type: string
+        reprocessed_from_id:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        upload:
+          allOf:
+          - $ref: '#/components/schemas/ReportUploadSummary'
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - reprocessed_from_id
+      - upload
+    ImportTaskStatusEnum:
       enum:
-      - VIEW
-      - OPERATE
-      - APPROVE
-      - EXECUTE
-      - MANAGE
+      - QUEUED
+      - RUNNING
+      - SUCCEEDED
+      - PARTIAL_SUCCEEDED
+      - FAILED
       type: string
       description: |-
-        * `VIEW` - VIEW
-        * `OPERATE` - OPERATE
-        * `APPROVE` - APPROVE
-        * `EXECUTE` - EXECUTE
-        * `MANAGE` - MANAGE
+        * `QUEUED` - Queued
+        * `RUNNING` - Running
+        * `SUCCEEDED` - Succeeded
+        * `PARTIAL_SUCCEEDED` - Partially succeeded
+        * `FAILED` - Failed
     LoginRequest:
       type: object
       properties:
@@ -886,6 +2757,31 @@ components:
       required:
       - accessToken
       - user
+    ManualExecutionRequestRequest:
+      type: object
+      properties:
+        outcome:
+          $ref: '#/components/schemas/OutcomeEnum'
+        actual_value: {}
+        executed_at:
+          type: string
+          format: date-time
+        note:
+          type: string
+          maxLength: 1000
+        evidence_metadata: {}
+        evidence_file:
+          type: string
+          format: binary
+        idempotency_key:
+          type: string
+          minLength: 1
+          maxLength: 128
+      required:
+      - actual_value
+      - executed_at
+      - idempotency_key
+      - outcome
     Marketplace:
       type: object
       properties:
@@ -895,86 +2791,184 @@ components:
           type: string
         name:
           type: string
-        countryCode:
-          type: string
-        currency:
+        currencyCode:
           type: string
         timezone:
           type: string
       required:
       - code
-      - countryCode
-      - currency
+      - currencyCode
       - id
       - name
       - timezone
-    Permission:
-      type: object
-      properties:
-        code:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-      required:
-      - code
-      - description
-      - name
-    PermissionListData:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Permission'
-      required:
-      - items
-    PermissionListResponse:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-        data:
-          $ref: '#/components/schemas/PermissionListData'
-        requestId:
-          type: string
-      required:
-      - code
-      - data
-      - message
-      - requestId
-    PreviewCreateRequest:
-      type: object
-      properties:
-        tenant_id:
-          type: string
-          format: uuid
-        profile_id:
-          type: string
-          format: uuid
-        recommendation_ids:
-          type: array
-          items:
-            type: string
-            format: uuid
-          minItems: 1
-      required:
-      - profile_id
-      - recommendation_ids
-      - tenant_id
-    ProfileContext:
+    MembershipOption:
       type: object
       properties:
         id:
           type: string
-        externalProfileId:
+        userId:
+          type: string
+        email:
+          type: string
+          format: email
+        membershipRole:
+          type: string
+        isActive:
+          type: boolean
+      required:
+      - email
+      - id
+      - isActive
+      - membershipRole
+      - userId
+    OutcomeEnum:
+      enum:
+      - SUCCEEDED
+      - SUCCESS
+      - FAILED
+      - SKIPPED
+      type: string
+      description: |-
+        * `SUCCEEDED` - Succeeded
+        * `SUCCESS` - Success (legacy)
+        * `FAILED` - Failed
+        * `SKIPPED` - Skipped
+    PermissionOption:
+      type: object
+      properties:
+        id:
+          type: string
+        code:
           type: string
         name:
           type: string
-        currency:
+      required:
+      - code
+      - id
+      - name
+    ProductCreateRequest:
+      type: object
+      properties:
+        store_marketplace_id:
+          type: string
+          minLength: 1
+        seller_sku:
+          type: string
+          minLength: 1
+          maxLength: 128
+        asin:
+          type: string
+          nullable: true
+          maxLength: 32
+        catalog_title:
+          type: string
+          default: ''
+          maxLength: 500
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+      required:
+      - name
+      - seller_sku
+      - store_marketplace_id
+    ProductListingInputRequest:
+      type: object
+      properties:
+        store_marketplace_id:
+          type: string
+          minLength: 1
+        seller_sku:
+          type: string
+          minLength: 1
+          maxLength: 128
+        asin:
+          type: string
+          nullable: true
+          maxLength: 32
+        catalog_title:
+          type: string
+          default: ''
+          maxLength: 500
+      required:
+      - seller_sku
+      - store_marketplace_id
+    ProductListingRow:
+      type: object
+      properties:
+        id:
+          type: string
+        store_marketplace_id:
+          type: string
+        store_name:
+          type: string
+        marketplace_code:
+          type: string
+        seller_sku:
+          type: string
+        asin:
+          type: string
+          nullable: true
+        catalog_title:
+          type: string
+        is_active:
+          type: boolean
+      required:
+      - asin
+      - catalog_title
+      - id
+      - is_active
+      - marketplace_code
+      - seller_sku
+      - store_marketplace_id
+      - store_name
+    ProductRow:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        is_active:
+          type: boolean
+        listings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductListingRow'
+      required:
+      - id
+      - is_active
+      - listings
+      - name
+    ProfileAccessGrantRequest:
+      type: object
+      properties:
+        profile_id:
+          type: string
+          minLength: 1
+        access_level:
+          $ref: '#/components/schemas/AccessLevelEnum'
+        user_id:
+          type: string
+          nullable: true
+          minLength: 1
+        team_id:
+          type: string
+          nullable: true
+          minLength: 1
+      required:
+      - access_level
+      - profile_id
+    ProfileOption:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        externalProfileId:
+          type: string
+        currencyCode:
           type: string
         timezone:
           type: string
@@ -982,36 +2976,106 @@ components:
           type: string
       required:
       - accessLevel
-      - currency
+      - currencyCode
       - externalProfileId
       - id
       - name
       - timezone
-    ProfileContextResponse:
+    Recommendation:
       type: object
       properties:
-        code:
+        id:
+          type: integer
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/RecommendationStatusEnum'
+        action_type:
+          $ref: '#/components/schemas/ActionTypeEnum'
+        campaign_name:
           type: string
-        message:
+        external_campaign_id:
           type: string
-        data:
-          $ref: '#/components/schemas/ProfileContextResult'
-        requestId:
+        agent_run_id:
+          type: integer
+          readOnly: true
+        current_revision_number:
+          type: integer
+          maximum: 4294967295
+          minimum: 0
+          format: int64
+        current_revision:
+          allOf:
+          - $ref: '#/components/schemas/RecommendationRevision'
+          readOnly: true
+        created_at:
           type: string
+          format: date-time
+          readOnly: true
       required:
-      - code
-      - data
-      - message
-      - requestId
-    ProfileContextResult:
+      - action_type
+      - agent_run_id
+      - campaign_name
+      - created_at
+      - current_revision
+      - external_campaign_id
+      - id
+    RecommendationRevision:
       type: object
       properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProfileContext'
+        id:
+          type: integer
+          readOnly: true
+        revision_number:
+          type: integer
+          maximum: 4294967295
+          minimum: 0
+          format: int64
+        schema_version:
+          type: string
+          maxLength: 32
+        action_type:
+          $ref: '#/components/schemas/ActionTypeEnum'
+        object_type:
+          type: string
+          maxLength: 64
+        object_id:
+          type: string
+          maxLength: 128
+        before_value: {}
+        after_value: {}
+        reason:
+          type: string
+          maxLength: 1000
+        evidence: {}
+        risk_level:
+          type: string
+          maxLength: 16
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
       required:
-      - items
+      - action_type
+      - created_at
+      - id
+      - object_id
+      - object_type
+      - reason
+      - revision_number
+      - risk_level
+      - schema_version
+    RecommendationStatusEnum:
+      enum:
+      - ACTIVE
+      - SUPERSEDED
+      - ACCEPTED
+      - DISMISSED
+      type: string
+      description: |-
+        * `ACTIVE` - Active
+        * `SUPERSEDED` - Superseded
+        * `ACCEPTED` - Accepted
+        * `DISMISSED` - Dismissed
     ReportTypeEnum:
       enum:
       - CAMPAIGN
@@ -1019,49 +3083,64 @@ components:
       - SEARCH_TERM
       type: string
       description: |-
-        * `CAMPAIGN` - CAMPAIGN
-        * `TARGETING` - TARGETING
-        * `SEARCH_TERM` - SEARCH_TERM
-    ReportUploadRequest:
+        * `CAMPAIGN` - Campaign
+        * `TARGETING` - Targeting
+        * `SEARCH_TERM` - Search term
+    ReportUploadRequestRequest:
       type: object
       properties:
-        tenantId:
-          type: string
-          format: uuid
-        profileId:
-          type: string
-          format: uuid
-        reportType:
+        report_type:
           $ref: '#/components/schemas/ReportTypeEnum'
         file:
           type: string
           format: binary
       required:
       - file
-      - profileId
-      - reportType
-      - tenantId
-    ResultEnum:
-      enum:
-      - SUCCEEDED
-      - FAILED
-      - SKIPPED
-      type: string
-      description: |-
-        * `SUCCEEDED` - SUCCEEDED
-        * `FAILED` - FAILED
-        * `SKIPPED` - SKIPPED
-    Role:
+      - report_type
+    ReportUploadSummary:
       type: object
       properties:
         id:
           type: string
-        tenantId:
+        report_type:
+          type: string
+        original_filename:
+          type: string
+        content_type:
+          type: string
+        size_bytes:
+          type: integer
+        sha256:
+          type: string
+        duplicate_of_id:
           type: string
           nullable: true
-        code:
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - content_type
+      - created_at
+      - duplicate_of_id
+      - id
+      - original_filename
+      - report_type
+      - sha256
+      - size_bytes
+    ReturnedVersionRequestRequest:
+      type: object
+      properties:
+        action_payload: {}
+      required:
+      - action_payload
+    RoleOption:
+      type: object
+      properties:
+        id:
           type: string
         name:
+          type: string
+        code:
           type: string
         isSystem:
           type: boolean
@@ -1075,85 +3154,131 @@ components:
       - isSystem
       - name
       - permissionCodes
-      - tenantId
-    RoleAssignmentRequest:
+    ScopeTypeEnum:
+      enum:
+      - TENANT
+      - PROFILE
+      - CAMPAIGN
+      type: string
+      description: |-
+        * `TENANT` - TENANT
+        * `PROFILE` - PROFILE
+        * `CAMPAIGN` - CAMPAIGN
+    SearchTermMetricRow:
       type: object
       properties:
-        tenant_id:
+        id:
           type: string
-          format: uuid
-        user_id:
+        campaign_id:
+          type: string
+        campaign_name:
+          type: string
+        ad_group_id:
+          type: string
+        ad_group_name:
+          type: string
+        search_term_id:
+          type: string
+        search_term:
+          type: string
+        targeting_expression:
+          type: string
+        report_date:
+          type: string
+          format: date
+        currency_code:
+          type: string
+        impressions:
           type: integer
+        clicks:
+          type: integer
+        spend:
+          type: string
+        orders:
+          type: integer
+        sales:
+          type: string
+        calculation_reasons:
+          type: object
+          additionalProperties: {}
+        ctr:
+          $ref: '#/components/schemas/FormulaValue'
+        cpc:
+          $ref: '#/components/schemas/FormulaValue'
+        cvr:
+          $ref: '#/components/schemas/FormulaValue'
+        acos:
+          $ref: '#/components/schemas/FormulaValue'
+        roas:
+          $ref: '#/components/schemas/FormulaValue'
+        source_batch_id:
+          type: string
       required:
-      - tenant_id
-      - user_id
-    RoleCreateRequest:
+      - acos
+      - ad_group_id
+      - ad_group_name
+      - calculation_reasons
+      - campaign_id
+      - campaign_name
+      - clicks
+      - cpc
+      - ctr
+      - currency_code
+      - cvr
+      - id
+      - impressions
+      - orders
+      - report_date
+      - roas
+      - sales
+      - search_term
+      - search_term_id
+      - source_batch_id
+      - spend
+      - targeting_expression
+    SearchTermRow:
       type: object
       properties:
-        tenant_id:
+        id:
           type: string
-          format: uuid
-        code:
+        display_text:
+          type: string
+        normalized_text:
+          type: string
+        text_hash:
+          type: string
+      required:
+      - display_text
+      - id
+      - normalized_text
+      - text_hash
+    StoreAccessGrantRequest:
+      type: object
+      properties:
+        store_id:
           type: string
           minLength: 1
-          pattern: ^[a-z][a-z0-9_.-]{1,62}$
-        name:
+        user_id:
           type: string
+          nullable: true
           minLength: 1
-          maxLength: 128
-        permission_codes:
-          type: array
-          items:
-            type: string
-            minLength: 1
-            maxLength: 64
+        team_id:
+          type: string
+          nullable: true
+          minLength: 1
       required:
-      - code
-      - name
-      - permission_codes
-      - tenant_id
-    RoleListData:
+      - store_id
+    StoreMarketplaceOption:
       type: object
       properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Role'
+        storeMarketplaceId:
+          type: string
+        marketplace:
+          $ref: '#/components/schemas/Marketplace'
       required:
-      - items
-    RoleListResponse:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-        data:
-          $ref: '#/components/schemas/RoleListData'
-        requestId:
-          type: string
-      required:
-      - code
-      - data
-      - message
-      - requestId
-    RoleResponse:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-        data:
-          $ref: '#/components/schemas/Role'
-        requestId:
-          type: string
-      required:
-      - code
-      - data
-      - message
-      - requestId
-    StoreContext:
+      - marketplace
+      - storeMarketplaceId
+    StoreOption:
       type: object
       properties:
         id:
@@ -1166,99 +3291,165 @@ components:
       - externalStoreId
       - id
       - name
-    StoreContextResponse:
+    TargetAcosUpdateRequest:
       type: object
       properties:
-        code:
+        scope_type:
+          $ref: '#/components/schemas/ScopeTypeEnum'
+        campaign_id:
           type: string
-        message:
+          nullable: true
+          minLength: 1
+        target_acos:
           type: string
-        data:
-          $ref: '#/components/schemas/StoreContextResult'
-        requestId:
-          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,4})?$
+          nullable: true
       required:
-      - code
-      - data
-      - message
-      - requestId
-    StoreContextResult:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/StoreContext'
-      required:
-      - items
-    StoreMarketplaceContext:
+      - scope_type
+      - target_acos
+    TargetingMetricRow:
       type: object
       properties:
         id:
           type: string
-        marketplace:
-          $ref: '#/components/schemas/Marketplace'
+        campaign_id:
+          type: string
+        campaign_name:
+          type: string
+        ad_group_id:
+          type: string
+        ad_group_name:
+          type: string
+        target_type:
+          type: string
+        target_id:
+          type: string
+        target_text:
+          type: string
+        match_type:
+          type: string
+          nullable: true
+        report_date:
+          type: string
+          format: date
+        currency_code:
+          type: string
+        impressions:
+          type: integer
+        clicks:
+          type: integer
+        spend:
+          type: string
+        orders:
+          type: integer
+        sales:
+          type: string
+        calculation_reasons:
+          type: object
+          additionalProperties: {}
+        bid_snapshot:
+          type: string
+          nullable: true
+        state_snapshot:
+          type: string
+        ctr:
+          $ref: '#/components/schemas/FormulaValue'
+        cpc:
+          $ref: '#/components/schemas/FormulaValue'
+        cvr:
+          $ref: '#/components/schemas/FormulaValue'
+        acos:
+          $ref: '#/components/schemas/FormulaValue'
+        roas:
+          $ref: '#/components/schemas/FormulaValue'
+        source_batch_id:
+          type: string
       required:
+      - acos
+      - ad_group_id
+      - ad_group_name
+      - bid_snapshot
+      - calculation_reasons
+      - campaign_id
+      - campaign_name
+      - clicks
+      - cpc
+      - ctr
+      - currency_code
+      - cvr
       - id
-      - marketplace
-    StoreMarketplaceContextResponse:
+      - impressions
+      - match_type
+      - orders
+      - report_date
+      - roas
+      - sales
+      - source_batch_id
+      - spend
+      - state_snapshot
+      - target_id
+      - target_text
+      - target_type
+    TargetingRow:
       type: object
       properties:
-        code:
+        id:
           type: string
-        message:
+        target_type:
           type: string
-        data:
-          $ref: '#/components/schemas/StoreMarketplaceContextResult'
-        requestId:
+        external_target_id:
           type: string
+        target_text:
+          type: string
+        match_type:
+          type: string
+          nullable: true
+        state:
+          type: string
+        bid:
+          type: string
+          nullable: true
+        campaign_id:
+          type: string
+        campaign_name:
+          type: string
+        ad_group_id:
+          type: string
+        ad_group_name:
+          type: string
+        source_batch_id:
+          type: string
+          nullable: true
       required:
-      - code
-      - data
-      - message
-      - requestId
-    StoreMarketplaceContextResult:
+      - ad_group_id
+      - ad_group_name
+      - bid
+      - campaign_id
+      - campaign_name
+      - external_target_id
+      - id
+      - match_type
+      - source_batch_id
+      - state
+      - target_text
+      - target_type
+    TeamOption:
       type: object
       properties:
-        items:
+        id:
+          type: string
+        name:
+          type: string
+        memberIds:
           type: array
           items:
-            $ref: '#/components/schemas/StoreMarketplaceContext'
+            type: string
       required:
-      - items
-    TaskData:
-      type: object
-      properties:
-        taskId:
-          type: string
-        status:
-          type: string
-        isDuplicate:
-          type: boolean
-        taskUrl:
-          type: string
-      required:
-      - isDuplicate
-      - status
-      - taskId
-      - taskUrl
-    TaskResponse:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-        data:
-          $ref: '#/components/schemas/TaskData'
-        requestId:
-          type: string
-      required:
-      - code
-      - data
-      - message
-      - requestId
-    TenantContext:
+      - id
+      - memberIds
+      - name
+    TenantOption:
       type: object
       properties:
         id:
@@ -1269,66 +3460,11 @@ components:
           type: string
         membershipRole:
           type: string
-        permissionCodes:
-          type: array
-          items:
-            type: string
       required:
       - id
       - membershipRole
       - name
-      - permissionCodes
       - tenantType
-    TenantContextResponse:
-      type: object
-      properties:
-        code:
-          type: string
-        message:
-          type: string
-        data:
-          $ref: '#/components/schemas/TenantContextResult'
-        requestId:
-          type: string
-      required:
-      - code
-      - data
-      - message
-      - requestId
-    TenantContextResult:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/TenantContext'
-      required:
-      - items
-    UserProfileGrantRequest:
-      type: object
-      properties:
-        tenant_id:
-          type: string
-          format: uuid
-        user_id:
-          type: integer
-        level:
-          $ref: '#/components/schemas/LevelEnum'
-      required:
-      - level
-      - tenant_id
-      - user_id
-    UserStoreGrantRequest:
-      type: object
-      properties:
-        tenant_id:
-          type: string
-          format: uuid
-        user_id:
-          type: integer
-      required:
-      - tenant_id
-      - user_id
   securitySchemes:
     bearerAuth:
       type: http

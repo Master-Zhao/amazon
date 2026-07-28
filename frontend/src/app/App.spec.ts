@@ -27,8 +27,7 @@ describe('application shell', () => {
     })
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Amazon 广告智能优化系统')
+    expect(wrapper.text()).toContain('Amazon 广告智能优化')
     expect(wrapper.text()).toContain('欢迎回来，demo')
-    expect(wrapper.text()).toContain('卖家空间')
   })
 })

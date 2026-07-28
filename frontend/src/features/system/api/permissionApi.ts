@@ -3,7 +3,6 @@ import type { ApiEnvelope } from '@/shared/api/types'
 
 export interface Role {
   id: string
-  tenantId: string | null
   code: string
   name: string
   isSystem: boolean
@@ -11,11 +10,10 @@ export interface Role {
 }
 
 export async function fetchRoles(tenantId: string): Promise<Role[]> {
-  const response = await httpClient.get<ApiEnvelope<{ items: Role[] }>>(
-    '/api/v1/permissions/roles',
-    { params: { tenantId } },
+  const response = await httpClient.get<ApiEnvelope<Role[]>>(
+    `/api/v1/permissions/tenants/${tenantId}/roles`,
   )
-  return response.data.data.items
+  return response.data.data
 }
 
 export async function createRole(input: {
@@ -23,11 +21,13 @@ export async function createRole(input: {
   code: string
   name: string
   permissionCodes: string[]
-}): Promise<Role> {
-  const response = await httpClient.post<ApiEnvelope<Role>>(
-    '/api/v1/permissions/roles',
-    input,
+}): Promise<void> {
+  await httpClient.post<ApiEnvelope<Pick<Role, 'id' | 'code' | 'name'>>>(
+    `/api/v1/permissions/tenants/${input.tenantId}/roles`,
+    {
+      code: input.code,
+      name: input.name,
+      permissionCodes: input.permissionCodes,
+    },
   )
-  return response.data.data
 }
-

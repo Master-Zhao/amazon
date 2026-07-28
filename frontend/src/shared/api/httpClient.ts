@@ -112,11 +112,11 @@ export function normalizeApiError(error: unknown): ApiError {
 
 httpClient.interceptors.request.use((config) => {
   const accessToken = accessTokenProvider()
+  const tenantId = tenantIdProvider()
 
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`
   }
-  const tenantId = tenantIdProvider()
   if (tenantId) {
     config.headers['X-Tenant-ID'] = tenantId
   }

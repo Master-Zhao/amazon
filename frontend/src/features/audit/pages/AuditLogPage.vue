@@ -1,49 +1,73 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 
-import { fetchAuditLog, type AuditEntry } from '@/features/audit/api/auditApi'
-import { useTenantContextStore } from '@/features/tenant-context/stores/context'
+import { fetchAuditLogs, type AuditLog } from '@/features/audit/api/auditApi'
+import { useTenantContextStore } from '@/features/tenant-context/stores/tenantContext'
+import { normalizeApiError } from '@/shared/api/httpClient'
 
 const context = useTenantContextStore()
-const items = ref<AuditEntry[]>([])
-const loading = ref(true)
-const error = ref(false)
+const logs = ref<AuditLog[]>([])
+const loading = ref(false)
+const errorMessage = ref<string | null>(null)
 
-onMounted(async () => {
-  if (!context.selectedTenantId) {
-    loading.value = false
+async function refresh(): Promise<void> {
+  if (!context.tenantId) {
+    logs.value = []
     return
   }
+  loading.value = true
+  errorMessage.value = null
   try {
-    items.value = await fetchAuditLog()
-  } catch {
-    error.value = true
+    logs.value = await fetchAuditLogs(context.tenantId)
+  } catch (error) {
+    errorMessage.value = normalizeApiError(error).message
   } finally {
     loading.value = false
   }
+}
+
+watch(() => context.tenantId, () => void refresh())
+onMounted(async () => {
+  if (context.status === 'idle') await context.initialize()
+  await refresh()
 })
 </script>
 
 <template>
-  <section class="panel">
-    <p class="eyebrow">AUDIT TRAIL</p>
-    <h2>只追加审计日志</h2>
-    <p v-if="!context.selectedTenantId" class="empty-state">请先选择 Tenant。</p>
-    <p v-else-if="loading">正在加载…</p>
-    <p v-else-if="error" class="error-banner">审计日志加载失败或当前账号无权限。</p>
-    <p v-else-if="items.length === 0" class="empty-state">当前没有审计记录。</p>
-    <div v-else class="table-scroll">
-      <table>
-        <thead><tr><th>时间</th><th>事件</th><th>对象</th><th>Request ID</th></tr></thead>
-        <tbody>
-          <tr v-for="item in items" :key="item.id">
-            <td>{{ new Date(item.created_at).toLocaleString() }}</td>
-            <td>{{ item.event }}</td>
-            <td>{{ item.object_type }} / {{ item.object_id }}</td>
-            <td><code>{{ item.request_id }}</code></td>
-          </tr>
-        </tbody>
-      </table>
+  <section class="report-page">
+    <header class="report-heading">
+      <div>
+        <p class="eyebrow">APPEND-ONLY BUSINESS EVIDENCE</p>
+        <h2>审计日志</h2>
+        <p>
+          登录、上传、导入、AI、Action Preview、审批和执行均记录 requestId/taskId
+          及脱敏 before/after；普通业务接口不能修改或删除这些记录。
+        </p>
+      </div>
+      <button class="secondary-button" type="button" @click="refresh">
+        {{ loading ? '刷新中…' : '刷新' }}
+      </button>
+    </header>
+
+    <div v-if="errorMessage" class="error-panel" role="alert">
+      {{ errorMessage }}
+    </div>
+    <p v-if="logs.length === 0" class="empty-panel">当前 Tenant 暂无可见审计事件。</p>
+    <div v-else class="audit-list">
+      <article v-for="log in logs" :key="log.id">
+        <header>
+          <strong>{{ log.event }}</strong>
+          <time>{{ new Date(log.createdAt).toLocaleString() }}</time>
+        </header>
+        <p>
+          {{ log.objectType }} #{{ log.objectId }} · {{ log.actorEmail ?? 'system' }}
+        </p>
+        <code>requestId={{ log.requestId }} taskId={{ log.taskId || '—' }}</code>
+        <details>
+          <summary>查看 before / after</summary>
+          <pre>{{ JSON.stringify({ before: log.beforeData, after: log.afterData }, null, 2) }}</pre>
+        </details>
+      </article>
     </div>
   </section>
 </template>

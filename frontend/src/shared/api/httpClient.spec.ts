@@ -7,6 +7,7 @@ import {
   readRequestId,
   setAccessTokenProvider,
   setRefreshHandler,
+  setTenantIdProvider,
 } from '@/shared/api/httpClient'
 
 function response(overrides: Partial<AxiosResponse> = {}): AxiosResponse {
@@ -178,6 +179,7 @@ describe('HTTP client authentication flow', () => {
   afterEach(() => {
     httpClient.defaults.adapter = originalAdapter
     setAccessTokenProvider(() => null)
+    setTenantIdProvider(() => null)
     setRefreshHandler(null)
   })
 
@@ -194,6 +196,21 @@ describe('HTTP client authentication flow', () => {
     const result = await httpClient.get('/protected')
 
     expect(result.config.headers.Authorization).toBe('Bearer memory-access')
+  })
+
+  it('injects the selected tenant scope header', async () => {
+    setTenantIdProvider(() => 'tenant-42')
+    httpClient.defaults.adapter = (async (config) => ({
+      data: { code: 'SUCCESS', message: 'ok', data: {}, requestId: 'req_scope' },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config,
+    })) as AxiosAdapter
+
+    const result = await httpClient.get('/protected')
+
+    expect(result.config.headers['X-Tenant-ID']).toBe('tenant-42')
   })
 
   it('merges concurrent 401 responses into one refresh then replays both', async () => {

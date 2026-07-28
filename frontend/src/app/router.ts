@@ -7,6 +7,7 @@ import {
 } from 'vue-router'
 
 import { useAuthStore } from '@/features/auth/stores/auth'
+
 export const routes: RouteRecordRaw[] = [
   {
     path: '/',
@@ -15,67 +16,99 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: '账号工作台', requiresAuth: true },
   },
   {
+    path: '/context',
+    name: 'tenant-context',
+    component: () =>
+      import('@/features/tenant-context/pages/TenantContextPage.vue'),
+    meta: { title: '卖家空间', requiresAuth: true },
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('@/features/auth/pages/LoginPage.vue'),
     meta: { title: '登录', guestOnly: true },
   },
   {
+    path: '/reports/imports',
+    name: 'report-imports',
+    component: () =>
+      import('@/features/reports/pages/ReportImportsPage.vue'),
+    meta: { title: 'Campaign 报表导入', requiresAuth: true },
+  },
+  {
+    path: '/campaigns',
+    name: 'campaign-metrics',
+    component: () =>
+      import('@/features/analytics/pages/CampaignMetricsPage.vue'),
+    meta: { title: 'Campaign 指标与异常', requiresAuth: true },
+  },
+  {
+    path: '/campaigns/:campaignId',
+    name: 'campaign-detail',
+    component: () =>
+      import('@/features/analytics/pages/CampaignDetailPage.vue'),
+    meta: { title: 'Campaign 详情与趋势', requiresAuth: true },
+  },
+  {
+    path: '/analytics/configuration',
+    name: 'analytics-configuration',
+    component: () =>
+      import('@/features/analytics/pages/AnalyticsConfigurationPage.vue'),
+    meta: { title: '目标 ACOS 与异常规则', requiresAuth: true },
+  },
+  {
     path: '/dashboard',
-    name: 'dashboard',
-    component: () => import('@/features/dashboard/pages/DashboardPage.vue'),
+    name: 'analytics-dashboard',
+    component: () => import('@/features/analytics/pages/DashboardPage.vue'),
     meta: { title: '广告工作台', requiresAuth: true },
   },
   {
-    path: '/advertising/targeting',
-    name: 'targeting-analytics',
-    component: () => import('@/features/targeting/pages/TargetingAnalyticsPage.vue'),
-    meta: { title: 'Targeting 分析', requiresAuth: true },
-  },
-  {
-    path: '/advertising/search-terms',
-    name: 'search-term-analytics',
+    path: '/targeting',
+    name: 'targeting-metrics',
     component: () =>
-      import('@/features/search-terms/pages/SearchTermAnalyticsPage.vue'),
-    meta: { title: 'Search Term 分析', requiresAuth: true },
+      import('@/features/analytics/pages/TargetingMetricsPage.vue'),
+    meta: { title: 'Targeting 指标', requiresAuth: true },
   },
   {
-    path: '/reports',
-    name: 'reports',
-    component: () => import('@/features/reports/pages/ReportCenterPage.vue'),
-    meta: { title: '数据中心', requiresAuth: true },
-  },
-  {
-    path: '/optimization',
-    name: 'optimization',
+    path: '/search-terms',
+    name: 'search-term-metrics',
     component: () =>
-      import('@/features/optimization/pages/OptimizationWorkflowPage.vue'),
-    meta: { title: '优化工作流', requiresAuth: true },
+      import('@/features/analytics/pages/SearchTermMetricsPage.vue'),
+    meta: { title: 'Search Term 指标', requiresAuth: true },
   },
   {
-    path: '/knowledge',
-    name: 'knowledge',
-    component: () => import('@/features/knowledge/pages/KnowledgePage.vue'),
-    meta: { title: '知识库', requiresAuth: true },
+    path: '/analysis',
+    name: 'analysis-recommendations',
+    component: () =>
+      import('@/features/analysis/pages/AnalysisRecommendationsPage.vue'),
+    meta: { title: 'AI 分析与建议', requiresAuth: true },
+  },
+  {
+    path: '/actions',
+    name: 'approval-execution',
+    component: () =>
+      import('@/features/actions/pages/ApprovalExecutionPage.vue'),
+    meta: { title: '审批与执行', requiresAuth: true },
   },
   {
     path: '/audit',
-    name: 'audit',
+    name: 'audit-log',
     component: () => import('@/features/audit/pages/AuditLogPage.vue'),
     meta: { title: '审计日志', requiresAuth: true },
   },
   {
-    path: '/seller-context',
-    name: 'seller-context',
+    path: '/knowledge',
+    name: 'knowledge-center',
     component: () =>
-      import('@/features/tenant-context/pages/SellerContextPage.vue'),
-    meta: { title: '卖家空间', requiresAuth: true },
+      import('@/features/knowledge/pages/KnowledgeCenterPage.vue'),
+    meta: { title: '知识中心', requiresAuth: true },
   },
   {
-    path: '/system/roles',
-    name: 'role-management',
-    component: () => import('@/features/system/pages/RoleManagementPage.vue'),
-    meta: { title: '角色与权限', requiresAuth: true },
+    path: '/system',
+    name: 'system-management',
+    component: () =>
+      import('@/features/system/pages/RoleManagementPage.vue'),
+    meta: { title: '系统管理', requiresAuth: true },
   },
   {
     path: '/diagnostics/health',
@@ -83,18 +116,6 @@ export const routes: RouteRecordRaw[] = [
     component: () =>
       import('@/features/diagnostics/pages/HealthDiagnosticsPage.vue'),
     meta: { title: '运行诊断' },
-  },
-  {
-    path: '/advertising/campaigns',
-    name: 'campaigns',
-    component: () => import('@/features/campaigns/pages/CampaignsPage.vue'),
-    meta: { title: 'Campaign', requiresAuth: true },
-  },
-  {
-    path: '/actions',
-    name: 'actions',
-    component: () => import('@/features/actions/pages/ActionCenterPage.vue'),
-    meta: { title: '审批执行', requiresAuth: true },
   },
 ]
 

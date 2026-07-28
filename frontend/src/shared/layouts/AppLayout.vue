@@ -3,24 +3,29 @@ import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/features/auth/stores/auth'
-import { useTenantContextStore } from '@/features/tenant-context/stores/context'
+import { useTenantContextStore } from '@/features/tenant-context/stores/tenantContext'
 
 const authStore = useAuthStore()
-const contextStore = useTenantContextStore()
+const tenantContextStore = useTenantContextStore()
 const router = useRouter()
 const loggingOut = ref(false)
-const permissions = computed(() => new Set(contextStore.permissionCodes))
-const hasContext = computed(() => Boolean(contextStore.selectedTenantId))
+const permissions = computed(
+  () => new Set(tenantContextStore.permissionCodes),
+)
+const hasTenantContext = computed(() => Boolean(tenantContextStore.tenantId))
 
 function can(...codes: string[]): boolean {
-  return !hasContext.value || codes.some((code) => permissions.value.has(code))
+  return (
+    !hasTenantContext.value ||
+    codes.some((code) => permissions.value.has(code))
+  )
 }
 
 watch(
   () => authStore.currentUser,
   (user) => {
-    if (user && contextStore.tenants.length === 0 && !contextStore.loading) {
-      void contextStore.initialize().catch(() => undefined)
+    if (user && tenantContextStore.status === 'idle') {
+      void tenantContextStore.initialize()
     }
   },
   { immediate: true },
@@ -30,7 +35,7 @@ async function performLogout(): Promise<void> {
   loggingOut.value = true
   try {
     await authStore.logout()
-    contextStore.clear()
+    tenantContextStore.clear()
     await router.replace({ name: 'login' })
   } finally {
     loggingOut.value = false
@@ -43,7 +48,7 @@ async function performLogout(): Promise<void> {
     <header class="topbar">
       <div>
         <p class="eyebrow">AMAZON ADS OPTIMIZER</p>
-        <h1>Amazon 广告智能优化系统</h1>
+        <h1>Amazon 广告智能优化</h1>
       </div>
       <div class="account-actions">
         <span class="phase-badge">V1</span>
@@ -65,8 +70,8 @@ async function performLogout(): Promise<void> {
     <nav class="nav" aria-label="平台导航">
       <RouterLink v-if="authStore.currentUser" to="/">工作台</RouterLink>
       <RouterLink
-        v-if="authStore.currentUser && can('reports.view', 'reports.import')"
-        to="/reports"
+        v-if="authStore.currentUser && can('reports.view', 'reports.upload')"
+        to="/reports/imports"
       >
         数据中心
       </RouterLink>
@@ -77,13 +82,19 @@ async function performLogout(): Promise<void> {
         广告分析
       </RouterLink>
       <RouterLink
-        v-if="authStore.currentUser && can('analysis.run', 'recommendations.view')"
-        to="/optimization"
+        v-if="
+          authStore.currentUser &&
+            can('analysis.run', 'recommendations.view')
+        "
+        to="/analysis"
       >
         智能优化
       </RouterLink>
       <RouterLink
-        v-if="authStore.currentUser && can('actions.submit', 'actions.approve', 'actions.execute')"
+        v-if="
+          authStore.currentUser &&
+            can('actions.operate', 'approvals.approve', 'executions.execute')
+        "
         to="/actions"
       >
         审批执行
@@ -95,8 +106,11 @@ async function performLogout(): Promise<void> {
         知识中心
       </RouterLink>
       <RouterLink
-        v-if="authStore.currentUser && can('roles.manage', 'audit.view', 'context.view')"
-        to="/system/roles"
+        v-if="
+          authStore.currentUser &&
+            can('context.view', 'rbac.manage', 'audit.view')
+        "
+        to="/system"
       >
         系统管理
       </RouterLink>

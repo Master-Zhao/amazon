@@ -21,7 +21,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/actions/execution-items/{item_id}/records": {
+    "/api/v1/access/tenants/{tenant_id}/member-roles": {
         parameters: {
             query?: never;
             header?: never;
@@ -30,30 +30,46 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["api_v1_actions_execution_items_records_create"];
+        post: operations["api_v1_access_tenants_member_roles_create"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/actions/previews": {
+    "/api/v1/access/tenants/{tenant_id}/members": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["api_v1_actions_previews_retrieve"];
+        get: operations["api_v1_access_tenants_members_list"];
         put?: never;
-        post: operations["api_v1_actions_previews_create"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/actions/previews/{preview_id}/decisions": {
+    "/api/v1/access/tenants/{tenant_id}/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["api_v1_access_tenants_permissions_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/access/tenants/{tenant_id}/profile-access": {
         parameters: {
             query?: never;
             header?: never;
@@ -62,14 +78,30 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["api_v1_actions_previews_decisions_create"];
+        post: operations["api_v1_access_tenants_profile_access_create"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/actions/previews/{preview_id}/submit": {
+    "/api/v1/access/tenants/{tenant_id}/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["api_v1_access_tenants_roles_list"];
+        put?: never;
+        post: operations["api_v1_access_tenants_roles_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/access/tenants/{tenant_id}/roles/{role_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -78,22 +110,188 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["api_v1_actions_previews_submit_create"];
-        delete?: never;
+        post?: never;
+        delete: operations["api_v1_access_tenants_roles_destroy"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/advertising/campaigns": {
+    "/api/v1/access/tenants/{tenant_id}/roles/{role_id}/copy": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** 查询导入后的广告对象 */
-        get: operations["api_v1_advertising_campaigns_retrieve"];
+        get?: never;
+        put?: never;
+        post: operations["api_v1_access_tenants_roles_copy_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/access/tenants/{tenant_id}/store-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["api_v1_access_tenants_store_access_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/access/tenants/{tenant_id}/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["api_v1_access_tenants_teams_list"];
+        put?: never;
+        post: operations["api_v1_access_tenants_teams_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/access/tenants/{tenant_id}/teams/{team_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["api_v1_access_tenants_teams_members_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/actions/tenants/{tenant_id}/previews/{preview_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record one append-only approval decision */
+        post: operations["api_v1_actions_tenants_previews_decision_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/actions/tenants/{tenant_id}/previews/{preview_id}/evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Append a basic post-execution effect evaluation */
+        post: operations["api_v1_actions_tenants_previews_evaluations_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/actions/tenants/{tenant_id}/previews/{preview_id}/executions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Backfill one manual Amazon console execution result */
+        post: operations["api_v1_actions_tenants_previews_executions_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/actions/tenants/{tenant_id}/previews/{preview_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit a DRAFT Action Preview for single-level approval */
+        post: operations["api_v1_actions_tenants_previews_submit_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/actions/tenants/{tenant_id}/previews/{preview_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Append a revised immutable version after RETURNED */
+        post: operations["api_v1_actions_tenants_previews_versions_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/actions/tenants/{tenant_id}/previews/{preview_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw a creator-owned Action Preview */
+        post: operations["api_v1_actions_tenants_previews_withdraw_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/actions/tenants/{tenant_id}/profiles/{profile_id}/previews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Action Previews, approvals and manual execution records */
+        get: operations["api_v1_actions_tenants_profiles_previews_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -102,15 +300,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/advertising/search-terms": {
+    "/api/v1/actions/tenants/{tenant_id}/recommendations/{recommendation_id}/previews": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** 查询导入后的广告对象 */
-        get: operations["api_v1_advertising_search_terms_retrieve"];
+        get?: never;
+        put?: never;
+        /** Create an immutable Action Preview version from a Recommendation */
+        post: operations["api_v1_actions_tenants_recommendations_previews_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/advertising/tenants/{tenant_id}/profiles/{profile_id}/campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List normalized Sponsored Products Campaign entities */
+        get: operations["api_v1_advertising_tenants_profiles_campaigns_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -119,15 +334,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/advertising/targeting": {
+    "/api/v1/advertising/tenants/{tenant_id}/profiles/{profile_id}/search-terms": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** 查询导入后的广告对象 */
-        get: operations["api_v1_advertising_targeting_retrieve"];
+        /** List normalized customer Search Term entities */
+        get: operations["api_v1_advertising_tenants_profiles_search_terms_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -136,30 +351,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/analysis/tasks": {
+    "/api/v1/advertising/tenants/{tenant_id}/profiles/{profile_id}/targeting": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["analysis_task_list"];
-        put?: never;
-        post: operations["api_v1_analysis_tasks_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/analysis/tasks/{task_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["analysis_task_retrieve"];
+        /** List normalized Keyword and Product Target entities */
+        get: operations["api_v1_advertising_tenants_profiles_targeting_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -168,15 +368,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/analytics/dashboard": {
+    "/api/v1/analysis/tenants/{tenant_id}/profiles/{profile_id}/runs": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** 查询独立权威粒度广告指标 */
-        get: operations["api_v1_analytics_dashboard_retrieve"];
+        /** List AI analysis runs for an AdvertisingProfile */
+        get: operations["api_v1_analysis_tenants_profiles_runs_list"];
+        put?: never;
+        /** Queue a four-agent analysis using MockLLMProvider */
+        post: operations["api_v1_analysis_tenants_profiles_runs_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List authoritative Campaign daily metrics and deterministic anomalies */
+        get: operations["api_v1_analytics_tenants_profiles_campaigns_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -185,15 +403,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/analytics/search-terms": {
+    "/api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/campaigns/{campaign_id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** 查询独立权威粒度广告指标 */
-        get: operations["api_v1_analytics_search_terms_retrieve"];
+        /** Get Campaign detail and daily trend */
+        get: operations["api_v1_analytics_tenants_profiles_campaigns_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -202,15 +420,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/analytics/targeting": {
+    "/api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/configuration": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** 查询独立权威粒度广告指标 */
-        get: operations["api_v1_analytics_targeting_retrieve"];
+        /** Get effective target ACOS and latest anomaly rule versions */
+        get: operations["api_v1_analytics_tenants_profiles_configuration_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -219,14 +437,100 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/audit/": {
+    "/api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/configuration/rules": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["api_v1_audit_retrieve"];
+        get?: never;
+        put?: never;
+        /** Append a scoped anomaly rule version */
+        post: operations["api_v1_analytics_tenants_profiles_configuration_rules_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/configuration/target-acos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Configure Tenant, Profile or Campaign target ACOS */
+        put: operations["api_v1_analytics_tenants_profiles_configuration_target_acos_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Campaign-grain dashboard groups without cross-currency totals */
+        get: operations["api_v1_analytics_tenants_profiles_dashboard_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/search-terms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List authoritative Search Term daily metrics */
+        get: operations["api_v1_analytics_tenants_profiles_search_terms_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/targeting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List authoritative Targeting daily metrics */
+        get: operations["api_v1_analytics_tenants_profiles_targeting_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit/tenants/{tenant_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List append-only business audit events */
+        get: operations["api_v1_audit_tenants_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -322,8 +626,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 获取当前用户可访问卖家空间 */
-        get: operations["api_v1_context_tenants_retrieve"];
+        /** 获取当前用户可进入的卖家空间 */
+        get: operations["api_v1_context_tenants_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/context/tenants/{tenant_id}/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 获取当前卖家空间的功能权限和 Membership 角色 */
+        get: operations["api_v1_context_tenants_capabilities_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -339,8 +660,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 获取站点范围内可访问广告 Profile */
-        get: operations["api_v1_context_tenants_store_marketplaces_profiles_retrieve"];
+        /** 获取 StoreMarketplace 下可访问的 AdvertisingProfile */
+        get: operations["api_v1_context_tenants_store_marketplaces_profiles_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -356,8 +677,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 获取卖家空间可访问店铺 */
-        get: operations["api_v1_context_tenants_stores_retrieve"];
+        /** 获取卖家空间内可访问的店铺 */
+        get: operations["api_v1_context_tenants_stores_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -373,8 +694,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 获取店铺站点范围 */
-        get: operations["api_v1_context_tenants_stores_marketplaces_retrieve"];
+        /** 获取店铺的 Marketplace 关联 */
+        get: operations["api_v1_context_tenants_stores_marketplaces_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -399,15 +720,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/permissions/": {
+    "/api/v1/permissions/tenants/{tenant_id}/permissions": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** 获取固定功能权限目录 */
-        get: operations["api_v1_permissions_retrieve"];
+        get: operations["api_v1_permissions_tenants_permissions_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -416,7 +736,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/permissions/profiles/{profile_id}/user-grants": {
+    "/api/v1/permissions/tenants/{tenant_id}/profile-access": {
         parameters: {
             query?: never;
             header?: never;
@@ -425,33 +745,30 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 给 Tenant 成员授予 Profile 操作等级 */
-        post: operations["api_v1_permissions_profiles_user_grants_create"];
+        post: operations["api_v1_permissions_tenants_profile_access_create"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/permissions/roles": {
+    "/api/v1/permissions/tenants/{tenant_id}/roles": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** 获取系统和当前卖家空间角色 */
-        get: operations["api_v1_permissions_roles_retrieve"];
+        get: operations["api_v1_permissions_tenants_roles_list"];
         put?: never;
-        /** 创建 Tenant 自定义角色 */
-        post: operations["api_v1_permissions_roles_create"];
+        post: operations["api_v1_permissions_tenants_roles_create"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/permissions/roles/{role_id}/assignments": {
+    "/api/v1/permissions/tenants/{tenant_id}/roles/{role_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -460,15 +777,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 给 Tenant 成员分配角色 */
-        post: operations["api_v1_permissions_roles_assignments_create"];
-        delete?: never;
+        post?: never;
+        delete: operations["api_v1_permissions_tenants_roles_destroy"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/permissions/stores/{store_id}/user-grants": {
+    "/api/v1/permissions/tenants/{tenant_id}/roles/{role_id}/copy": {
         parameters: {
             query?: never;
             header?: never;
@@ -477,22 +793,73 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 给 Tenant 成员授予店铺范围 */
-        post: operations["api_v1_permissions_stores_user_grants_create"];
+        post: operations["api_v1_permissions_tenants_roles_copy_create"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/recommendations/": {
+    "/api/v1/permissions/tenants/{tenant_id}/store-access": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["api_v1_recommendations_retrieve"];
+        get?: never;
+        put?: never;
+        post: operations["api_v1_permissions_tenants_store_access_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/tenants/{tenant_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tenant products with ASIN/SKU listings */
+        get: operations["api_v1_products_tenants_list"];
+        put?: never;
+        /** Create a Tenant product and its first listing */
+        post: operations["api_v1_products_tenants_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/tenants/{tenant_id}/{product_id}/listings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add another StoreMarketplace SKU/ASIN listing to a product */
+        post: operations["api_v1_products_tenants_listings_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recommendations/tenants/{tenant_id}/profiles/{profile_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List validated structured Recommendations */
+        get: operations["api_v1_recommendations_tenants_profiles_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -501,15 +868,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/reports/tasks/{task_id}": {
+    "/api/v1/reports/tenants/{tenant_id}/profiles/{profile_id}/tasks": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** 查看导入任务、批次计数和行级错误 */
-        get: operations["api_v1_reports_tasks_retrieve"];
+        /** List import tasks for an AdvertisingProfile */
+        get: operations["api_v1_reports_tenants_profiles_tasks_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -518,7 +885,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/reports/tasks/{task_id}/reprocess": {
+    "/api/v1/reports/tenants/{tenant_id}/profiles/{profile_id}/uploads": {
         parameters: {
             query?: never;
             header?: never;
@@ -527,25 +894,76 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 重处理历史 Upload 并创建新 Task/Batch */
-        post: operations["api_v1_reports_tasks_reprocess_create"];
+        /** Upload a report and enqueue its asynchronous import */
+        post: operations["api_v1_reports_tenants_profiles_uploads_create"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/reports/uploads": {
+    "/api/v1/reports/tenants/{tenant_id}/tasks/{task_id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["api_v1_reports_uploads_retrieve"];
+        /** Get import task status and counters */
+        get: operations["api_v1_reports_tenants_tasks_retrieve"];
         put?: never;
-        /** 上传三类广告报表并创建异步导入任务 */
-        post: operations["api_v1_reports_uploads_create"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/tenants/{tenant_id}/tasks/{task_id}/errors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List row-level import errors */
+        get: operations["api_v1_reports_tenants_tasks_errors_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/tenants/{tenant_id}/tasks/{task_id}/reprocess": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a new append-only import attempt from an existing upload */
+        post: operations["api_v1_reports_tenants_tasks_reprocess_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/tenants/{tenant_id}/tasks/{task_id}/source": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download the authorized original report source */
+        get: operations["api_v1_reports_tenants_tasks_source_retrieve"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -590,6 +1008,15 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description * `VIEW` - VIEW
+         *     * `OPERATE` - OPERATE
+         *     * `APPROVE` - APPROVE
+         *     * `EXECUTE` - EXECUTE
+         *     * `MANAGE` - MANAGE
+         * @enum {string}
+         */
+        AccessLevelEnum: "VIEW" | "OPERATE" | "APPROVE" | "EXECUTE" | "MANAGE";
         AccessTokenResponse: {
             code: string;
             message: string;
@@ -599,20 +1026,168 @@ export interface components {
         AccessTokenResult: {
             accessToken: string;
         };
-        AnalysisCreateRequest: {
-            /** Format: uuid */
-            tenant_id: string;
-            /** Format: uuid */
-            profile_id: string;
+        ActionPreview: {
+            readonly id: number;
+            status?: components["schemas"]["ActionPreviewStatusEnum"];
+            campaign_name: string;
+            action_type: string;
+            /** Format: email */
+            created_by_email: string;
+            /** Format: email */
+            submitted_by_email: string | null;
+            /** Format: int64 */
+            current_version_number?: number;
+            readonly current_version: components["schemas"]["ActionPreviewVersion"];
+            readonly approvals: components["schemas"]["ApprovalRecord"][];
+            readonly executions: components["schemas"]["ExecutionRecord"][];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
         };
-        AssignmentData: {
+        /**
+         * @description * `DRAFT` - Draft
+         *     * `PENDING_APPROVAL` - Pending approval
+         *     * `APPROVED` - Approved
+         *     * `REJECTED` - Rejected
+         *     * `RETURNED` - Returned
+         *     * `WITHDRAWN` - Withdrawn
+         * @enum {string}
+         */
+        ActionPreviewStatusEnum: "DRAFT" | "PENDING_APPROVAL" | "APPROVED" | "REJECTED" | "RETURNED" | "WITHDRAWN";
+        ActionPreviewVersion: {
+            readonly id: number;
+            /** Format: int64 */
+            version_number: number;
+            action_payload: unknown;
+            object_state_version: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        /**
+         * @description * `UPDATE_CAMPAIGN_BUDGET` - Update Campaign budget
+         *     * `ENABLE_CAMPAIGN` - Enable Campaign
+         *     * `PAUSE_CAMPAIGN` - Pause Campaign
+         *     * `SET_CAMPAIGN_STATE` - Pause or enable Campaign
+         *     * `UPDATE_KEYWORD_BID` - Update Keyword bid
+         *     * `ENABLE_KEYWORD` - Enable Keyword
+         *     * `PAUSE_KEYWORD` - Pause Keyword
+         *     * `SET_KEYWORD_STATE` - Pause or enable Keyword
+         *     * `UPDATE_TARGET_BID` - Update Target bid
+         *     * `ENABLE_TARGET` - Enable Target
+         *     * `PAUSE_TARGET` - Pause Target
+         *     * `UPDATE_PRODUCT_TARGET_BID` - Update Product Target bid
+         *     * `SET_PRODUCT_TARGET_STATE` - Pause or enable Product Target
+         *     * `ADD_KEYWORD` - Add Keyword
+         *     * `CREATE_KEYWORD` - Create Keyword (legacy)
+         *     * `ADD_NEGATIVE_KEYWORD` - Add Negative Keyword
+         *     * `CREATE_NEGATIVE_KEYWORD` - Create Negative Keyword (legacy)
+         * @enum {string}
+         */
+        ActionTypeEnum: "UPDATE_CAMPAIGN_BUDGET" | "ENABLE_CAMPAIGN" | "PAUSE_CAMPAIGN" | "SET_CAMPAIGN_STATE" | "UPDATE_KEYWORD_BID" | "ENABLE_KEYWORD" | "PAUSE_KEYWORD" | "SET_KEYWORD_STATE" | "UPDATE_TARGET_BID" | "ENABLE_TARGET" | "PAUSE_TARGET" | "UPDATE_PRODUCT_TARGET_BID" | "SET_PRODUCT_TARGET_STATE" | "ADD_KEYWORD" | "CREATE_KEYWORD" | "ADD_NEGATIVE_KEYWORD" | "CREATE_NEGATIVE_KEYWORD";
+        AddTeamMemberRequest: {
+            membership_id: string;
+        };
+        /**
+         * @description * `DATA_ANALYSIS` - Data analysis
+         *     * `ANOMALY_DIAGNOSIS` - Anomaly diagnosis
+         *     * `BUDGET_ANALYSIS` - Budget analysis
+         *     * `COMPOSITE_STRATEGY` - Composite strategy
+         * @enum {string}
+         */
+        AgentCodeEnum: "DATA_ANALYSIS" | "ANOMALY_DIAGNOSIS" | "BUDGET_ANALYSIS" | "COMPOSITE_STRATEGY";
+        AgentRun: {
+            readonly id: number;
+            agent_code?: components["schemas"]["AgentCodeEnum"];
+            status?: components["schemas"]["AgentRunStatusEnum"];
+            schema_version?: string;
+            celery_task_id: string;
+            output_result?: unknown;
+            error_code?: string;
+            error_message?: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            started_at?: string | null;
+            /** Format: date-time */
+            finished_at?: string | null;
+        };
+        /**
+         * @description * `QUEUED` - Queued
+         *     * `RUNNING` - Running
+         *     * `SUCCEEDED` - Succeeded
+         *     * `FAILED` - Failed
+         * @enum {string}
+         */
+        AgentRunStatusEnum: "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED";
+        AnalyticsConfiguration: {
+            tenant_target_acos: string | null;
+            profile_target_acos: string | null;
+            campaigns: components["schemas"]["CampaignTargetAcos"][];
+            rules: components["schemas"]["AnomalyRuleVersion"][];
+        };
+        Anomaly: {
             id: string;
+            rule_code: string;
+            rule_version: number;
+            status: string;
+            risk_level: string | null;
+            observed_value: string | null;
+            threshold_value: string | null;
+            reason_code: string;
+            explanation: string;
         };
-        AssignmentResponse: {
+        AnomalyRuleCreateRequest: {
             code: string;
-            message: string;
-            data: components["schemas"]["AssignmentData"];
-            requestId: string;
+            scope_type: components["schemas"]["ScopeTypeEnum"];
+            campaign_id?: string | null;
+            configuration: {
+                [key: string]: unknown;
+            };
+        };
+        AnomalyRuleVersion: {
+            id: string;
+            code: string;
+            version: number;
+            scope_key: string;
+            configuration: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            created_at: string;
+        };
+        ApprovalDecisionRequestRequest: {
+            decision: components["schemas"]["DecisionEnum"];
+            comment?: string;
+            idempotency_key: string;
+        };
+        ApprovalRecord: {
+            readonly id: number;
+            decision: components["schemas"]["DecisionEnum"];
+            comment?: string;
+            /** Format: email */
+            decided_by_email: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        AssignRoleRequest: {
+            membership_id: string;
+            role_id: string;
+        };
+        AuditLog: {
+            readonly id: number;
+            event: string;
+            object_type?: string;
+            object_id?: string;
+            request_id: string;
+            task_id?: string;
+            /** Format: email */
+            actor_email: string | null;
+            before_data?: unknown;
+            after_data?: unknown;
+            metadata?: unknown;
+            /** Format: date-time */
+            readonly created_at: string;
         };
         AuthenticatedUser: {
             id: string;
@@ -622,48 +1197,196 @@ export interface components {
             firstName: string;
             lastName: string;
         };
+        CampaignDetail: {
+            campaign_id: string;
+            external_campaign_id: string;
+            campaign_name: string;
+            state: string;
+            target_acos: string | null;
+            metrics: components["schemas"]["CampaignMetricRow"][];
+        };
+        CampaignMetricRow: {
+            id: string;
+            campaign_id: string;
+            external_campaign_id: string;
+            campaign_name: string;
+            /** Format: date */
+            report_date: string;
+            currency_code: string;
+            impressions: number;
+            clicks: number;
+            spend: string;
+            orders: number;
+            sales: string;
+            calculation_reasons: {
+                [key: string]: unknown;
+            };
+            daily_budget_snapshot: string | null;
+            snapshot_hour_local: number | null;
+            state_snapshot: string;
+            target_acos: string | null;
+            ctr: components["schemas"]["FormulaValue"];
+            cpc: components["schemas"]["FormulaValue"];
+            cvr: components["schemas"]["FormulaValue"];
+            acos: components["schemas"]["FormulaValue"];
+            roas: components["schemas"]["FormulaValue"];
+            source_batch_id: string;
+            anomalies: components["schemas"]["Anomaly"][];
+        };
+        CampaignRow: {
+            id: string;
+            external_campaign_id: string;
+            name: string;
+            ad_product_type: string;
+            state: string;
+            daily_budget: string | null;
+            currency_code: string;
+            source_batch_id: string | null;
+        };
+        CampaignTargetAcos: {
+            campaign_id: string;
+            campaign_name: string;
+            target_acos: string | null;
+            effective_target_acos: string | null;
+        };
+        ContextCapabilities: {
+            permissionCodes: string[];
+            membershipRole: string;
+        };
+        CopyRoleRequest: {
+            name: string;
+            code: string;
+        };
+        CreateRoleRequest: {
+            name: string;
+            code: string;
+            permission_codes: string[];
+        };
+        CreateTeamRequest: {
+            name: string;
+        };
         CurrentUserResponse: {
             code: string;
             message: string;
             data: components["schemas"]["AuthenticatedUser"];
             requestId: string;
         };
+        DashboardRow: {
+            marketplace_code: string;
+            marketplace_name: string;
+            currency_code: string;
+            campaign_count: number;
+            impressions: number;
+            clicks: number;
+            spend: string;
+            orders: number;
+            sales: string;
+            ctr: components["schemas"]["FormulaValue"];
+            cpc: components["schemas"]["FormulaValue"];
+            cvr: components["schemas"]["FormulaValue"];
+            acos: components["schemas"]["FormulaValue"];
+            roas: components["schemas"]["FormulaValue"];
+            anomaly_count: number;
+            authoritative_grain: string;
+        };
         /**
-         * @description * `APPROVED` - APPROVED
-         *     * `REJECTED` - REJECTED
-         *     * `RETURNED` - RETURNED
+         * @description * `APPROVED` - Approved
+         *     * `REJECTED` - Rejected
+         *     * `RETURNED` - Returned
          * @enum {string}
          */
         DecisionEnum: "APPROVED" | "REJECTED" | "RETURNED";
-        DecisionRequest: {
-            decision: components["schemas"]["DecisionEnum"];
-            /** @default  */
-            comment: string;
+        EffectEvaluation: {
+            readonly id: number;
+            status: string;
+            /** Format: date */
+            baseline_start: string;
+            /** Format: date */
+            baseline_end: string;
+            /** Format: date */
+            observation_start: string;
+            /** Format: date */
+            observation_end: string;
+            idempotency_key: string;
+            result?: unknown;
+            reason_code?: string;
+            error_message?: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            started_at?: string | null;
+            /** Format: date-time */
+            finished_at?: string | null;
+        };
+        EffectEvaluationRequestRequest: {
+            execution_record_id: string;
+            observed?: unknown;
+            evaluation_key: string;
         };
         EmptyResponse: {
             code: string;
             message: string;
             requestId: string;
         };
-        ExecutionRecordRequest: {
-            result: components["schemas"]["ResultEnum"];
+        ExecutionRecord: {
+            readonly id: number;
+            outcome: components["schemas"]["OutcomeEnum"];
             actual_value?: unknown;
             /** Format: date-time */
             executed_at: string;
-            /** @default  */
-            note: string;
-            /** Format: binary */
-            evidence?: string;
+            note?: string;
+            evidence_metadata?: unknown;
+            readonly effect_evaluations: components["schemas"]["EffectEvaluation"][];
+            /** Format: email */
+            recorded_by_email: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        FormulaValue: {
+            value: string | null;
+            reason: string | null;
+        };
+        ImportRowError: {
+            readonly id: number;
+            /** Format: int64 */
+            row_number: number;
+            error_code: string;
+            message: string;
+            field_name?: string;
+            rejected_value?: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        ImportTask: {
+            readonly id: number;
+            status?: components["schemas"]["ImportTaskStatusEnum"];
+            celery_task_id?: string;
+            /** Format: int64 */
+            total_rows?: number;
+            /** Format: int64 */
+            success_rows?: number;
+            /** Format: int64 */
+            error_rows?: number;
+            error_code?: string;
+            error_message?: string;
+            reprocessed_from_id: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            started_at?: string | null;
+            /** Format: date-time */
+            finished_at?: string | null;
+            readonly upload: components["schemas"]["ReportUploadSummary"];
         };
         /**
-         * @description * `VIEW` - VIEW
-         *     * `OPERATE` - OPERATE
-         *     * `APPROVE` - APPROVE
-         *     * `EXECUTE` - EXECUTE
-         *     * `MANAGE` - MANAGE
+         * @description * `QUEUED` - Queued
+         *     * `RUNNING` - Running
+         *     * `SUCCEEDED` - Succeeded
+         *     * `PARTIAL_SUCCEEDED` - Partially succeeded
+         *     * `FAILED` - Failed
          * @enum {string}
          */
-        LevelEnum: "VIEW" | "OPERATE" | "APPROVE" | "EXECUTE" | "MANAGE";
+        ImportTaskStatusEnum: "QUEUED" | "RUNNING" | "SUCCEEDED" | "PARTIAL_SUCCEEDED" | "FAILED";
         LoginRequest: {
             /** Format: email */
             email: string;
@@ -679,175 +1402,274 @@ export interface components {
             accessToken: string;
             user: components["schemas"]["AuthenticatedUser"];
         };
+        ManualExecutionRequestRequest: {
+            outcome: components["schemas"]["OutcomeEnum"];
+            actual_value: unknown;
+            /** Format: date-time */
+            executed_at: string;
+            note?: string;
+            evidence_metadata?: unknown;
+            /** Format: binary */
+            evidence_file?: string;
+            idempotency_key: string;
+        };
         Marketplace: {
             id: string;
             code: string;
             name: string;
-            countryCode: string;
-            currency: string;
+            currencyCode: string;
             timezone: string;
         };
-        Permission: {
-            code: string;
-            name: string;
-            description: string;
-        };
-        PermissionListData: {
-            items: components["schemas"]["Permission"][];
-        };
-        PermissionListResponse: {
-            code: string;
-            message: string;
-            data: components["schemas"]["PermissionListData"];
-            requestId: string;
-        };
-        PreviewCreateRequest: {
-            /** Format: uuid */
-            tenant_id: string;
-            /** Format: uuid */
-            profile_id: string;
-            recommendation_ids: string[];
-        };
-        ProfileContext: {
+        MembershipOption: {
             id: string;
-            externalProfileId: string;
+            userId: string;
+            /** Format: email */
+            email: string;
+            membershipRole: string;
+            isActive: boolean;
+        };
+        /**
+         * @description * `SUCCEEDED` - Succeeded
+         *     * `SUCCESS` - Success (legacy)
+         *     * `FAILED` - Failed
+         *     * `SKIPPED` - Skipped
+         * @enum {string}
+         */
+        OutcomeEnum: "SUCCEEDED" | "SUCCESS" | "FAILED" | "SKIPPED";
+        PermissionOption: {
+            id: string;
+            code: string;
             name: string;
-            currency: string;
+        };
+        ProductCreateRequest: {
+            store_marketplace_id: string;
+            seller_sku: string;
+            asin?: string | null;
+            /** @default  */
+            catalog_title: string;
+            name: string;
+        };
+        ProductListingInputRequest: {
+            store_marketplace_id: string;
+            seller_sku: string;
+            asin?: string | null;
+            /** @default  */
+            catalog_title: string;
+        };
+        ProductListingRow: {
+            id: string;
+            store_marketplace_id: string;
+            store_name: string;
+            marketplace_code: string;
+            seller_sku: string;
+            asin: string | null;
+            catalog_title: string;
+            is_active: boolean;
+        };
+        ProductRow: {
+            id: string;
+            name: string;
+            is_active: boolean;
+            listings: components["schemas"]["ProductListingRow"][];
+        };
+        ProfileAccessGrantRequest: {
+            profile_id: string;
+            access_level: components["schemas"]["AccessLevelEnum"];
+            user_id?: string | null;
+            team_id?: string | null;
+        };
+        ProfileOption: {
+            id: string;
+            name: string;
+            externalProfileId: string;
+            currencyCode: string;
             timezone: string;
             accessLevel: string;
         };
-        ProfileContextResponse: {
-            code: string;
-            message: string;
-            data: components["schemas"]["ProfileContextResult"];
-            requestId: string;
+        Recommendation: {
+            readonly id: number;
+            status?: components["schemas"]["RecommendationStatusEnum"];
+            action_type: components["schemas"]["ActionTypeEnum"];
+            campaign_name: string;
+            external_campaign_id: string;
+            readonly agent_run_id: number;
+            /** Format: int64 */
+            current_revision_number?: number;
+            readonly current_revision: components["schemas"]["RecommendationRevision"];
+            /** Format: date-time */
+            readonly created_at: string;
         };
-        ProfileContextResult: {
-            items: components["schemas"]["ProfileContext"][];
+        RecommendationRevision: {
+            readonly id: number;
+            /** Format: int64 */
+            revision_number: number;
+            schema_version: string;
+            action_type: components["schemas"]["ActionTypeEnum"];
+            object_type: string;
+            object_id: string;
+            before_value?: unknown;
+            after_value?: unknown;
+            reason: string;
+            evidence?: unknown;
+            risk_level: string;
+            /** Format: date-time */
+            readonly created_at: string;
         };
         /**
-         * @description * `CAMPAIGN` - CAMPAIGN
-         *     * `TARGETING` - TARGETING
-         *     * `SEARCH_TERM` - SEARCH_TERM
+         * @description * `ACTIVE` - Active
+         *     * `SUPERSEDED` - Superseded
+         *     * `ACCEPTED` - Accepted
+         *     * `DISMISSED` - Dismissed
+         * @enum {string}
+         */
+        RecommendationStatusEnum: "ACTIVE" | "SUPERSEDED" | "ACCEPTED" | "DISMISSED";
+        /**
+         * @description * `CAMPAIGN` - Campaign
+         *     * `TARGETING` - Targeting
+         *     * `SEARCH_TERM` - Search term
          * @enum {string}
          */
         ReportTypeEnum: "CAMPAIGN" | "TARGETING" | "SEARCH_TERM";
-        ReportUploadRequest: {
-            /** Format: uuid */
-            tenantId: string;
-            /** Format: uuid */
-            profileId: string;
-            reportType: components["schemas"]["ReportTypeEnum"];
+        ReportUploadRequestRequest: {
+            report_type: components["schemas"]["ReportTypeEnum"];
             /** Format: binary */
             file: string;
         };
-        /**
-         * @description * `SUCCEEDED` - SUCCEEDED
-         *     * `FAILED` - FAILED
-         *     * `SKIPPED` - SKIPPED
-         * @enum {string}
-         */
-        ResultEnum: "SUCCEEDED" | "FAILED" | "SKIPPED";
-        Role: {
+        ReportUploadSummary: {
             id: string;
-            tenantId: string | null;
-            code: string;
+            report_type: string;
+            original_filename: string;
+            content_type: string;
+            size_bytes: number;
+            sha256: string;
+            duplicate_of_id: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ReturnedVersionRequestRequest: {
+            action_payload: unknown;
+        };
+        RoleOption: {
+            id: string;
             name: string;
+            code: string;
             isSystem: boolean;
             permissionCodes: string[];
         };
-        RoleAssignmentRequest: {
-            /** Format: uuid */
-            tenant_id: string;
-            user_id: number;
+        /**
+         * @description * `TENANT` - TENANT
+         *     * `PROFILE` - PROFILE
+         *     * `CAMPAIGN` - CAMPAIGN
+         * @enum {string}
+         */
+        ScopeTypeEnum: "TENANT" | "PROFILE" | "CAMPAIGN";
+        SearchTermMetricRow: {
+            id: string;
+            campaign_id: string;
+            campaign_name: string;
+            ad_group_id: string;
+            ad_group_name: string;
+            search_term_id: string;
+            search_term: string;
+            targeting_expression: string;
+            /** Format: date */
+            report_date: string;
+            currency_code: string;
+            impressions: number;
+            clicks: number;
+            spend: string;
+            orders: number;
+            sales: string;
+            calculation_reasons: {
+                [key: string]: unknown;
+            };
+            ctr: components["schemas"]["FormulaValue"];
+            cpc: components["schemas"]["FormulaValue"];
+            cvr: components["schemas"]["FormulaValue"];
+            acos: components["schemas"]["FormulaValue"];
+            roas: components["schemas"]["FormulaValue"];
+            source_batch_id: string;
         };
-        RoleCreateRequest: {
-            /** Format: uuid */
-            tenant_id: string;
-            code: string;
-            name: string;
-            permission_codes: string[];
+        SearchTermRow: {
+            id: string;
+            display_text: string;
+            normalized_text: string;
+            text_hash: string;
         };
-        RoleListData: {
-            items: components["schemas"]["Role"][];
+        StoreAccessGrantRequest: {
+            store_id: string;
+            user_id?: string | null;
+            team_id?: string | null;
         };
-        RoleListResponse: {
-            code: string;
-            message: string;
-            data: components["schemas"]["RoleListData"];
-            requestId: string;
+        StoreMarketplaceOption: {
+            storeMarketplaceId: string;
+            marketplace: components["schemas"]["Marketplace"];
         };
-        RoleResponse: {
-            code: string;
-            message: string;
-            data: components["schemas"]["Role"];
-            requestId: string;
-        };
-        StoreContext: {
+        StoreOption: {
             id: string;
             name: string;
             externalStoreId: string;
         };
-        StoreContextResponse: {
-            code: string;
-            message: string;
-            data: components["schemas"]["StoreContextResult"];
-            requestId: string;
+        TargetAcosUpdateRequest: {
+            scope_type: components["schemas"]["ScopeTypeEnum"];
+            campaign_id?: string | null;
+            /** Format: decimal */
+            target_acos: string | null;
         };
-        StoreContextResult: {
-            items: components["schemas"]["StoreContext"][];
-        };
-        StoreMarketplaceContext: {
+        TargetingMetricRow: {
             id: string;
-            marketplace: components["schemas"]["Marketplace"];
+            campaign_id: string;
+            campaign_name: string;
+            ad_group_id: string;
+            ad_group_name: string;
+            target_type: string;
+            target_id: string;
+            target_text: string;
+            match_type: string | null;
+            /** Format: date */
+            report_date: string;
+            currency_code: string;
+            impressions: number;
+            clicks: number;
+            spend: string;
+            orders: number;
+            sales: string;
+            calculation_reasons: {
+                [key: string]: unknown;
+            };
+            bid_snapshot: string | null;
+            state_snapshot: string;
+            ctr: components["schemas"]["FormulaValue"];
+            cpc: components["schemas"]["FormulaValue"];
+            cvr: components["schemas"]["FormulaValue"];
+            acos: components["schemas"]["FormulaValue"];
+            roas: components["schemas"]["FormulaValue"];
+            source_batch_id: string;
         };
-        StoreMarketplaceContextResponse: {
-            code: string;
-            message: string;
-            data: components["schemas"]["StoreMarketplaceContextResult"];
-            requestId: string;
+        TargetingRow: {
+            id: string;
+            target_type: string;
+            external_target_id: string;
+            target_text: string;
+            match_type: string | null;
+            state: string;
+            bid: string | null;
+            campaign_id: string;
+            campaign_name: string;
+            ad_group_id: string;
+            ad_group_name: string;
+            source_batch_id: string | null;
         };
-        StoreMarketplaceContextResult: {
-            items: components["schemas"]["StoreMarketplaceContext"][];
+        TeamOption: {
+            id: string;
+            name: string;
+            memberIds: string[];
         };
-        TaskData: {
-            taskId: string;
-            status: string;
-            isDuplicate: boolean;
-            taskUrl: string;
-        };
-        TaskResponse: {
-            code: string;
-            message: string;
-            data: components["schemas"]["TaskData"];
-            requestId: string;
-        };
-        TenantContext: {
+        TenantOption: {
             id: string;
             name: string;
             tenantType: string;
             membershipRole: string;
-            permissionCodes: string[];
-        };
-        TenantContextResponse: {
-            code: string;
-            message: string;
-            data: components["schemas"]["TenantContextResult"];
-            requestId: string;
-        };
-        TenantContextResult: {
-            items: components["schemas"]["TenantContext"][];
-        };
-        UserProfileGrantRequest: {
-            /** Format: uuid */
-            tenant_id: string;
-            user_id: number;
-            level: components["schemas"]["LevelEnum"];
-        };
-        UserStoreGrantRequest: {
-            /** Format: uuid */
-            tenant_id: string;
-            user_id: number;
         };
     };
     responses: never;
@@ -876,20 +1698,20 @@ export interface operations {
             };
         };
     };
-    api_v1_actions_execution_items_records_create: {
+    api_v1_access_tenants_member_roles_create: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                item_id: string;
+                tenant_id: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ExecutionRecordRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ExecutionRecordRequest"];
-                "multipart/form-data": components["schemas"]["ExecutionRecordRequest"];
+                "application/json": components["schemas"]["AssignRoleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AssignRoleRequest"];
+                "multipart/form-data": components["schemas"]["AssignRoleRequest"];
             };
         };
         responses: {
@@ -902,36 +1724,62 @@ export interface operations {
             };
         };
     };
-    api_v1_actions_previews_retrieve: {
+    api_v1_access_tenants_members_list: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                tenant_id: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description 动作预览与执行列表 */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["MembershipOption"][];
+                };
             };
         };
     };
-    api_v1_actions_previews_create: {
+    api_v1_access_tenants_permissions_list: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PermissionOption"][];
+                };
+            };
+        };
+    };
+    api_v1_access_tenants_profile_access_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PreviewCreateRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PreviewCreateRequest"];
-                "multipart/form-data": components["schemas"]["PreviewCreateRequest"];
+                "application/json": components["schemas"]["ProfileAccessGrantRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ProfileAccessGrantRequest"];
+                "multipart/form-data": components["schemas"]["ProfileAccessGrantRequest"];
             };
         };
         responses: {
@@ -944,25 +1792,68 @@ export interface operations {
             };
         };
     };
-    api_v1_actions_previews_decisions_create: {
+    api_v1_access_tenants_roles_list: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                preview_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleOption"][];
+                };
+            };
+        };
+    };
+    api_v1_access_tenants_roles_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DecisionRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["DecisionRequest"];
-                "multipart/form-data": components["schemas"]["DecisionRequest"];
+                "application/json": components["schemas"]["CreateRoleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CreateRoleRequest"];
+                "multipart/form-data": components["schemas"]["CreateRoleRequest"];
             };
         };
         responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleOption"];
+                };
+            };
+        };
+    };
+    api_v1_access_tenants_roles_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                role_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
             /** @description No response body */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -970,211 +1861,669 @@ export interface operations {
             };
         };
     };
-    api_v1_actions_previews_submit_create: {
+    api_v1_access_tenants_roles_copy_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                role_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CopyRoleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CopyRoleRequest"];
+                "multipart/form-data": components["schemas"]["CopyRoleRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleOption"];
+                };
+            };
+        };
+    };
+    api_v1_access_tenants_store_access_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreAccessGrantRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StoreAccessGrantRequest"];
+                "multipart/form-data": components["schemas"]["StoreAccessGrantRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_access_tenants_teams_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamOption"][];
+                };
+            };
+        };
+    };
+    api_v1_access_tenants_teams_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTeamRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CreateTeamRequest"];
+                "multipart/form-data": components["schemas"]["CreateTeamRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamOption"];
+                };
+            };
+        };
+    };
+    api_v1_access_tenants_teams_members_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddTeamMemberRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AddTeamMemberRequest"];
+                "multipart/form-data": components["schemas"]["AddTeamMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_actions_tenants_previews_decision_create: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 preview_id: string;
+                tenant_id: string;
             };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    api_v1_advertising_campaigns_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 广告对象列表 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    api_v1_advertising_search_terms_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 广告对象列表 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    api_v1_advertising_targeting_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 广告对象列表 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    analysis_task_list: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 分析任务列表 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    api_v1_analysis_tasks_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AnalysisCreateRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["AnalysisCreateRequest"];
-                "multipart/form-data": components["schemas"]["AnalysisCreateRequest"];
+                "application/json": components["schemas"]["ApprovalDecisionRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ApprovalDecisionRequestRequest"];
+                "multipart/form-data": components["schemas"]["ApprovalDecisionRequestRequest"];
             };
         };
         responses: {
-            /** @description 分析任务 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionPreview"];
+                };
+            };
+        };
+    };
+    api_v1_actions_tenants_previews_evaluations_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preview_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EffectEvaluationRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["EffectEvaluationRequestRequest"];
+                "multipart/form-data": components["schemas"]["EffectEvaluationRequestRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EffectEvaluation"];
+                };
+            };
+        };
+    };
+    api_v1_actions_tenants_previews_executions_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preview_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualExecutionRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ManualExecutionRequestRequest"];
+                "multipart/form-data": components["schemas"]["ManualExecutionRequestRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionPreview"];
+                };
+            };
+        };
+    };
+    api_v1_actions_tenants_previews_submit_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preview_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionPreview"];
+                };
+            };
+        };
+    };
+    api_v1_actions_tenants_previews_versions_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preview_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReturnedVersionRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ReturnedVersionRequestRequest"];
+                "multipart/form-data": components["schemas"]["ReturnedVersionRequestRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionPreview"];
+                };
+            };
+        };
+    };
+    api_v1_actions_tenants_previews_withdraw_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preview_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionPreview"];
+                };
+            };
+        };
+    };
+    api_v1_actions_tenants_profiles_previews_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionPreview"][];
+                };
+            };
+        };
+    };
+    api_v1_actions_tenants_recommendations_previews_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recommendation_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionPreview"];
+                };
+            };
+        };
+    };
+    api_v1_advertising_tenants_profiles_campaigns_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignRow"][];
+                };
+            };
+        };
+    };
+    api_v1_advertising_tenants_profiles_search_terms_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchTermRow"][];
+                };
+            };
+        };
+    };
+    api_v1_advertising_tenants_profiles_targeting_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TargetingRow"][];
+                };
+            };
+        };
+    };
+    api_v1_analysis_tenants_profiles_runs_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRun"][];
+                };
+            };
+        };
+    };
+    api_v1_analysis_tenants_profiles_runs_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
             202: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["AgentRun"];
+                };
             };
         };
     };
-    analysis_task_retrieve: {
+    api_v1_analytics_tenants_profiles_campaigns_list: {
+        parameters: {
+            query?: {
+                endDate?: string;
+                startDate?: string;
+            };
+            header?: never;
+            path: {
+                profile_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignMetricRow"][];
+                };
+            };
+        };
+    };
+    api_v1_analytics_tenants_profiles_campaigns_retrieve: {
+        parameters: {
+            query?: {
+                endDate?: string;
+                startDate?: string;
+            };
+            header?: never;
+            path: {
+                campaign_id: string;
+                profile_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignDetail"];
+                };
+            };
+        };
+    };
+    api_v1_analytics_tenants_profiles_configuration_retrieve: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                task_id: string;
+                profile_id: string;
+                tenant_id: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description 分析结果 */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
-            };
-        };
-    };
-    api_v1_analytics_dashboard_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 指标与异常 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
+                content: {
+                    "application/json": components["schemas"]["AnalyticsConfiguration"];
                 };
-                content?: never;
             };
         };
     };
-    api_v1_analytics_search_terms_retrieve: {
+    api_v1_analytics_tenants_profiles_configuration_rules_create: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                profile_id: string;
+                tenant_id: string;
+            };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnomalyRuleCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AnomalyRuleCreateRequest"];
+                "multipart/form-data": components["schemas"]["AnomalyRuleCreateRequest"];
+            };
+        };
         responses: {
-            /** @description 指标与异常 */
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["AnomalyRuleVersion"];
+                };
             };
         };
     };
-    api_v1_analytics_targeting_retrieve: {
+    api_v1_analytics_tenants_profiles_configuration_target_acos_update: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                profile_id: string;
+                tenant_id: string;
+            };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TargetAcosUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TargetAcosUpdateRequest"];
+                "multipart/form-data": components["schemas"]["TargetAcosUpdateRequest"];
+            };
+        };
         responses: {
-            /** @description 指标与异常 */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["AnalyticsConfiguration"];
+                };
             };
         };
     };
-    api_v1_audit_retrieve: {
+    api_v1_analytics_tenants_profiles_dashboard_list: {
         parameters: {
-            query?: never;
+            query?: {
+                endDate?: string;
+                startDate?: string;
+            };
             header?: never;
-            path?: never;
+            path: {
+                profile_id: string;
+                tenant_id: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description 审计日志 */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["DashboardRow"][];
+                };
+            };
+        };
+    };
+    api_v1_analytics_tenants_profiles_search_terms_list: {
+        parameters: {
+            query?: {
+                endDate?: string;
+                startDate?: string;
+            };
+            header?: never;
+            path: {
+                profile_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchTermMetricRow"][];
+                };
+            };
+        };
+    };
+    api_v1_analytics_tenants_profiles_targeting_list: {
+        parameters: {
+            query?: {
+                endDate?: string;
+                startDate?: string;
+            };
+            header?: never;
+            path: {
+                profile_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TargetingMetricRow"][];
+                };
+            };
+        };
+    };
+    api_v1_audit_tenants_list: {
+        parameters: {
+            query?: {
+                event?: string;
+            };
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLog"][];
+                };
             };
         };
     };
@@ -1267,7 +2616,7 @@ export interface operations {
             };
         };
     };
-    api_v1_context_tenants_retrieve: {
+    api_v1_context_tenants_list: {
         parameters: {
             query?: never;
             header?: never;
@@ -1281,12 +2630,33 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TenantContextResponse"];
+                    "application/json": components["schemas"]["TenantOption"][];
                 };
             };
         };
     };
-    api_v1_context_tenants_store_marketplaces_profiles_retrieve: {
+    api_v1_context_tenants_capabilities_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextCapabilities"];
+                };
+            };
+        };
+    };
+    api_v1_context_tenants_store_marketplaces_profiles_list: {
         parameters: {
             query?: never;
             header?: never;
@@ -1303,12 +2673,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProfileContextResponse"];
+                    "application/json": components["schemas"]["ProfileOption"][];
                 };
             };
         };
     };
-    api_v1_context_tenants_stores_retrieve: {
+    api_v1_context_tenants_stores_list: {
         parameters: {
             query?: never;
             header?: never;
@@ -1324,12 +2694,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StoreContextResponse"];
+                    "application/json": components["schemas"]["StoreOption"][];
                 };
             };
         };
     };
-    api_v1_context_tenants_stores_marketplaces_retrieve: {
+    api_v1_context_tenants_stores_marketplaces_list: {
         parameters: {
             query?: never;
             header?: never;
@@ -1346,7 +2716,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StoreMarketplaceContextResponse"];
+                    "application/json": components["schemas"]["StoreMarketplaceOption"][];
                 };
             };
         };
@@ -1369,57 +2739,13 @@ export interface operations {
             };
         };
     };
-    api_v1_permissions_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PermissionListResponse"];
-                };
-            };
-        };
-    };
-    api_v1_permissions_profiles_user_grants_create: {
+    api_v1_permissions_tenants_permissions_list: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                profile_id: string;
+                tenant_id: string;
             };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserProfileGrantRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["UserProfileGrantRequest"];
-                "multipart/form-data": components["schemas"]["UserProfileGrantRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AssignmentResponse"];
-                };
-            };
-        };
-    };
-    api_v1_permissions_roles_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -1429,23 +2755,72 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RoleListResponse"];
+                    "application/json": components["schemas"]["PermissionOption"][];
                 };
             };
         };
     };
-    api_v1_permissions_roles_create: {
+    api_v1_permissions_tenants_profile_access_create: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                tenant_id: string;
+            };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RoleCreateRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["RoleCreateRequest"];
-                "multipart/form-data": components["schemas"]["RoleCreateRequest"];
+                "application/json": components["schemas"]["ProfileAccessGrantRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ProfileAccessGrantRequest"];
+                "multipart/form-data": components["schemas"]["ProfileAccessGrantRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_permissions_tenants_roles_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleOption"][];
+                };
+            };
+        };
+    };
+    api_v1_permissions_tenants_roles_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRoleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CreateRoleRequest"];
+                "multipart/form-data": components["schemas"]["CreateRoleRequest"];
             };
         };
         responses: {
@@ -1454,25 +2829,47 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RoleResponse"];
+                    "application/json": components["schemas"]["RoleOption"];
                 };
             };
         };
     };
-    api_v1_permissions_roles_assignments_create: {
+    api_v1_permissions_tenants_roles_destroy: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 role_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_permissions_tenants_roles_copy_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                role_id: string;
+                tenant_id: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RoleAssignmentRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["RoleAssignmentRequest"];
-                "multipart/form-data": components["schemas"]["RoleAssignmentRequest"];
+                "application/json": components["schemas"]["CopyRoleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CopyRoleRequest"];
+                "multipart/form-data": components["schemas"]["CopyRoleRequest"];
             };
         };
         responses: {
@@ -1481,25 +2878,72 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AssignmentResponse"];
+                    "application/json": components["schemas"]["RoleOption"];
                 };
             };
         };
     };
-    api_v1_permissions_stores_user_grants_create: {
+    api_v1_permissions_tenants_store_access_create: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                store_id: string;
+                tenant_id: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UserStoreGrantRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["UserStoreGrantRequest"];
-                "multipart/form-data": components["schemas"]["UserStoreGrantRequest"];
+                "application/json": components["schemas"]["StoreAccessGrantRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StoreAccessGrantRequest"];
+                "multipart/form-data": components["schemas"]["StoreAccessGrantRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_products_tenants_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductRow"][];
+                };
+            };
+        };
+    };
+    api_v1_products_tenants_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ProductCreateRequest"];
+                "multipart/form-data": components["schemas"]["ProductCreateRequest"];
             };
         };
         responses: {
@@ -1508,55 +2952,162 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AssignmentResponse"];
+                    "application/json": components["schemas"]["ProductRow"];
                 };
             };
         };
     };
-    api_v1_recommendations_retrieve: {
+    api_v1_products_tenants_listings_create: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                product_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductListingInputRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ProductListingInputRequest"];
+                "multipart/form-data": components["schemas"]["ProductListingInputRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductRow"];
+                };
+            };
+        };
+    };
+    api_v1_recommendations_tenants_profiles_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                tenant_id: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description 建议列表 */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Recommendation"][];
+                };
             };
         };
     };
-    api_v1_reports_tasks_retrieve: {
+    api_v1_reports_tenants_profiles_tasks_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportTask"][];
+                };
+            };
+        };
+    };
+    api_v1_reports_tenants_profiles_uploads_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportUploadRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ReportUploadRequestRequest"];
+                "multipart/form-data": components["schemas"]["ReportUploadRequestRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportTask"];
+                };
+            };
+        };
+    };
+    api_v1_reports_tenants_tasks_retrieve: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 task_id: string;
+                tenant_id: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description 导入任务详情 */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ImportTask"];
+                };
             };
         };
     };
-    api_v1_reports_tasks_reprocess_create: {
+    api_v1_reports_tenants_tasks_errors_list: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 task_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRowError"][];
+                };
+            };
+        };
+    };
+    api_v1_reports_tenants_tasks_reprocess_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+                tenant_id: string;
             };
             cookie?: never;
         };
@@ -1567,48 +3118,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponse"];
+                    "application/json": components["schemas"]["ImportTask"];
                 };
             };
         };
     };
-    api_v1_reports_uploads_retrieve: {
+    api_v1_reports_tenants_tasks_source_retrieve: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                task_id: string;
+                tenant_id: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description 导入任务列表 */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
-            };
-        };
-    };
-    api_v1_reports_uploads_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["ReportUploadRequest"];
-            };
-        };
-        responses: {
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
                 content: {
-                    "application/json": components["schemas"]["TaskResponse"];
+                    "application/octet-stream": string;
                 };
             };
         };
