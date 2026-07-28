@@ -2,9 +2,10 @@
 
 ## 1. 计划状态
 
-- 当前阶段：Phase 1 已完成定向补缺、最终验收与收口；不得进入 Phase 2。
-- 当前应用状态：Django/Vue、锁文件、首次自定义 User 迁移、测试、OpenAPI、local/test/prod Compose、readiness 安全日志、Worker/Beat healthcheck、JWT 配置预留、API ID 字段、环境矩阵和 Axios/settings 测试均已完成。local 7 服务保持 healthy；独立 prod 运行验收后已停止。
-- 下一阶段：仅在用户明确授权后进入 Phase 2。
+- 当前授权：项目发起人于 2026-07-28 明确授权按 `CODEX_FULL_V1_EXECUTION_GOAL.md` 从 M0 连续执行到 M6；该授权取代本文旧的“Phase 2B 未授权/普通阶段后停止”描述。
+- 当前阶段：M0 状态保护与认证收口已验证，完成提交后自动进入 M1。
+- 当前应用状态：Phase 1 基础工程与 Phase 2A JWT 双 Token 已实现；认证基线为后端 51 项、前端 28 项测试通过，OpenAPI 无差异。Tenant/Store/Profile/RBAC 尚待 M1。
+- 下一阶段：M1 Tenant、Store、Profile 与 RBAC。
 - 依赖顺序：`Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7`。
 - 纵向原则：每个阶段交付真实可运行切片，不以空模块或静态页面代替。
 
@@ -102,7 +103,7 @@
 
 Phase 2A“账号认证与 JWT 双 Token”已实现并收口，仅包含全局 User 登录、刷新、退出、当前用户、认证审计基础和前端认证会话。自动浏览器验收为 `NOT VERIFIED`（Codex 浏览器控制工具初始化和连接失败）；API、后端测试、前端单元测试与构建独立通过。
 
-Phase 2B 未获授权。下方 Tenant、Team、Store、Marketplace、AdvertisingProfile 和 RBAC 内容仍是后续计划，不代表已实现或可开始。
+Phase 2B 已由 2026-07-28 的 M0—M6 连续执行指令授权；下方 Tenant、Team、Store、Marketplace、AdvertisingProfile 和 RBAC 为 M1 实施范围。
 
 ### 实现目标
 
