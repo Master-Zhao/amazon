@@ -79,6 +79,18 @@
 
 Phase 2A 验证状态：API 认证链路、SQLite/MySQL 后端测试、前端单元测试与生产构建通过。自动浏览器验收为 `NOT VERIFIED`，原因是 Codex 浏览器控制工具初始化和连接失败；未继续尝试工具修复。Phase 2B 未获授权。
 
+## 2.4 M1 Tenant、Store、Profile 与权限决策（2026-07-28）
+
+确认依据：项目发起人授权按 `CODEX_FULL_V1_EXECUTION_GOAL.md` 从 M0 连续执行到 M6，该授权取代 Phase 2B 未授权的历史边界。
+
+| ID | 状态 | M1 决策 | 说明 |
+|---|---|---|---|
+| D-147 | 已确认 | Tenant、Team、Store、Marketplace、StoreMarketplace、AdvertisingProfile 使用 UUID 主键，Amazon 外部 ID 单独使用字符串字段 | API 始终输出字符串 ID |
+| D-148 | 已确认 | Membership 使用 OWNER/ADMIN/MEMBER；Owner/Admin 对当前 Tenant 全 Store/Profile 具有 MANAGE | 个人 Tenant 不强制 Team |
+| D-149 | 已确认 | Store 与 Profile 分别使用 User/Team 白名单，Profile 等级按 VIEW→OPERATE→APPROVE→EXECUTE→MANAGE 取最高 | 无显式 DENY |
+| D-150 | 已确认 | 功能权限码由迁移维护固定目录；Tenant 自定义角色只能组合目录内权限 | 系统角色不可通过业务 API 删除 |
+| D-151 | 已确认 | 完全越出 Tenant/Store/Profile 范围返回 404；当前 Tenant 内缺功能或动作等级返回 403 | API 绕过前端同样执行 |
+
 ## 3. 强制待确认事项
 
 说明：D-101、D-102、D-103、D-104、D-105、D-106、D-109、D-111、D-115、D-117、D-118、D-119 已由 2.1 节确认。其原始行保留为历史背景，执行状态以 2.1 节为准。D-120 仍是三类报表最终验收阻塞。

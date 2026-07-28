@@ -16,6 +16,7 @@ interface RetriableRequestConfig extends InternalAxiosRequestConfig {
 }
 
 let accessTokenProvider: ValueProvider = () => null
+let tenantIdProvider: ValueProvider = () => null
 let refreshHandler: RefreshHandler | null = null
 let requestIdObserver: RequestIdObserver = () => undefined
 let refreshPromise: Promise<void> | null = null
@@ -41,6 +42,10 @@ export const httpClient: AxiosInstance = axios.create({
 
 export function setAccessTokenProvider(provider: ValueProvider): void {
   accessTokenProvider = provider
+}
+
+export function setTenantIdProvider(provider: ValueProvider): void {
+  tenantIdProvider = provider
 }
 
 export function setRefreshHandler(handler: RefreshHandler | null): void {
@@ -110,6 +115,10 @@ httpClient.interceptors.request.use((config) => {
 
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`
+  }
+  const tenantId = tenantIdProvider()
+  if (tenantId) {
+    config.headers['X-Tenant-ID'] = tenantId
   }
   return config
 })

@@ -11,14 +11,14 @@
 | AUTH-005 | `/auth/me` 与用户禁用 | 主规格 6 | accounts | `/auth/me` | disabled/expired/forged tests | IMPLEMENTED_AND_TESTED | Token 只证明账号身份 |
 | AUTH-006 | 登录成功/失败只追加审计且不泄露凭据 | 主规格 6、17 | accounts | `audit_auth_event` | 审计与日志测试 | IMPLEMENTED_AND_TESTED | 完整业务 AuditLog 在 M4 |
 | AUTH-007 | 页面刷新恢复与并发 401 单次刷新 | 主规格 6 | frontend auth | auth store、Axios interceptor | store/http client tests | IMPLEMENTED_AND_TESTED | 浏览器 E2E 在 M5 |
-| ORG-001 | User 多 Tenant 与 Tenant 类型 | 主规格 7 | tenants | M1 | M1 | NOT_IMPLEMENTED | M1 |
-| ORG-002 | TenantMembership、可选 Team、TeamMember | 主规格 7 | tenants | M1 | M1 | NOT_IMPLEMENTED | M1 |
-| STORE-001 | Tenant→Store→StoreMarketplace→Marketplace→Profile | 主规格 7 | stores | M1 | M1 | NOT_IMPLEMENTED | D-101 已确认 |
-| STORE-002 | 前端四级上下文与单选自动选择 | 主规格 7 | tenant-context | M1 | M1 | NOT_IMPLEMENTED | M1 |
-| PERM-001 | 系统/自定义 Role、Permission、UserRole | 主规格 8 | permissions | M1 | M1 | NOT_IMPLEMENTED | M1 |
-| PERM-002 | Store/Profile User 与 Team 授权并集、最高等级 | 主规格 8 | permissions | M1 | M1 | NOT_IMPLEMENTED | M1 |
-| PERM-003 | Owner/Admin 全范围、无显式 DENY | 主规格 8 | permissions | M1 | M1 | NOT_IMPLEMENTED | M1 |
-| PERM-004 | 认证∩Membership∩功能∩Store∩Profile | 主规格 8 | permissions | M1 | 越权测试 | NOT_IMPLEMENTED | 跨范围 404、范围内缺动作 403 |
+| ORG-001 | User 多 Tenant 与 Tenant 类型 | 主规格 7 | tenants | models/migration/context API | `test_tenant_permissions.py`、data-model | IMPLEMENTED_AND_TESTED | 多 Tenant/类型测试 |
+| ORG-002 | TenantMembership、可选 Team、TeamMember | 主规格 7 | tenants | models/services、0001 | personal/team tests | IMPLEMENTED_AND_TESTED | PERSONAL 无虚拟 Team |
+| STORE-001 | Tenant→Store→StoreMarketplace→Marketplace→Profile | 主规格 7 | stores | models/0001/context API | context tests、data-model | IMPLEMENTED_AND_TESTED | D-101 已确认；真实账号未验证 |
+| STORE-002 | 前端四级上下文与单选自动选择 | 主规格 7 | tenant-context | context store/page | 3 store tests | IMPLEMENTED_AND_TESTED | 多选不自动选择 |
+| PERM-001 | 系统/自定义 Role、Permission、UserRole | 主规格 8 | permissions | models/0001/0002/API | role tests、permission-model | IMPLEMENTED_AND_TESTED | 固定权限目录 |
+| PERM-002 | Store/Profile User 与 Team 授权并集、最高等级 | 主规格 8 | permissions | models/services/grant API | union/highest tests | IMPLEMENTED_AND_TESTED | 无显式 DENY |
+| PERM-003 | Owner/Admin 全范围、无显式 DENY | 主规格 8 | permissions | authorization service | owner tests | IMPLEMENTED_AND_TESTED | MANAGE |
+| PERM-004 | 认证∩Membership∩功能∩Store∩Profile | 主规格 8 | permissions | authorize service | 404/403 tests | IMPLEMENTED_AND_TESTED | 跨范围 404、范围内缺动作 403 |
 | ADS-001 | Sponsored Products 广告层级 | 主规格 9 | advertising | M2 | M2 | NOT_IMPLEMENTED | Brands/Display 仅扩展枚举 |
 | ADS-002 | Keyword/ProductTarget/SearchTerm 与匹配类型 | 主规格 9 | advertising | M2 | M2 | NOT_IMPLEMENTED | M2 |
 | ADS-003 | Campaign/AdGroup 级 Negative Keyword | 主规格 9 | advertising | M2 | M2 | NOT_IMPLEMENTED | M2 |
@@ -64,4 +64,3 @@
 | RESERVED-005 | 跨 Marketplace/币种汇总 | 主规格 4、11 | analytics | 无 | 隔离测试 | RESERVED_BY_CONFIRMED_SCOPE | V1 禁止 |
 | RESERVED-006 | 真实 LLM Provider | 主规格 4、12 | integrations.llm | M4 接口 | contract tests | RESERVED_BY_CONFIRMED_SCOPE | 演示只用 Mock |
 | RESERVED-007 | 库存/采购/物流/财务 | 主规格 4、9 | 无 | 无 | 范围文档 | RESERVED_BY_CONFIRMED_SCOPE | 不属于 V1 |
-

@@ -6,7 +6,7 @@ import { router } from '@/app/router'
 import { useAuthStore } from '@/features/auth/stores/auth'
 
 describe('application shell', () => {
-  it('mounts the authenticated Phase 2A shell', async () => {
+  it('mounts the authenticated seller workspace shell', async () => {
     const pinia = createPinia()
     const authStore = useAuthStore(pinia)
     authStore.accessToken = 'memory-only-token'
@@ -27,7 +27,8 @@ describe('application shell', () => {
     })
     await flushPromises()
 
-    expect(wrapper.text()).toContain('账号认证工作台')
+    expect(wrapper.text()).toContain('Amazon 广告智能优化系统')
     expect(wrapper.text()).toContain('欢迎回来，demo')
+    expect(wrapper.text()).toContain('卖家空间')
   })
 })

@@ -2,8 +2,8 @@ openapi: 3.0.3
 info:
   title: Amazon Ads Optimizer API
   version: 0.1.0
-  description: Phase 2A account authentication plus Phase 1 platform and health APIs.
-    Tenant and business APIs are not implemented.
+  description: V1 account authentication, tenant/store/profile context and permission
+    APIs.
 paths:
   /api/v1/:
     get:
@@ -87,6 +87,257 @@ paths:
           description: ''
         '401':
           description: 刷新令牌缺失、无效、过期或已撤销
+  /api/v1/context/tenants:
+    get:
+      operationId: api_v1_context_tenants_retrieve
+      summary: 获取当前用户可访问卖家空间
+      tags:
+      - context
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantContextResponse'
+          description: ''
+  /api/v1/context/tenants/{tenant_id}/store-marketplaces/{store_marketplace_id}/profiles:
+    get:
+      operationId: api_v1_context_tenants_store_marketplaces_profiles_retrieve
+      summary: 获取站点范围内可访问广告 Profile
+      parameters:
+      - in: path
+        name: store_marketplace_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - context
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileContextResponse'
+          description: ''
+  /api/v1/context/tenants/{tenant_id}/stores:
+    get:
+      operationId: api_v1_context_tenants_stores_retrieve
+      summary: 获取卖家空间可访问店铺
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - context
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreContextResponse'
+          description: ''
+  /api/v1/context/tenants/{tenant_id}/stores/{store_id}/marketplaces:
+    get:
+      operationId: api_v1_context_tenants_stores_marketplaces_retrieve
+      summary: 获取店铺站点范围
+      parameters:
+      - in: path
+        name: store_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - context
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreMarketplaceContextResponse'
+          description: ''
+  /api/v1/permissions/:
+    get:
+      operationId: api_v1_permissions_retrieve
+      summary: 获取固定功能权限目录
+      tags:
+      - permissions
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionListResponse'
+          description: ''
+  /api/v1/permissions/profiles/{profile_id}/user-grants:
+    post:
+      operationId: api_v1_permissions_profiles_user_grants_create
+      summary: 给 Tenant 成员授予 Profile 操作等级
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - permissions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfileGrantRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserProfileGrantRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserProfileGrantRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignmentResponse'
+          description: ''
+  /api/v1/permissions/roles:
+    get:
+      operationId: api_v1_permissions_roles_retrieve
+      summary: 获取系统和当前卖家空间角色
+      tags:
+      - permissions
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleListResponse'
+          description: ''
+    post:
+      operationId: api_v1_permissions_roles_create
+      summary: 创建 Tenant 自定义角色
+      tags:
+      - permissions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RoleCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoleCreateRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+          description: ''
+  /api/v1/permissions/roles/{role_id}/assignments:
+    post:
+      operationId: api_v1_permissions_roles_assignments_create
+      summary: 给 Tenant 成员分配角色
+      parameters:
+      - in: path
+        name: role_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - permissions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleAssignmentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RoleAssignmentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoleAssignmentRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignmentResponse'
+          description: ''
+  /api/v1/permissions/stores/{store_id}/user-grants:
+    post:
+      operationId: api_v1_permissions_stores_user_grants_create
+      summary: 给 Tenant 成员授予店铺范围
+      parameters:
+      - in: path
+        name: store_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - permissions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserStoreGrantRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserStoreGrantRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserStoreGrantRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignmentResponse'
+          description: ''
   /health/live:
     get:
       operationId: health_live_retrieve
@@ -132,6 +383,29 @@ components:
           type: string
       required:
       - accessToken
+    AssignmentData:
+      type: object
+      properties:
+        id:
+          type: string
+      required:
+      - id
+    AssignmentResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/AssignmentData'
+        requestId:
+          type: string
+      required:
+      - code
+      - data
+      - message
+      - requestId
     AuthenticatedUser:
       type: object
       properties:
@@ -181,6 +455,20 @@ components:
       - code
       - message
       - requestId
+    LevelEnum:
+      enum:
+      - VIEW
+      - OPERATE
+      - APPROVE
+      - EXECUTE
+      - MANAGE
+      type: string
+      description: |-
+        * `VIEW` - VIEW
+        * `OPERATE` - OPERATE
+        * `APPROVE` - APPROVE
+        * `EXECUTE` - EXECUTE
+        * `MANAGE` - MANAGE
     LoginRequest:
       type: object
       properties:
@@ -223,6 +511,359 @@ components:
       required:
       - accessToken
       - user
+    Marketplace:
+      type: object
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        name:
+          type: string
+        countryCode:
+          type: string
+        currency:
+          type: string
+        timezone:
+          type: string
+      required:
+      - code
+      - countryCode
+      - currency
+      - id
+      - name
+      - timezone
+    Permission:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+      required:
+      - code
+      - description
+      - name
+    PermissionListData:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Permission'
+      required:
+      - items
+    PermissionListResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/PermissionListData'
+        requestId:
+          type: string
+      required:
+      - code
+      - data
+      - message
+      - requestId
+    ProfileContext:
+      type: object
+      properties:
+        id:
+          type: string
+        externalProfileId:
+          type: string
+        name:
+          type: string
+        currency:
+          type: string
+        timezone:
+          type: string
+        accessLevel:
+          type: string
+      required:
+      - accessLevel
+      - currency
+      - externalProfileId
+      - id
+      - name
+      - timezone
+    ProfileContextResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/ProfileContextResult'
+        requestId:
+          type: string
+      required:
+      - code
+      - data
+      - message
+      - requestId
+    ProfileContextResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProfileContext'
+      required:
+      - items
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+        tenantId:
+          type: string
+          nullable: true
+        code:
+          type: string
+        name:
+          type: string
+        isSystem:
+          type: boolean
+        permissionCodes:
+          type: array
+          items:
+            type: string
+      required:
+      - code
+      - id
+      - isSystem
+      - name
+      - permissionCodes
+      - tenantId
+    RoleAssignmentRequest:
+      type: object
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        user_id:
+          type: integer
+      required:
+      - tenant_id
+      - user_id
+    RoleCreateRequest:
+      type: object
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 1
+          pattern: ^[a-z][a-z0-9_.-]{1,62}$
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        permission_codes:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+      required:
+      - code
+      - name
+      - permission_codes
+      - tenant_id
+    RoleListData:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+      required:
+      - items
+    RoleListResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/RoleListData'
+        requestId:
+          type: string
+      required:
+      - code
+      - data
+      - message
+      - requestId
+    RoleResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/Role'
+        requestId:
+          type: string
+      required:
+      - code
+      - data
+      - message
+      - requestId
+    StoreContext:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        externalStoreId:
+          type: string
+      required:
+      - externalStoreId
+      - id
+      - name
+    StoreContextResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/StoreContextResult'
+        requestId:
+          type: string
+      required:
+      - code
+      - data
+      - message
+      - requestId
+    StoreContextResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoreContext'
+      required:
+      - items
+    StoreMarketplaceContext:
+      type: object
+      properties:
+        id:
+          type: string
+        marketplace:
+          $ref: '#/components/schemas/Marketplace'
+      required:
+      - id
+      - marketplace
+    StoreMarketplaceContextResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/StoreMarketplaceContextResult'
+        requestId:
+          type: string
+      required:
+      - code
+      - data
+      - message
+      - requestId
+    StoreMarketplaceContextResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoreMarketplaceContext'
+      required:
+      - items
+    TenantContext:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        tenantType:
+          type: string
+        membershipRole:
+          type: string
+        permissionCodes:
+          type: array
+          items:
+            type: string
+      required:
+      - id
+      - membershipRole
+      - name
+      - permissionCodes
+      - tenantType
+    TenantContextResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/TenantContextResult'
+        requestId:
+          type: string
+      required:
+      - code
+      - data
+      - message
+      - requestId
+    TenantContextResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantContext'
+      required:
+      - items
+    UserProfileGrantRequest:
+      type: object
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        user_id:
+          type: integer
+        level:
+          $ref: '#/components/schemas/LevelEnum'
+      required:
+      - level
+      - tenant_id
+      - user_id
+    UserStoreGrantRequest:
+      type: object
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+        user_id:
+          type: integer
+      required:
+      - tenant_id
+      - user_id
   securitySchemes:
     bearerAuth:
       type: http

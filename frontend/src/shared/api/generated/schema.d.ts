@@ -101,6 +101,160 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/context/tenants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 获取当前用户可访问卖家空间 */
+        get: operations["api_v1_context_tenants_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/context/tenants/{tenant_id}/store-marketplaces/{store_marketplace_id}/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 获取站点范围内可访问广告 Profile */
+        get: operations["api_v1_context_tenants_store_marketplaces_profiles_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/context/tenants/{tenant_id}/stores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 获取卖家空间可访问店铺 */
+        get: operations["api_v1_context_tenants_stores_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/context/tenants/{tenant_id}/stores/{store_id}/marketplaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 获取店铺站点范围 */
+        get: operations["api_v1_context_tenants_stores_marketplaces_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/permissions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 获取固定功能权限目录 */
+        get: operations["api_v1_permissions_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/permissions/profiles/{profile_id}/user-grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 给 Tenant 成员授予 Profile 操作等级 */
+        post: operations["api_v1_permissions_profiles_user_grants_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/permissions/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 获取系统和当前卖家空间角色 */
+        get: operations["api_v1_permissions_roles_retrieve"];
+        put?: never;
+        /** 创建 Tenant 自定义角色 */
+        post: operations["api_v1_permissions_roles_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/permissions/roles/{role_id}/assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 给 Tenant 成员分配角色 */
+        post: operations["api_v1_permissions_roles_assignments_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/permissions/stores/{store_id}/user-grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 给 Tenant 成员授予店铺范围 */
+        post: operations["api_v1_permissions_stores_user_grants_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -148,6 +302,15 @@ export interface components {
         AccessTokenResult: {
             accessToken: string;
         };
+        AssignmentData: {
+            id: string;
+        };
+        AssignmentResponse: {
+            code: string;
+            message: string;
+            data: components["schemas"]["AssignmentData"];
+            requestId: string;
+        };
         AuthenticatedUser: {
             id: string;
             /** Format: email */
@@ -167,6 +330,15 @@ export interface components {
             message: string;
             requestId: string;
         };
+        /**
+         * @description * `VIEW` - VIEW
+         *     * `OPERATE` - OPERATE
+         *     * `APPROVE` - APPROVE
+         *     * `EXECUTE` - EXECUTE
+         *     * `MANAGE` - MANAGE
+         * @enum {string}
+         */
+        LevelEnum: "VIEW" | "OPERATE" | "APPROVE" | "EXECUTE" | "MANAGE";
         LoginRequest: {
             /** Format: email */
             email: string;
@@ -181,6 +353,134 @@ export interface components {
         LoginResult: {
             accessToken: string;
             user: components["schemas"]["AuthenticatedUser"];
+        };
+        Marketplace: {
+            id: string;
+            code: string;
+            name: string;
+            countryCode: string;
+            currency: string;
+            timezone: string;
+        };
+        Permission: {
+            code: string;
+            name: string;
+            description: string;
+        };
+        PermissionListData: {
+            items: components["schemas"]["Permission"][];
+        };
+        PermissionListResponse: {
+            code: string;
+            message: string;
+            data: components["schemas"]["PermissionListData"];
+            requestId: string;
+        };
+        ProfileContext: {
+            id: string;
+            externalProfileId: string;
+            name: string;
+            currency: string;
+            timezone: string;
+            accessLevel: string;
+        };
+        ProfileContextResponse: {
+            code: string;
+            message: string;
+            data: components["schemas"]["ProfileContextResult"];
+            requestId: string;
+        };
+        ProfileContextResult: {
+            items: components["schemas"]["ProfileContext"][];
+        };
+        Role: {
+            id: string;
+            tenantId: string | null;
+            code: string;
+            name: string;
+            isSystem: boolean;
+            permissionCodes: string[];
+        };
+        RoleAssignmentRequest: {
+            /** Format: uuid */
+            tenant_id: string;
+            user_id: number;
+        };
+        RoleCreateRequest: {
+            /** Format: uuid */
+            tenant_id: string;
+            code: string;
+            name: string;
+            permission_codes: string[];
+        };
+        RoleListData: {
+            items: components["schemas"]["Role"][];
+        };
+        RoleListResponse: {
+            code: string;
+            message: string;
+            data: components["schemas"]["RoleListData"];
+            requestId: string;
+        };
+        RoleResponse: {
+            code: string;
+            message: string;
+            data: components["schemas"]["Role"];
+            requestId: string;
+        };
+        StoreContext: {
+            id: string;
+            name: string;
+            externalStoreId: string;
+        };
+        StoreContextResponse: {
+            code: string;
+            message: string;
+            data: components["schemas"]["StoreContextResult"];
+            requestId: string;
+        };
+        StoreContextResult: {
+            items: components["schemas"]["StoreContext"][];
+        };
+        StoreMarketplaceContext: {
+            id: string;
+            marketplace: components["schemas"]["Marketplace"];
+        };
+        StoreMarketplaceContextResponse: {
+            code: string;
+            message: string;
+            data: components["schemas"]["StoreMarketplaceContextResult"];
+            requestId: string;
+        };
+        StoreMarketplaceContextResult: {
+            items: components["schemas"]["StoreMarketplaceContext"][];
+        };
+        TenantContext: {
+            id: string;
+            name: string;
+            tenantType: string;
+            membershipRole: string;
+            permissionCodes: string[];
+        };
+        TenantContextResponse: {
+            code: string;
+            message: string;
+            data: components["schemas"]["TenantContextResult"];
+            requestId: string;
+        };
+        TenantContextResult: {
+            items: components["schemas"]["TenantContext"][];
+        };
+        UserProfileGrantRequest: {
+            /** Format: uuid */
+            tenant_id: string;
+            user_id: number;
+            level: components["schemas"]["LevelEnum"];
+        };
+        UserStoreGrantRequest: {
+            /** Format: uuid */
+            tenant_id: string;
+            user_id: number;
         };
     };
     responses: never;
@@ -295,6 +595,234 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    api_v1_context_tenants_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantContextResponse"];
+                };
+            };
+        };
+    };
+    api_v1_context_tenants_store_marketplaces_profiles_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_marketplace_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileContextResponse"];
+                };
+            };
+        };
+    };
+    api_v1_context_tenants_stores_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoreContextResponse"];
+                };
+            };
+        };
+    };
+    api_v1_context_tenants_stores_marketplaces_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoreMarketplaceContextResponse"];
+                };
+            };
+        };
+    };
+    api_v1_permissions_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PermissionListResponse"];
+                };
+            };
+        };
+    };
+    api_v1_permissions_profiles_user_grants_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserProfileGrantRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["UserProfileGrantRequest"];
+                "multipart/form-data": components["schemas"]["UserProfileGrantRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentResponse"];
+                };
+            };
+        };
+    };
+    api_v1_permissions_roles_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleListResponse"];
+                };
+            };
+        };
+    };
+    api_v1_permissions_roles_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["RoleCreateRequest"];
+                "multipart/form-data": components["schemas"]["RoleCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleResponse"];
+                };
+            };
+        };
+    };
+    api_v1_permissions_roles_assignments_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                role_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleAssignmentRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["RoleAssignmentRequest"];
+                "multipart/form-data": components["schemas"]["RoleAssignmentRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentResponse"];
+                };
+            };
+        };
+    };
+    api_v1_permissions_stores_user_grants_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserStoreGrantRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["UserStoreGrantRequest"];
+                "multipart/form-data": components["schemas"]["UserStoreGrantRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentResponse"];
+                };
             };
         };
     };

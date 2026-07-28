@@ -1,6 +1,6 @@
 # Amazon 广告智能优化系统 V1
 
-当前仓库已完成 Phase 2A：账号认证与 JWT 双 Token。Phase 1 基础工程保持不变；当前新增真实登录、刷新、当前用户和退出链路。Tenant、Team、Store、AdvertisingProfile、RBAC、广告、报表、AI、Recommendation、审批和执行仍未实现。
+当前仓库已完成 M1：在 Phase 1 基础工程和 Phase 2A JWT 双 Token 上，新增真实 Tenant/Team、Store/Marketplace/AdvertisingProfile、RBAC、Store/Profile 数据授权与前端四级上下文。广告、报表、AI、Recommendation、审批和执行将在后续里程碑实现。
 
 唯一主规格是 [codex_master_goal_amazon_ads_v1.md](codex_master_goal_amazon_ads_v1.md)。长期规则见 [AGENTS.md](AGENTS.md)，阶段计划见 [PLANS.md](PLANS.md)。
 
@@ -30,6 +30,7 @@ docker compose -f compose.local.yml --profile tools run --rm migrate
 # 4. 创建本地演示账号（密码只从当前环境传入）
 $env:DEMO_USER_PASSWORD="仅用于本机的临时密码"
 docker compose -f compose.local.yml run --rm backend python manage.py seed_demo_user
+docker compose -f compose.local.yml run --rm backend python manage.py seed_demo_context
 Remove-Item Env:DEMO_USER_PASSWORD
 
 # 5. 启动应用
@@ -116,7 +117,7 @@ Phase 2A 最终结果：后端 SQLite 51 passed、MySQL 8.4 从零迁移 51 pass
 
 公共层统一处理 requestId、异常、递归 snake_case/camelCase 转换和 Decimal/日期/UUID 序列化。`/health/live` 只证明进程存活；`/health/ready` 检查 MySQL、Redis 和必需配置。
 
-认证接口为 `/api/v1/auth/login`、`/refresh`、`/logout` 和 `/me`。Access Token 只在响应体和前端内存中使用；Refresh Token 仅通过认证路径下的 HttpOnly Cookie 传输，不进入 JSON、Pinia、localStorage 或 sessionStorage。仍没有假 Tenant、假 Dashboard 或硬编码广告结果。
+认证接口为 `/api/v1/auth/login`、`/refresh`、`/logout` 和 `/me`。Access Token 只在响应体和前端内存中使用；Refresh Token 仅通过认证路径下的 HttpOnly Cookie 传输，不进入 JSON、Pinia、localStorage 或 sessionStorage。上下文接口位于 `/api/v1/context`，权限与角色接口位于 `/api/v1/permissions`；所有集合来自数据库授权，不使用假 Tenant 或硬编码广告结果。
 
 ## 目录
 
@@ -151,6 +152,6 @@ docs/testing/            测试策略与验收清单
 
 ## 当前边界
 
-Phase 2A 已获授权并严格收口。Phase 2B 及其后的 Tenant、Store/Profile 和权限能力仍必须等待明确授权。真实 Amazon Ads API、第三方数据服务和真实 LLM 密钥均未接入；未执行性能测试，不声明任何并发量、QPS、延迟或广告收益。
+项目发起人已授权按 M0—M6 连续执行；当前 M1 已收口。真实 Amazon Ads API、第三方数据服务和真实 LLM 密钥均未接入；尚未完成最终性能测试，不声明任何并发量、QPS、延迟或广告收益。
 
-ECharts 未安装。认证接口只证明全局 User 身份，不承载 Tenant、角色、Store 或 Profile 权限。
+ECharts 将在 M3 的真实图表页引入。认证接口只证明全局 User 身份；业务 API 必须继续从数据库校验 Tenant、角色、Store 和 Profile 权限。

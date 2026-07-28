@@ -37,6 +37,9 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "apps.core",
     "apps.accounts",
+    "apps.tenants",
+    "apps.stores",
+    "apps.permissions",
 ]
 
 MIDDLEWARE = [
@@ -159,8 +162,7 @@ SIMPLE_JWT = {
 SPECTACULAR_SETTINGS = {
     "TITLE": "Amazon Ads Optimizer API",
     "DESCRIPTION": (
-        "Phase 2A account authentication plus Phase 1 platform and health APIs. "
-        "Tenant and business APIs are not implemented."
+        "V1 account authentication, tenant/store/profile context and permission APIs."
     ),
     "VERSION": APP_VERSION,
     "SERVE_INCLUDE_SCHEMA": False,

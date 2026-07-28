@@ -10,6 +10,8 @@ import { useAuthStore } from '@/features/auth/stores/auth'
 import LoginPage from '@/features/auth/pages/LoginPage.vue'
 import HealthDiagnosticsPage from '@/features/diagnostics/pages/HealthDiagnosticsPage.vue'
 import HomePage from '@/features/home/pages/HomePage.vue'
+import SellerContextPage from '@/features/tenant-context/pages/SellerContextPage.vue'
+import RoleManagementPage from '@/features/system/pages/RoleManagementPage.vue'
 
 export const routes: RouteRecordRaw[] = [
   {
@@ -23,6 +25,18 @@ export const routes: RouteRecordRaw[] = [
     name: 'login',
     component: LoginPage,
     meta: { title: '登录', guestOnly: true },
+  },
+  {
+    path: '/seller-context',
+    name: 'seller-context',
+    component: SellerContextPage,
+    meta: { title: '卖家空间', requiresAuth: true },
+  },
+  {
+    path: '/system/roles',
+    name: 'role-management',
+    component: RoleManagementPage,
+    meta: { title: '角色与权限', requiresAuth: true },
   },
   {
     path: '/diagnostics/health',

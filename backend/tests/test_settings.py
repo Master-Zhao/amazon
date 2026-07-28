@@ -55,11 +55,13 @@ def test_explicit_test_settings_are_loaded():
     assert settings.JWT_COOKIE_SAME_SITE == "Lax"
 
 
-def test_phase_one_does_not_install_business_apps():
-    forbidden_apps = {
+def test_m1_installs_only_authorized_business_apps():
+    expected_apps = {
         "apps.tenants",
         "apps.permissions",
         "apps.stores",
+    }
+    future_apps = {
         "apps.reports",
         "apps.advertising",
         "apps.analytics",
@@ -67,7 +69,8 @@ def test_phase_one_does_not_install_business_apps():
         "apps.recommendations",
         "apps.actions",
     }
-    assert forbidden_apps.isdisjoint(settings.INSTALLED_APPS)
+    assert expected_apps.issubset(settings.INSTALLED_APPS)
+    assert future_apps.isdisjoint(settings.INSTALLED_APPS)
 
 
 def test_local_settings_load_and_explicitly_parse_debug():

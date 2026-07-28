@@ -3,8 +3,10 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/features/auth/stores/auth'
+import { useTenantContextStore } from '@/features/tenant-context/stores/context'
 
 const authStore = useAuthStore()
+const contextStore = useTenantContextStore()
 const router = useRouter()
 const loggingOut = ref(false)
 
@@ -12,6 +14,7 @@ async function performLogout(): Promise<void> {
   loggingOut.value = true
   try {
     await authStore.logout()
+    contextStore.clear()
     await router.replace({ name: 'login' })
   } finally {
     loggingOut.value = false
@@ -24,10 +27,10 @@ async function performLogout(): Promise<void> {
     <header class="topbar">
       <div>
         <p class="eyebrow">AMAZON ADS OPTIMIZER</p>
-        <h1>账号认证工作台</h1>
+        <h1>Amazon 广告智能优化系统</h1>
       </div>
       <div class="account-actions">
-        <span class="phase-badge">Phase 2A</span>
+        <span class="phase-badge">V1</span>
         <span v-if="authStore.currentUser" class="account-email">
           {{ authStore.currentUser.email }}
         </span>
@@ -44,7 +47,9 @@ async function performLogout(): Promise<void> {
     </header>
 
     <nav class="nav" aria-label="平台导航">
-      <RouterLink v-if="authStore.currentUser" to="/">账号首页</RouterLink>
+      <RouterLink v-if="authStore.currentUser" to="/">工作台</RouterLink>
+      <RouterLink v-if="authStore.currentUser" to="/seller-context">卖家空间</RouterLink>
+      <RouterLink v-if="authStore.currentUser" to="/system/roles">角色与权限</RouterLink>
       <RouterLink v-else to="/login">登录</RouterLink>
       <RouterLink to="/diagnostics/health">运行诊断</RouterLink>
       <a href="/api/docs/" target="_blank" rel="noreferrer">OpenAPI</a>

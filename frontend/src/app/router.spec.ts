@@ -1,10 +1,12 @@
 import { routes } from '@/app/router'
 
 describe('router foundation', () => {
-  it('registers the real Phase 2A login and existing platform pages', () => {
+  it('registers authentication and M1 context pages', () => {
     expect(routes.map((route) => route.name)).toEqual([
       'home',
       'login',
+      'seller-context',
+      'role-management',
       'health-diagnostics',
     ])
     expect(routes.some((route) => String(route.path).includes('login'))).toBe(true)

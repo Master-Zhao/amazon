@@ -6,7 +6,7 @@ const authStore = useAuthStore()
 
 <template>
   <section class="hero-card">
-    <p class="eyebrow">PHASE 2A AUTHENTICATED</p>
+    <p class="eyebrow">SELLER CONTEXT READY</p>
     <h2>欢迎回来，{{ authStore.currentUser?.username }}</h2>
     <p>
       账号认证纵向链路已接通：短期访问令牌只驻留内存，刷新令牌由 HttpOnly Cookie
@@ -18,7 +18,7 @@ const authStore = useAuthStore()
     </p>
   </section>
 
-  <section class="capability-grid" aria-label="Phase 2A 能力边界">
+  <section class="capability-grid" aria-label="账号与卖家空间能力">
     <article>
       <span>01</span>
       <h3>账号认证</h3>
@@ -31,8 +31,9 @@ const authStore = useAuthStore()
     </article>
     <article>
       <span>03</span>
-      <h3>范围边界</h3>
-      <p>Tenant、Store、权限和广告业务仍未实现，不以静态数据冒充。</p>
+      <h3>数据范围</h3>
+      <p>Tenant、Store、Marketplace、Profile 与 RBAC 已由后端授权数据驱动。</p>
     </article>
   </section>
+  <RouterLink class="primary-button" to="/seller-context">选择卖家空间</RouterLink>
 </template>
