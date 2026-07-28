@@ -1081,12 +1081,27 @@ def test_mock_recommendation_preview_approval_execution_and_audit(
         tenant_id=tenant.pk,
         profile_id=profile.pk,
     )
+    run.status = AgentRunStatus.FAILED
+    run.error_code = "PREVIOUS_ATTEMPT_FAILED"
+    run.error_message = "Previous worker could not access the source."
+    run.save(update_fields=["status", "error_code", "error_message"])
     run = process_agent_run(run_id=run.pk)
 
     assert run.status == AgentRunStatus.SUCCEEDED
+    assert run.error_code == ""
+    assert run.error_message == ""
     assert LLMInvocation.objects.filter(agent_run=run).count() == 4
     recommendation = Recommendation.objects.filter(agent_run=run).first()
     assert recommendation is not None
+    run.status = AgentRunStatus.FAILED
+    run.error_code = "RECOVERY_RETRY"
+    run.error_message = "Retry after a completed write."
+    run.save(update_fields=["status", "error_code", "error_message"])
+    recovered = process_agent_run(run_id=run.pk)
+    assert recovered.status == AgentRunStatus.SUCCEEDED
+    assert recovered.error_code == ""
+    assert LLMInvocation.objects.filter(agent_run=run).count() == 4
+    assert Recommendation.objects.filter(agent_run=run).count() == 2
     preview = create_action_preview(
         request=request,
         tenant_id=tenant.pk,

@@ -155,7 +155,16 @@ def process_agent_run(*, run_id: int) -> AgentRun:
             return run
         run.status = AgentRunStatus.RUNNING
         run.started_at = timezone.now()
-        run.save(update_fields=["status", "started_at"])
+        run.error_code = ""
+        run.error_message = ""
+        run.save(
+            update_fields=[
+                "status",
+                "started_at",
+                "error_code",
+                "error_message",
+            ]
+        )
 
     try:
         context = authorized_analysis_input(profile=run.profile)
@@ -173,12 +182,14 @@ def process_agent_run(*, run_id: int) -> AgentRun:
             )
             locked.input_snapshot = context
             for result in results:
-                LLMInvocation.objects.create(
+                LLMInvocation.objects.get_or_create(
                     agent_run=locked,
-                    provider_code=provider.provider_code,
                     agent_code=str(result["agentCode"]),
-                    request_payload=context,
-                    response_payload=result,
+                    defaults={
+                        "provider_code": provider.provider_code,
+                        "request_payload": context,
+                        "response_payload": result,
+                    },
                 )
             created_recommendations = 0
             for payload in final_result["recommendations"]:
@@ -186,27 +197,33 @@ def process_agent_run(*, run_id: int) -> AgentRun:
                     run=locked,
                     payload=payload,
                 )
-                recommendation = Recommendation.objects.create(
-                    tenant=locked.tenant,
-                    profile=locked.profile,
-                    campaign=campaign,
-                    agent_run=locked,
-                    action_type=str(payload["actionType"]),
+                recommendation, recommendation_created = (
+                    Recommendation.objects.get_or_create(
+                        agent_run=locked,
+                        campaign=campaign,
+                        action_type=str(payload["actionType"]),
+                        defaults={
+                            "tenant": locked.tenant,
+                            "profile": locked.profile,
+                        },
+                    )
                 )
-                RecommendationRevision.objects.create(
+                RecommendationRevision.objects.get_or_create(
                     recommendation=recommendation,
                     revision_number=1,
-                    schema_version=str(final_result["schemaVersion"]),
-                    action_type=str(payload["actionType"]),
-                    object_type=str(payload["objectType"]),
-                    object_id=str(payload["objectId"]),
-                    before_value=payload["beforeValue"],
-                    after_value=payload["afterValue"],
-                    reason=str(payload["reason"]),
-                    evidence=payload["evidence"],
-                    risk_level=str(payload["riskLevel"]),
+                    defaults={
+                        "schema_version": str(final_result["schemaVersion"]),
+                        "action_type": str(payload["actionType"]),
+                        "object_type": str(payload["objectType"]),
+                        "object_id": str(payload["objectId"]),
+                        "before_value": payload["beforeValue"],
+                        "after_value": payload["afterValue"],
+                        "reason": str(payload["reason"]),
+                        "evidence": payload["evidence"],
+                        "risk_level": str(payload["riskLevel"]),
+                    },
                 )
-                created_recommendations += 1
+                created_recommendations += int(recommendation_created)
             locked.status = AgentRunStatus.SUCCEEDED
             locked.output_result = final_result
             locked.finished_at = timezone.now()
