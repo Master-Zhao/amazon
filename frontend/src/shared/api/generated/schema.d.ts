@@ -44,7 +44,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["api_v1_actions_previews_retrieve"];
         put?: never;
         post: operations["api_v1_actions_previews_create"];
         delete?: never;
@@ -143,7 +143,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["analysis_task_list"];
         put?: never;
         post: operations["api_v1_analysis_tasks_create"];
         delete?: never;
@@ -159,7 +159,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["api_v1_analysis_tasks_retrieve"];
+        get: operations["analysis_task_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -542,7 +542,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["api_v1_reports_uploads_retrieve"];
         put?: never;
         /** 上传三类广告报表并创建异步导入任务 */
         post: operations["api_v1_reports_uploads_create"];
@@ -601,9 +601,9 @@ export interface components {
         };
         AnalysisCreateRequest: {
             /** Format: uuid */
-            tenantId: string;
+            tenant_id: string;
             /** Format: uuid */
-            profileId: string;
+            profile_id: string;
         };
         AssignmentData: {
             id: string;
@@ -647,9 +647,9 @@ export interface components {
         };
         ExecutionRecordRequest: {
             result: components["schemas"]["ResultEnum"];
-            actualValue?: unknown;
+            actual_value?: unknown;
             /** Format: date-time */
-            executedAt: string;
+            executed_at: string;
             /** @default  */
             note: string;
         };
@@ -701,10 +701,10 @@ export interface components {
         };
         PreviewCreateRequest: {
             /** Format: uuid */
-            tenantId: string;
+            tenant_id: string;
             /** Format: uuid */
-            profileId: string;
-            recommendationIds: string[];
+            profile_id: string;
+            recommendation_ids: string[];
         };
         ProfileContext: {
             id: string;
@@ -900,6 +900,24 @@ export interface operations {
             };
         };
     };
+    api_v1_actions_previews_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 动作预览与执行列表 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     api_v1_actions_previews_create: {
         parameters: {
             query?: never;
@@ -1024,6 +1042,24 @@ export interface operations {
             };
         };
     };
+    analysis_task_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 分析任务列表 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     api_v1_analysis_tasks_create: {
         parameters: {
             query?: never;
@@ -1048,7 +1084,7 @@ export interface operations {
             };
         };
     };
-    api_v1_analysis_tasks_retrieve: {
+    analysis_task_retrieve: {
         parameters: {
             query?: never;
             header?: never;
@@ -1531,6 +1567,24 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TaskResponse"];
                 };
+            };
+        };
+    };
+    api_v1_reports_uploads_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 导入任务列表 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

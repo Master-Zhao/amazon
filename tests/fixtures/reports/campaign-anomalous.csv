@@ -1,0 +1,2 @@
+date,profile_id,campaign_id,campaign_name,state,budget,currency,impressions,clicks,spend,orders,sales
+2026-07-22,DEMO-PROFILE-001,C-400,High ACOS Campaign,ENABLED,50.00,USD,1000,50,150.00,5,200.00

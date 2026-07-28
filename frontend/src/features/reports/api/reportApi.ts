@@ -22,6 +22,17 @@ export interface ImportTask {
   }
 }
 
+export interface ImportTaskSummary {
+  taskId: string
+  reportType: ReportType
+  originalName: string
+  status: ImportTask['status']
+  isDuplicate: boolean
+  createdAt: string
+  totalRows: number | null
+  failedRows: number | null
+}
+
 export async function uploadReport(input: {
   tenantId: string
   profileId: string
@@ -46,3 +57,11 @@ export async function fetchImportTask(taskId: string): Promise<ImportTask> {
   return response.data.data
 }
 
+export async function fetchImportTasks(
+  profileId: string,
+): Promise<ImportTaskSummary[]> {
+  const response = await httpClient.get<
+    ApiEnvelope<{ items: ImportTaskSummary[] }>
+  >('/api/v1/reports/uploads', { params: { profileId } })
+  return response.data.data.items
+}

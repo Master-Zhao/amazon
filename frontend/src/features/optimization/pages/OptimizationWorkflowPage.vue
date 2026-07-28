@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 
 import {
   createAndSubmitPreview,
   decidePreview,
+  fetchAnalysisTasks,
   fetchRecommendations,
   runAnalysis,
   type AnalysisTask,
+  type AnalysisTaskSummary,
   type Recommendation,
 } from '@/features/optimization/api/optimizationApi'
 import { useTenantContextStore } from '@/features/tenant-context/stores/context'
@@ -18,6 +20,25 @@ const selectedIds = ref<string[]>([])
 const preview = ref<{ previewId: string; status: string } | null>(null)
 const busy = ref(false)
 const error = ref<string | null>(null)
+const history = ref<AnalysisTaskSummary[]>([])
+
+async function load(): Promise<void> {
+  if (!context.selectedProfileId) return
+  error.value = null
+  try {
+    const [recommendationItems, taskItems] = await Promise.all([
+      fetchRecommendations(context.selectedProfileId),
+      fetchAnalysisTasks(context.selectedProfileId),
+    ])
+    recommendations.value = recommendationItems
+    history.value = taskItems
+  } catch {
+    error.value = '智能优化数据加载失败或当前账号无权限。'
+  }
+}
+
+onMounted(load)
+watch(() => context.selectedProfileId, load)
 
 async function analyze(): Promise<void> {
   if (!context.selectedTenantId || !context.selectedProfileId) return
@@ -29,6 +50,7 @@ async function analyze(): Promise<void> {
       context.selectedProfileId,
     )
     recommendations.value = await fetchRecommendations(context.selectedProfileId)
+    history.value = await fetchAnalysisTasks(context.selectedProfileId)
   } catch {
     error.value = '分析任务执行失败，请核对报表数据与权限。'
   } finally {
@@ -92,9 +114,9 @@ async function approve(): Promise<void> {
         <label v-for="item in recommendations" :key="item.id" class="selection-card">
           <input v-model="selectedIds" type="checkbox" :value="item.id">
           <span>
-            <strong>{{ item.action_type }} · {{ item.risk_level }}</strong>
+            <strong>{{ item.actionType }} · {{ item.riskLevel }}</strong>
             <small>{{ item.reason }}</small>
-            <code>{{ item.before_value }} → {{ item.after_value }}</code>
+            <code>{{ item.beforeValue }} → {{ item.afterValue }}</code>
           </span>
         </label>
         <button type="button" :disabled="busy || selectedIds.length === 0" @click="submitPreview">
@@ -116,6 +138,19 @@ async function approve(): Promise<void> {
           已创建人工执行任务；系统不会调用真实 Amazon Ads API。
         </p>
       </article>
+      <section v-if="history.length" class="table-scroll">
+        <h3>分析任务</h3>
+        <table>
+          <thead><tr><th>时间</th><th>状态</th><th>错误</th></tr></thead>
+          <tbody>
+            <tr v-for="item in history" :key="item.taskId">
+              <td>{{ new Date(item.createdAt).toLocaleString() }}</td>
+              <td>{{ item.status }}</td>
+              <td>{{ item.error || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
     </template>
   </section>
 </template>

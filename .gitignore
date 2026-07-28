@@ -44,6 +44,9 @@ node_modules/
 .pnpm-store/
 frontend/node_modules/
 frontend/dist/
+frontend/playwright-report/
+frontend/test-results/
+backend/e2e.sqlite3
 frontend/coverage/
 .vite/
 .vitest/

@@ -2,9 +2,11 @@ from rest_framework import serializers
 
 
 class PreviewCreateSerializer(serializers.Serializer):
-    tenantId = serializers.UUIDField()
-    profileId = serializers.UUIDField()
-    recommendationIds = serializers.ListField(child=serializers.UUIDField(), min_length=1)
+    tenant_id = serializers.UUIDField()
+    profile_id = serializers.UUIDField()
+    recommendation_ids = serializers.ListField(
+        child=serializers.UUIDField(), min_length=1
+    )
 
 
 class DecisionSerializer(serializers.Serializer):
@@ -14,7 +16,6 @@ class DecisionSerializer(serializers.Serializer):
 
 class ExecutionRecordSerializer(serializers.Serializer):
     result = serializers.ChoiceField(choices=["SUCCEEDED", "FAILED", "SKIPPED"])
-    actualValue = serializers.JSONField(required=False, default=dict)
-    executedAt = serializers.DateTimeField()
+    actual_value = serializers.JSONField(required=False, default=dict)
+    executed_at = serializers.DateTimeField()
     note = serializers.CharField(max_length=500, required=False, default="")
-

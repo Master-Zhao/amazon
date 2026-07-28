@@ -10,6 +10,14 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  optimizeDeps: {
+    include: [
+      'echarts/core',
+      'echarts/charts',
+      'echarts/components',
+      'echarts/renderers',
+    ],
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,
@@ -28,5 +36,12 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
     globals: true,
+    exclude: [
+      'e2e/**',
+      'node_modules/**',
+      'dist/**',
+      'playwright-report/**',
+      'test-results/**',
+    ],
   },
 })

@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 
 import {
   fetchImportTask,
+  fetchImportTasks,
   uploadReport,
   type ImportTask,
+  type ImportTaskSummary,
   type ReportType,
 } from '@/features/reports/api/reportApi'
 import { useTenantContextStore } from '@/features/tenant-context/stores/context'
@@ -15,6 +17,19 @@ const selectedFile = ref<globalThis.File | null>(null)
 const task = ref<ImportTask | null>(null)
 const submitting = ref(false)
 const error = ref<string | null>(null)
+const history = ref<ImportTaskSummary[]>([])
+
+async function loadHistory(): Promise<void> {
+  if (!context.selectedProfileId) return
+  try {
+    history.value = await fetchImportTasks(context.selectedProfileId)
+  } catch {
+    error.value = '导入任务列表加载失败或当前账号无权限'
+  }
+}
+
+onMounted(loadHistory)
+watch(() => context.selectedProfileId, loadHistory)
 
 function chooseFile(event: globalThis.Event): void {
   selectedFile.value = (event.target as globalThis.HTMLInputElement).files?.[0] ?? null
@@ -32,6 +47,7 @@ async function submit(): Promise<void> {
       file: selectedFile.value,
     })
     task.value = await fetchImportTask(created.taskId)
+    await loadHistory()
   } catch {
     error.value = '报表上传或任务查询失败'
   } finally {
@@ -78,5 +94,19 @@ async function submit(): Promise<void> {
         </li>
       </ul>
     </article>
+    <section v-if="history.length" class="table-scroll">
+      <h3>历史导入任务</h3>
+      <table>
+        <thead><tr><th>文件</th><th>类型</th><th>状态</th><th>失败行</th></tr></thead>
+        <tbody>
+          <tr v-for="item in history" :key="item.taskId">
+            <td>{{ item.originalName }}</td>
+            <td>{{ item.reportType }}</td>
+            <td>{{ item.status }}</td>
+            <td>{{ item.failedRows ?? '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
   </section>
 </template>

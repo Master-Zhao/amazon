@@ -2,6 +2,5 @@ from rest_framework import serializers
 
 
 class AnalysisCreateSerializer(serializers.Serializer):
-    tenantId = serializers.UUIDField()
-    profileId = serializers.UUIDField()
-
+    tenant_id = serializers.UUIDField()
+    profile_id = serializers.UUIDField()

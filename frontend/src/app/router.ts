@@ -7,91 +7,94 @@ import {
 } from 'vue-router'
 
 import { useAuthStore } from '@/features/auth/stores/auth'
-import LoginPage from '@/features/auth/pages/LoginPage.vue'
-import HealthDiagnosticsPage from '@/features/diagnostics/pages/HealthDiagnosticsPage.vue'
-import HomePage from '@/features/home/pages/HomePage.vue'
-import SellerContextPage from '@/features/tenant-context/pages/SellerContextPage.vue'
-import RoleManagementPage from '@/features/system/pages/RoleManagementPage.vue'
-import ReportCenterPage from '@/features/reports/pages/ReportCenterPage.vue'
-import DashboardPage from '@/features/dashboard/pages/DashboardPage.vue'
-import TargetingAnalyticsPage from '@/features/targeting/pages/TargetingAnalyticsPage.vue'
-import SearchTermAnalyticsPage from '@/features/search-terms/pages/SearchTermAnalyticsPage.vue'
-import OptimizationWorkflowPage from '@/features/optimization/pages/OptimizationWorkflowPage.vue'
-import KnowledgePage from '@/features/knowledge/pages/KnowledgePage.vue'
-import AuditLogPage from '@/features/audit/pages/AuditLogPage.vue'
-
 export const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'home',
-    component: HomePage,
+    component: () => import('@/features/home/pages/HomePage.vue'),
     meta: { title: '账号工作台', requiresAuth: true },
   },
   {
     path: '/login',
     name: 'login',
-    component: LoginPage,
+    component: () => import('@/features/auth/pages/LoginPage.vue'),
     meta: { title: '登录', guestOnly: true },
   },
   {
     path: '/dashboard',
     name: 'dashboard',
-    component: DashboardPage,
+    component: () => import('@/features/dashboard/pages/DashboardPage.vue'),
     meta: { title: '广告工作台', requiresAuth: true },
   },
   {
     path: '/advertising/targeting',
     name: 'targeting-analytics',
-    component: TargetingAnalyticsPage,
+    component: () => import('@/features/targeting/pages/TargetingAnalyticsPage.vue'),
     meta: { title: 'Targeting 分析', requiresAuth: true },
   },
   {
     path: '/advertising/search-terms',
     name: 'search-term-analytics',
-    component: SearchTermAnalyticsPage,
+    component: () =>
+      import('@/features/search-terms/pages/SearchTermAnalyticsPage.vue'),
     meta: { title: 'Search Term 分析', requiresAuth: true },
   },
   {
     path: '/reports',
     name: 'reports',
-    component: ReportCenterPage,
+    component: () => import('@/features/reports/pages/ReportCenterPage.vue'),
     meta: { title: '数据中心', requiresAuth: true },
   },
   {
     path: '/optimization',
     name: 'optimization',
-    component: OptimizationWorkflowPage,
+    component: () =>
+      import('@/features/optimization/pages/OptimizationWorkflowPage.vue'),
     meta: { title: '优化工作流', requiresAuth: true },
   },
   {
     path: '/knowledge',
     name: 'knowledge',
-    component: KnowledgePage,
+    component: () => import('@/features/knowledge/pages/KnowledgePage.vue'),
     meta: { title: '知识库', requiresAuth: true },
   },
   {
     path: '/audit',
     name: 'audit',
-    component: AuditLogPage,
+    component: () => import('@/features/audit/pages/AuditLogPage.vue'),
     meta: { title: '审计日志', requiresAuth: true },
   },
   {
     path: '/seller-context',
     name: 'seller-context',
-    component: SellerContextPage,
+    component: () =>
+      import('@/features/tenant-context/pages/SellerContextPage.vue'),
     meta: { title: '卖家空间', requiresAuth: true },
   },
   {
     path: '/system/roles',
     name: 'role-management',
-    component: RoleManagementPage,
+    component: () => import('@/features/system/pages/RoleManagementPage.vue'),
     meta: { title: '角色与权限', requiresAuth: true },
   },
   {
     path: '/diagnostics/health',
     name: 'health-diagnostics',
-    component: HealthDiagnosticsPage,
+    component: () =>
+      import('@/features/diagnostics/pages/HealthDiagnosticsPage.vue'),
     meta: { title: '运行诊断' },
+  },
+  {
+    path: '/advertising/campaigns',
+    name: 'campaigns',
+    component: () => import('@/features/campaigns/pages/CampaignsPage.vue'),
+    meta: { title: 'Campaign', requiresAuth: true },
+  },
+  {
+    path: '/actions',
+    name: 'actions',
+    component: () => import('@/features/actions/pages/ActionCenterPage.vue'),
+    meta: { title: '审批执行', requiresAuth: true },
   },
 ]
 

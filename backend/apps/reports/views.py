@@ -9,10 +9,61 @@ from apps.reports.models import ImportTask
 from apps.reports.selectors import task_for_user
 from apps.reports.serializers import ReportUploadSerializer, TaskResponseSerializer
 from apps.reports.services import create_upload_task, reprocess
+from apps.permissions.services import authorize
+from apps.stores.models import AdvertisingProfile
 
 
 class ReportUploadView(APIView):
     permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses={200: OpenApiResponse(description="导入任务列表")},
+        tags=["reports"],
+    )
+    def get(self, request):
+        tenant_id = _tenant_id(request)
+        profile_id = request.query_params.get("profileId")
+        if not profile_id:
+            raise ValidationError({"profileId": "必须提供当前 Profile"})
+        try:
+            profile = AdvertisingProfile.objects.select_related(
+                "store_marketplace__store"
+            ).get(pk=profile_id)
+        except (AdvertisingProfile.DoesNotExist, ValueError) as exc:
+            raise NotFound("广告 Profile 不存在") from exc
+        authorize(
+            user=request.user,
+            tenant_id=tenant_id,
+            permission_code="reports.view",
+            profile=profile,
+        )
+        tasks = (
+            ImportTask.objects.filter(
+                upload__tenant_id=tenant_id, upload__profile=profile
+            )
+            .select_related("upload", "batch")
+            .order_by("-created_at")[:100]
+        )
+        return api_response(
+            request,
+            data={
+                "items": [
+                    {
+                        "task_id": str(task.pk),
+                        "report_type": task.upload.report_type,
+                        "original_name": task.upload.original_name,
+                        "status": task.status,
+                        "is_duplicate": task.upload.is_duplicate,
+                        "created_at": task.created_at,
+                        "total_rows": getattr(task, "batch", None)
+                        and task.batch.total_rows,
+                        "failed_rows": getattr(task, "batch", None)
+                        and task.batch.failed_rows,
+                    }
+                    for task in tasks
+                ]
+            },
+        )
 
     @extend_schema(
         summary="上传三类广告报表并创建异步导入任务",

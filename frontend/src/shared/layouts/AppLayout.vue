@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/features/auth/stores/auth'
@@ -9,6 +9,22 @@ const authStore = useAuthStore()
 const contextStore = useTenantContextStore()
 const router = useRouter()
 const loggingOut = ref(false)
+const permissions = computed(() => new Set(contextStore.permissionCodes))
+const hasContext = computed(() => Boolean(contextStore.selectedTenantId))
+
+function can(...codes: string[]): boolean {
+  return !hasContext.value || codes.some((code) => permissions.value.has(code))
+}
+
+watch(
+  () => authStore.currentUser,
+  (user) => {
+    if (user && contextStore.tenants.length === 0 && !contextStore.loading) {
+      void contextStore.initialize().catch(() => undefined)
+    }
+  },
+  { immediate: true },
+)
 
 async function performLogout(): Promise<void> {
   loggingOut.value = true
@@ -48,18 +64,43 @@ async function performLogout(): Promise<void> {
 
     <nav class="nav" aria-label="平台导航">
       <RouterLink v-if="authStore.currentUser" to="/">工作台</RouterLink>
-      <RouterLink v-if="authStore.currentUser" to="/dashboard">广告分析</RouterLink>
-      <RouterLink v-if="authStore.currentUser" to="/seller-context">卖家空间</RouterLink>
-      <RouterLink v-if="authStore.currentUser" to="/reports">数据中心</RouterLink>
-      <RouterLink v-if="authStore.currentUser" to="/optimization">优化闭环</RouterLink>
-      <RouterLink v-if="authStore.currentUser" to="/knowledge">知识库</RouterLink>
-      <RouterLink v-if="authStore.currentUser" to="/audit">审计</RouterLink>
-      <RouterLink v-if="authStore.currentUser" to="/advertising/targeting">Targeting</RouterLink>
-      <RouterLink v-if="authStore.currentUser" to="/advertising/search-terms">Search Term</RouterLink>
-      <RouterLink v-if="authStore.currentUser" to="/system/roles">角色与权限</RouterLink>
-      <RouterLink v-else to="/login">登录</RouterLink>
-      <RouterLink to="/diagnostics/health">运行诊断</RouterLink>
-      <a href="/api/docs/" target="_blank" rel="noreferrer">OpenAPI</a>
+      <RouterLink
+        v-if="authStore.currentUser && can('reports.view', 'reports.import')"
+        to="/reports"
+      >
+        数据中心
+      </RouterLink>
+      <RouterLink
+        v-if="authStore.currentUser && can('analytics.view')"
+        to="/dashboard"
+      >
+        广告分析
+      </RouterLink>
+      <RouterLink
+        v-if="authStore.currentUser && can('analysis.run', 'recommendations.view')"
+        to="/optimization"
+      >
+        智能优化
+      </RouterLink>
+      <RouterLink
+        v-if="authStore.currentUser && can('actions.submit', 'actions.approve', 'actions.execute')"
+        to="/actions"
+      >
+        审批执行
+      </RouterLink>
+      <RouterLink
+        v-if="authStore.currentUser && can('knowledge.view')"
+        to="/knowledge"
+      >
+        知识中心
+      </RouterLink>
+      <RouterLink
+        v-if="authStore.currentUser && can('roles.manage', 'audit.view', 'context.view')"
+        to="/system/roles"
+      >
+        系统管理
+      </RouterLink>
+      <RouterLink v-if="!authStore.currentUser" to="/login">登录</RouterLink>
     </nav>
 
     <main class="content">

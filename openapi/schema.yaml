@@ -44,6 +44,15 @@ paths:
         '201':
           description: No response body
   /api/v1/actions/previews:
+    get:
+      operationId: api_v1_actions_previews_retrieve
+      tags:
+      - actions
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: 动作预览与执行列表
     post:
       operationId: api_v1_actions_previews_create
       tags:
@@ -145,6 +154,15 @@ paths:
         '200':
           description: 广告对象列表
   /api/v1/analysis/tasks:
+    get:
+      operationId: analysis_task_list
+      tags:
+      - analysis
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: 分析任务列表
     post:
       operationId: api_v1_analysis_tasks_create
       tags:
@@ -168,7 +186,7 @@ paths:
           description: 分析任务
   /api/v1/analysis/tasks/{task_id}:
     get:
-      operationId: api_v1_analysis_tasks_retrieve
+      operationId: analysis_task_retrieve
       parameters:
       - in: path
         name: task_id
@@ -611,6 +629,15 @@ paths:
                 $ref: '#/components/schemas/TaskResponse'
           description: ''
   /api/v1/reports/uploads:
+    get:
+      operationId: api_v1_reports_uploads_retrieve
+      tags:
+      - reports
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: 导入任务列表
     post:
       operationId: api_v1_reports_uploads_create
       summary: 上传三类广告报表并创建异步导入任务
@@ -685,15 +712,15 @@ components:
     AnalysisCreateRequest:
       type: object
       properties:
-        tenantId:
+        tenant_id:
           type: string
           format: uuid
-        profileId:
+        profile_id:
           type: string
           format: uuid
       required:
-      - profileId
-      - tenantId
+      - profile_id
+      - tenant_id
     AssignmentData:
       type: object
       properties:
@@ -793,8 +820,8 @@ components:
       properties:
         result:
           $ref: '#/components/schemas/ResultEnum'
-        actualValue: {}
-        executedAt:
+        actual_value: {}
+        executed_at:
           type: string
           format: date-time
         note:
@@ -803,7 +830,7 @@ components:
           default: ''
           maxLength: 500
       required:
-      - executedAt
+      - executed_at
       - result
     LevelEnum:
       enum:
@@ -924,22 +951,22 @@ components:
     PreviewCreateRequest:
       type: object
       properties:
-        tenantId:
+        tenant_id:
           type: string
           format: uuid
-        profileId:
+        profile_id:
           type: string
           format: uuid
-        recommendationIds:
+        recommendation_ids:
           type: array
           items:
             type: string
             format: uuid
           minItems: 1
       required:
-      - profileId
-      - recommendationIds
-      - tenantId
+      - profile_id
+      - recommendation_ids
+      - tenant_id
     ProfileContext:
       type: object
       properties:

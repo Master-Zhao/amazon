@@ -49,6 +49,12 @@ watch(() => context.selectedTenantId, loadRoles, { immediate: true })
   <section class="panel">
     <p class="eyebrow">SYSTEM MANAGEMENT</p>
     <h2>角色与权限</h2>
+    <div class="button-row">
+      <RouterLink class="primary-link" to="/seller-context">Tenant / Store / Profile</RouterLink>
+      <RouterLink class="primary-link" to="/audit">审计日志</RouterLink>
+      <RouterLink class="primary-link" to="/diagnostics/health">运行诊断</RouterLink>
+      <a class="primary-link" href="/api/docs/" target="_blank" rel="noreferrer">OpenAPI</a>
+    </div>
     <p v-if="!context.selectedTenantId">请先选择卖家空间。</p>
     <p v-else-if="!canManage" class="error-banner">当前卖家空间内无角色管理权限。</p>
     <p v-else-if="loading" role="status">正在加载角色…</p>

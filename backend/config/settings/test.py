@@ -13,7 +13,7 @@ else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "test.sqlite3",  # noqa: F405
+            "NAME": env("SQLITE_TEST_DB", str(BASE_DIR / "test.sqlite3")),  # noqa: F405
         }
     }
 

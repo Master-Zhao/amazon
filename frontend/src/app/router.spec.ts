@@ -1,7 +1,7 @@
 import { routes } from '@/app/router'
 
 describe('router foundation', () => {
-  it('registers authentication and M1 context pages', () => {
+  it('registers the complete V1 page set', () => {
     expect(routes.map((route) => route.name)).toEqual([
       'home',
       'login',
@@ -15,8 +15,10 @@ describe('router foundation', () => {
       'seller-context',
       'role-management',
       'health-diagnostics',
+      'campaigns',
+      'actions',
     ])
     expect(routes.some((route) => String(route.path).includes('login'))).toBe(true)
-    expect(routes.some((route) => String(route.path).includes('campaign'))).toBe(false)
+    expect(routes.some((route) => String(route.path).includes('campaign'))).toBe(true)
   })
 })

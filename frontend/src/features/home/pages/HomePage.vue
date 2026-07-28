@@ -36,4 +36,11 @@ const authStore = useAuthStore()
     </article>
   </section>
   <RouterLink class="primary-button" to="/seller-context">选择卖家空间</RouterLink>
+  <div class="button-row">
+    <RouterLink class="primary-link" to="/advertising/campaigns">Campaign 列表</RouterLink>
+    <RouterLink class="primary-link" to="/advertising/targeting">Targeting 分析</RouterLink>
+    <RouterLink class="primary-link" to="/advertising/search-terms">Search Term 分析</RouterLink>
+    <RouterLink class="primary-link" to="/audit">审计日志</RouterLink>
+    <RouterLink class="primary-link" to="/diagnostics/health">运行诊断</RouterLink>
+  </div>
 </template>

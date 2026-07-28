@@ -1,6 +1,6 @@
 # Amazon 广告智能优化系统 V1
 
-当前仓库已完成 M4：在 M0—M3 认证、权限、报表和分析基础上，已用 MockLLMProvider 打通四 Agent、Recommendation、不可变 Action Preview、审批、人工执行回填、基础效果评估、知识库和只追加审计。真实 LLM 与 Amazon Ads 写接口均未接入。
+当前仓库已完成 M5：在 M0—M4 基础上补齐七个权限菜单、Campaign/导入任务/分析任务/审批执行页面，并以系统 Chrome 自动验证登录恢复、四级上下文、Campaign 异常、Mock Recommendation、审批、人工执行和审计完整闭环。真实 LLM 与 Amazon Ads 写接口均未接入。
 
 唯一主规格是 [codex_master_goal_amazon_ads_v1.md](codex_master_goal_amazon_ads_v1.md)。长期规则见 [AGENTS.md](AGENTS.md)，阶段计划见 [PLANS.md](PLANS.md)。
 
@@ -87,6 +87,7 @@ pnpm --dir frontend lint
 pnpm --dir frontend typecheck
 pnpm --dir frontend test
 pnpm --dir frontend build
+pnpm --dir frontend test:e2e
 ```
 
 契约：
@@ -152,4 +153,4 @@ docs/testing/            测试策略与验收清单
 
 ## 当前边界
 
-项目发起人已授权按 M0—M6 连续执行；当前 M4 已收口并自动进入 M5。真实 Amazon Ads API、第三方数据服务和真实 LLM 密钥均未接入；尚未完成最终性能测试，不声明任何并发量、QPS、延迟或广告收益。
+项目发起人已授权按 M0—M6 连续执行；当前 M5 已收口，下一步先建立 demo-milestone，再执行最小 M6。真实 Amazon Ads API、第三方数据服务和真实 LLM 密钥均未接入；尚未完成最终性能测试，不声明任何并发量、QPS、延迟或广告收益。

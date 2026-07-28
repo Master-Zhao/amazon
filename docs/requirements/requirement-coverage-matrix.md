@@ -45,8 +45,8 @@
 | ACTION-004 | 人工执行清单、部分回填与证据 | 主规格 13 | actions | task/item/record API | 回填幂等测试 | IMPLEMENTED_NOT_FULLY_VERIFIED | 附件证据上传 UI 待 M5 |
 | ACTION-005 | 效果评估基础任务与结果 | 主规格 13 | actions | EffectEvaluation/task | 模型随迁移验证 | IMPLEMENTED_NOT_FULLY_VERIFIED | 当前只建立 baseline |
 | KNOW-001 | 轻量只读知识中心 | 主规格 14 | knowledge | seed/API/UI | build/typecheck | IMPLEMENTED_NOT_FULLY_VERIFIED | M5 补页面状态测试 |
-| UI-001 | 七个一级菜单与真实业务页面 | 主规格 15 | frontend | M1—M5 | unit/E2E | NOT_IMPLEMENTED | 按里程碑逐步完成 |
-| UI-002 | loading/normal/empty/partial/failure/forbidden | 主规格 15 | frontend | M5 | component tests | NOT_IMPLEMENTED | M5 |
+| UI-001 | 七个一级菜单与真实业务页面 | 主规格 15 | frontend | 权限菜单/业务页面/API | unit/Playwright E2E | IMPLEMENTED_AND_TESTED | Chrome 主链路已验证 |
+| UI-002 | loading/normal/empty/partial/failure/forbidden | 主规格 15 | frontend | 页面状态与统一错误 | unit/API 权限/E2E | IMPLEMENTED_NOT_FULLY_VERIFIED | 非法分支主要由后端测试覆盖 |
 | API-001 | 统一信封、camelCase、字符串 ID、Decimal+currency | 主规格 16 | core | Phase 1+各模块 | core/OpenAPI tests | IMPLEMENTED_NOT_FULLY_VERIFIED | 基础已验证，业务模型持续检查 |
 | AUDIT-001 | 关键业务 AuditLog 只追加和查询 | 主规格 17 | audit | model/service/API/UI | 实例/批量删除拒绝测试 | IMPLEMENTED_AND_TESTED | M5 扩大事件覆盖 |
 | PERF-001 | 队列隔离、超时、有限重试 | 主规格 18 | config | M2/M4/M6 | M6 | NOT_IMPLEMENTED | M6 |
@@ -55,7 +55,7 @@
 | PERF-004 | 限流、背压、缓存隔离、可观测性 | 主规格 18 | core/config | M6 | M6 | NOT_IMPLEMENTED | M6 |
 | PERF-005 | 可重复 Locust 压测 | 主规格 18 | tests/performance | M6 | 实测报告 | NOT_IMPLEMENTED | 不虚构 200 RPS 目标 |
 | DEPLOY-001 | local/test/prod Compose 与健康检查 | 主规格 19 | infra | Phase 1/M6 | Compose evidence | IMPLEMENTED_NOT_FULLY_VERIFIED | M6 最终从零复验 |
-| TEST-001 | 后端/前端/OpenAPI/Compose/E2E 验收 | 主规格 20 | tests | M0—M6 | 各里程碑报告 | IMPLEMENTED_NOT_FULLY_VERIFIED | E2E/业务测试待后续 |
+| TEST-001 | 后端/前端/OpenAPI/Compose/E2E 验收 | 主规格 20 | tests | M0—M6 | 各报告/Playwright | IMPLEMENTED_NOT_FULLY_VERIFIED | E2E 已通过；M6 收口 Docker/性能 |
 | DOC-001 | 架构/API/部署/测试/演示文档 | 主规格 21 | docs | M0—M6 | 文档清单 | IMPLEMENTED_NOT_FULLY_VERIFIED | M6 最终收口 |
 | RESERVED-001 | 第三方报表来源 Adapter | 主规格 4、10 | integrations | M2 | contract tests | RESERVED_BY_CONFIRMED_SCOPE | 不真实接入 |
 | RESERVED-002 | Amazon Ads API 报表来源 Adapter | 主规格 4、10 | integrations | M2 | contract tests | RESERVED_BY_CONFIRMED_SCOPE | 不真实调用 |

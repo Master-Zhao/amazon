@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from rest_framework.test import APIClient
 
 from apps.actions.models import ActionPreviewVersion, ExecutionItem, PreviewStatus
 from apps.actions.services import (
@@ -242,3 +243,75 @@ def test_team_submitter_cannot_approve_self(workflow_context):
             idempotency_key="self-approve",
         )
     assert getattr(error.value, "status_code", None) == 403
+
+
+@pytest.mark.django_db(transaction=True)
+def test_json_api_contract_runs_analysis_approval_execution_and_audit(workflow_context):
+    owner, tenant, profile = workflow_context
+    client = APIClient()
+    client.force_authenticate(owner)
+    tenant_headers = {"HTTP_X_TENANT_ID": str(tenant.pk)}
+
+    analysis = client.post(
+        "/api/v1/analysis/tasks",
+        {"tenantId": str(tenant.pk), "profileId": str(profile.pk)},
+        format="json",
+        HTTP_IDEMPOTENCY_KEY="api-analysis",
+        **tenant_headers,
+    )
+    assert analysis.status_code == 202
+    task_id = analysis.json()["data"]["taskId"]
+
+    task = client.get(f"/api/v1/analysis/tasks/{task_id}", **tenant_headers)
+    recommendations = client.get(
+        f"/api/v1/recommendations/?profileId={profile.pk}", **tenant_headers
+    )
+    recommendation_id = recommendations.json()["data"]["items"][0]["id"]
+    assert task.json()["data"]["status"] == "SUCCEEDED"
+
+    created = client.post(
+        "/api/v1/actions/previews",
+        {
+            "tenantId": str(tenant.pk),
+            "profileId": str(profile.pk),
+            "recommendationIds": [recommendation_id],
+        },
+        format="json",
+        **tenant_headers,
+    )
+    preview_id = created.json()["data"]["previewId"]
+    assert created.status_code == 201
+    assert client.post(
+        f"/api/v1/actions/previews/{preview_id}/submit", **tenant_headers
+    ).status_code == 200
+    assert client.post(
+        f"/api/v1/actions/previews/{preview_id}/decisions",
+        {"decision": "APPROVED", "comment": "API contract"},
+        format="json",
+        HTTP_IDEMPOTENCY_KEY="api-approval",
+        **tenant_headers,
+    ).status_code == 200
+
+    previews = client.get(
+        f"/api/v1/actions/previews?profileId={profile.pk}", **tenant_headers
+    )
+    execution_item = previews.json()["data"]["items"][0]["execution"]["items"][0]
+    recorded = client.post(
+        f"/api/v1/actions/execution-items/{execution_item['id']}/records",
+        {
+            "result": "SUCCEEDED",
+            "actualValue": {"budget": "55.00"},
+            "executedAt": timezone.now().isoformat(),
+            "note": "API integration",
+        },
+        format="json",
+        HTTP_IDEMPOTENCY_KEY="api-execution",
+        **tenant_headers,
+    )
+    audit = client.get("/api/v1/audit/", **tenant_headers)
+
+    assert recorded.status_code == 201
+    assert any(
+        item["event"] == "EXECUTION_RECORDED"
+        for item in audit.json()["data"]["items"]
+    )

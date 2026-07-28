@@ -181,6 +181,29 @@ button:disabled {
   overflow-x: auto;
 }
 
+.split-view {
+  display: grid;
+  grid-template-columns: minmax(14rem, 0.7fr) minmax(20rem, 1.3fr);
+  gap: 1rem;
+}
+
+.selection-button {
+  border-radius: 0.8rem;
+  text-align: left;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+pre {
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -370,7 +393,8 @@ td {
 
   .capability-grid,
   .status-list,
-  .login-card {
+  .login-card,
+  .split-view {
     grid-template-columns: 1fr;
   }
 

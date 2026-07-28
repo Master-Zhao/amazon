@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import * as echarts from 'echarts'
+import { LineChart } from 'echarts/charts'
+import {
+  GridComponent,
+  LegendComponent,
+  TooltipComponent,
+} from 'echarts/components'
+import * as echarts from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
 
 import {
   fetchDashboard,
@@ -8,12 +15,20 @@ import {
 } from '@/features/dashboard/api/analyticsApi'
 import { useTenantContextStore } from '@/features/tenant-context/stores/context'
 
+echarts.use([
+  LineChart,
+  GridComponent,
+  LegendComponent,
+  TooltipComponent,
+  CanvasRenderer,
+])
+
 const context = useTenantContextStore()
 const data = ref<DashboardData | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const chartElement = ref<globalThis.HTMLElement | null>(null)
-let chart: echarts.ECharts | null = null
+let chart: echarts.EChartsType | null = null
 
 const hasData = computed(() => Boolean(data.value?.series.length))
 

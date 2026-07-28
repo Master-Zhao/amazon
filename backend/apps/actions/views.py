@@ -1,3 +1,5 @@
+import uuid
+
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -15,10 +17,50 @@ from apps.actions.services import (
     submit_preview,
 )
 from apps.core.responses import api_response
+from apps.actions.models import ActionPreview, ExecutionTask
+from apps.permissions.services import authorize
+from rest_framework.exceptions import ValidationError
+from apps.stores.models import AdvertisingProfile
 
 
 class PreviewCreateView(APIView):
     permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses={200: OpenApiResponse(description="动作预览与执行列表")},
+        tags=["actions"],
+    )
+    def get(self, request):
+        tenant_id = request.headers.get("X-Tenant-ID")
+        profile_id = request.query_params.get("profileId")
+        if not tenant_id or not profile_id:
+            raise ValidationError("缺少当前 Tenant/Profile")
+        try:
+            profile = AdvertisingProfile.objects.select_related(
+                "store_marketplace__store"
+            ).get(pk=profile_id)
+        except (AdvertisingProfile.DoesNotExist, ValueError) as exc:
+            from rest_framework.exceptions import NotFound
+
+            raise NotFound("广告 Profile 不存在") from exc
+        authorize(user=request.user, tenant_id=tenant_id, profile=profile)
+        previews = (
+            ActionPreview.objects.filter(
+                tenant_id=tenant_id, profile=profile
+            )
+            .select_related("profile", "created_by")
+            .prefetch_related(
+                "versions",
+                "approvals",
+                "execution_task__items__records",
+                "execution_task__evaluations",
+            )
+            .order_by("-created_at")[:100]
+        )
+        return api_response(
+            request,
+            data={"items": [_preview_payload(item) for item in previews]},
+        )
 
     @extend_schema(request=PreviewCreateSerializer, responses={201: OpenApiResponse()}, tags=["actions"])
     def post(self, request):
@@ -27,9 +69,9 @@ class PreviewCreateView(APIView):
         data = serializer.validated_data
         preview = create_preview(
             request=request,
-            tenant_id=data["tenantId"],
-            profile_id=data["profileId"],
-            recommendation_ids=data["recommendationIds"],
+            tenant_id=data["tenant_id"],
+            profile_id=data["profile_id"],
+            recommendation_ids=data["recommendation_ids"],
         )
         return api_response(
             request, data={"preview_id": str(preview.pk), "status": preview.status}, status=201
@@ -55,7 +97,7 @@ class PreviewDecisionView(APIView):
         preview = decide_preview(
             request=request,
             preview_id=preview_id,
-            idempotency_key=request.headers.get("Idempotency-Key", ""),
+            idempotency_key=request.headers.get("Idempotency-Key") or uuid.uuid4().hex,
             **serializer.validated_data,
         )
         return api_response(request, data={"preview_id": str(preview.pk), "status": preview.status})
@@ -71,13 +113,86 @@ class ExecutionRecordView(APIView):
         record = record_execution(
             request=request,
             item_id=item_id,
-            idempotency_key=request.headers.get("Idempotency-Key", ""),
+            idempotency_key=request.headers.get("Idempotency-Key") or uuid.uuid4().hex,
             **{
                 "result": serializer.validated_data["result"],
-                "actual_value": serializer.validated_data["actualValue"],
-                "executed_at": serializer.validated_data["executedAt"],
+                "actual_value": serializer.validated_data["actual_value"],
+                "executed_at": serializer.validated_data["executed_at"],
                 "note": serializer.validated_data["note"],
             },
         )
         return api_response(request, data={"record_id": str(record.pk)}, status=status.HTTP_201_CREATED)
 
+
+def _preview_payload(preview):
+    version = next(
+        (item for item in preview.versions.all() if item.version == preview.current_version),
+        None,
+    )
+    try:
+        execution = preview.execution_task
+    except ExecutionTask.DoesNotExist:
+        execution = None
+    return {
+        "id": str(preview.pk),
+        "status": preview.status,
+        "current_version": preview.current_version,
+        "version_lock": preview.version_lock,
+        "created_by_id": str(preview.created_by_id),
+        "created_at": preview.created_at,
+        "version": (
+            {
+                "version": version.version,
+                "items": version.items,
+                "content_hash": version.content_hash,
+                "frozen_at": version.frozen_at,
+            }
+            if version
+            else None
+        ),
+        "approvals": [
+            {
+                "id": str(item.pk),
+                "decision": item.decision,
+                "actor_id": str(item.actor_id),
+                "comment": item.comment,
+                "created_at": item.created_at,
+            }
+            for item in preview.approvals.all()
+        ],
+        "execution": (
+            {
+                "id": str(execution.pk),
+                "status": execution.status,
+                "items": [
+                    {
+                        "id": str(item.pk),
+                        "status": item.status,
+                        "action": item.action,
+                        "records": [
+                            {
+                                "id": str(record.pk),
+                                "result": record.result,
+                                "actual_value": record.actual_value,
+                                "executed_at": record.executed_at,
+                                "note": record.note,
+                            }
+                            for record in item.records.all()
+                        ],
+                    }
+                    for item in execution.items.all()
+                ],
+                "evaluations": [
+                    {
+                        "id": str(item.pk),
+                        "status": item.status,
+                        "baseline": item.baseline,
+                        "observed": item.observed,
+                    }
+                    for item in execution.evaluations.all()
+                ],
+            }
+            if execution
+            else None
+        ),
+    }

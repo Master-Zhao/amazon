@@ -3,26 +3,41 @@ import type { ApiEnvelope } from '@/shared/api/types'
 
 export interface Recommendation {
   id: string
-  action_type: string
-  object_type: string
-  object_id: string
-  before_value: Record<string, unknown>
-  after_value: Record<string, unknown>
+  actionType: string
+  objectType: string
+  objectId: string
+  beforeValue: Record<string, unknown>
+  afterValue: Record<string, unknown>
   reason: string
   evidence: Array<Record<string, unknown>>
-  risk_level: 'LOW' | 'MEDIUM' | 'HIGH'
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH'
 }
 
 export interface AnalysisTask {
-  task_id: string
+  taskId: string
   status: 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED'
   result: Record<string, unknown>
   error: string
   runs: Array<{
-    agent_code: string
+    agentCode: string
     status: string
     output: Record<string, unknown>
   }>
+}
+
+export interface AnalysisTaskSummary {
+  taskId: string
+  status: AnalysisTask['status']
+  error: string
+  createdAt: string
+  completedAt: string | null
+}
+
+async function fetchAnalysis(taskId: string): Promise<AnalysisTask> {
+  const response = await httpClient.get<ApiEnvelope<AnalysisTask>>(
+    `/api/v1/analysis/tasks/${taskId}`,
+  )
+  return response.data.data
 }
 
 export async function runAnalysis(
@@ -30,16 +45,27 @@ export async function runAnalysis(
   profileId: string,
 ): Promise<AnalysisTask> {
   const created = await httpClient.post<
-    ApiEnvelope<{ task_id: string; status: string }>
+    ApiEnvelope<{ taskId: string; status: string }>
   >(
     '/api/v1/analysis/tasks',
     { tenantId, profileId },
     { headers: { 'Idempotency-Key': crypto.randomUUID() } },
   )
-  const response = await httpClient.get<ApiEnvelope<AnalysisTask>>(
-    `/api/v1/analysis/tasks/${created.data.data.task_id}`,
-  )
-  return response.data.data
+  let task = await fetchAnalysis(created.data.data.taskId)
+  for (let attempt = 0; attempt < 15 && ['QUEUED', 'RUNNING'].includes(task.status); attempt += 1) {
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 500))
+    task = await fetchAnalysis(created.data.data.taskId)
+  }
+  return task
+}
+
+export async function fetchAnalysisTasks(
+  profileId: string,
+): Promise<AnalysisTaskSummary[]> {
+  const response = await httpClient.get<
+    ApiEnvelope<{ items: AnalysisTaskSummary[] }>
+  >('/api/v1/analysis/tasks', { params: { profileId } })
+  return response.data.data.items
 }
 
 export async function fetchRecommendations(
@@ -57,17 +83,17 @@ export async function createAndSubmitPreview(input: {
   recommendationIds: string[]
 }): Promise<{ previewId: string; status: string }> {
   const created = await httpClient.post<
-    ApiEnvelope<{ preview_id: string; status: string }>
+    ApiEnvelope<{ previewId: string; status: string }>
   >('/api/v1/actions/previews', {
     tenantId: input.tenantId,
     profileId: input.profileId,
     recommendationIds: input.recommendationIds,
   })
   const submitted = await httpClient.post<
-    ApiEnvelope<{ preview_id: string; status: string }>
-  >(`/api/v1/actions/previews/${created.data.data.preview_id}/submit`)
+    ApiEnvelope<{ previewId: string; status: string }>
+  >(`/api/v1/actions/previews/${created.data.data.previewId}/submit`)
   return {
-    previewId: submitted.data.data.preview_id,
+    previewId: submitted.data.data.previewId,
     status: submitted.data.data.status,
   }
 }
@@ -78,14 +104,14 @@ export async function decidePreview(
   comment: string,
 ): Promise<{ previewId: string; status: string }> {
   const response = await httpClient.post<
-    ApiEnvelope<{ preview_id: string; status: string }>
+    ApiEnvelope<{ previewId: string; status: string }>
   >(
     `/api/v1/actions/previews/${previewId}/decisions`,
     { decision, comment },
     { headers: { 'Idempotency-Key': crypto.randomUUID() } },
   )
   return {
-    previewId: response.data.data.preview_id,
+    previewId: response.data.data.previewId,
     status: response.data.data.status,
   }
 }
