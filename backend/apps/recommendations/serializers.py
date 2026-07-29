@@ -59,3 +59,14 @@ class RecommendationSerializer(serializers.ModelSerializer):
             "current_revision",
             "created_at",
         )
+
+
+class DismissRequestSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+
+
+class ReviseRequestSerializer(serializers.Serializer):
+    afterValue = serializers.JSONField()
+    reason = serializers.CharField(max_length=1000)
+    evidence = serializers.JSONField()
+    riskLevel = serializers.ChoiceField(choices=["LOW", "MEDIUM", "HIGH"])

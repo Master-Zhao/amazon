@@ -21,7 +21,8 @@ docker compose -f compose.local.yml up -d mysql redis
 docker compose -f compose.local.yml --profile tools run --rm migrate
 
 $env:DEMO_USER_PASSWORD = Read-Host "输入本机演示密码"
-docker compose -f compose.local.yml run --rm -e DEMO_USER_PASSWORD backend python manage.py seed_demo_context --email demo@example.invalid
+docker compose -f compose.local.yml run --rm -e DEMO_USER_PASSWORD backend python manage.py seed_demo_user --email demo@example.invalid --username demo
+docker compose -f compose.local.yml run --rm backend python manage.py seed_demo_context --email demo@example.invalid
 Remove-Item Env:DEMO_USER_PASSWORD
 
 docker compose -f compose.local.yml up -d backend celery-worker celery-beat frontend nginx
@@ -71,7 +72,8 @@ uv run --project backend celery --workdir backend -A config beat --loglevel=INFO
 
 ## 数据、fixture 与演示
 
-`seed_demo_context` 可重复执行；密码必须从环境变量传入。脱敏/虚构报表在
+`seed_demo_user` 和 `seed_demo_context` 均可重复执行；只有前者接收密码，
+密码必须从环境变量传入。脱敏/虚构报表在
 `tests/fixtures/reports/`，核心演示上传
 `tests/fixtures/reports/campaign-anomalous.csv`。完整页面顺序和预期结果见
 `docs/presentation/demo-script.md`。
@@ -110,7 +112,9 @@ docker compose --env-file .env.example -f compose.prod.yml config --quiet
 ```
 
 Playwright 使用隔离的 Django `18000` 与 Vite `15173`，优先使用本机 Chrome，
-不会占用未知的 `8000` 进程。
+不会占用未知的 `8000` 进程。当前 2026-07-28 验收中两次运行均在浏览器启动前
+因旧固定 SQLite 迁移历史失败，已改为每次运行唯一 SQLite 文件，但修复后未按
+“同一问题最多两次”规则继续重跑，因此自动 E2E 状态是 `NOT VERIFIED`。
 
 ## 目录和开发入口
 
@@ -138,3 +142,7 @@ Playwright 使用隔离的 Django `18000` 与 Vite `15173`，优先使用本机 
 
 更多故障处理见 `docs/deployment/troubleshooting.md`。生产 TLS、真实备份恢复、
 300 用户/200 RPS/10 分钟以及 5×100,000 行并发导入尚未在生产等价环境验证。
+
+`compose.test.yml` 的 MySQL 使用 `tmpfs`，适合从零迁移和测试；重启 MySQL
+容器会清空测试库，不应用它验证持久化。持久化恢复应使用 local/prod 卷并遵循
+`docs/deployment/backup-and-restore.md`。

@@ -22,7 +22,10 @@ async function login(page: Page): Promise<void> {
 }
 
 async function selectContext(page: Page): Promise<void> {
-  await page.getByRole('link', { name: /卖家空间/ }).click()
+  await page
+    .getByRole('navigation', { name: '业务导航' })
+    .getByRole('link', { name: '卖家空间', exact: true })
+    .click()
   const contextSelects = page.locator('select')
   await expect(contextSelects).toHaveCount(4)
   for (let index = 0; index < 4; index += 1) {
@@ -85,8 +88,9 @@ test('Campaign 部分错误导入可查询任务与行级错误并正常退出',
   await expect(partialRow.getByText('PARTIAL_SUCCEEDED')).toBeVisible()
   await partialRow.getByRole('button', { name: '错误明细' }).click()
   await expect(page.getByRole('heading', { name: /错误明细/ })).toBeVisible()
-  await expect(page.getByRole('cell', { name: /INVALID/ }).first()).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'ROW_VALIDATION_ERROR' }).first()).toBeVisible()
 
+  await page.getByLabel('用户菜单').click()
   await page.getByRole('button', { name: '退出登录' }).click()
   await expect(page.getByRole('heading', { name: '登录广告优化工作台' })).toBeVisible()
 })

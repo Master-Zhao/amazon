@@ -1,5 +1,8 @@
 # Phase 1 验收清单
 
+> 本文件保留历史 Phase 1 证据。当前重新验收请以根目录
+> `V1_ACCEPTANCE_MATRIX.md` 为准；当前 Playwright 为 NOT VERIFIED。
+
 最终更新：2026-07-28。状态只使用 `PASS`、`FAIL`、`NOT VERIFIED`。
 
 | # | 验收标准 | 状态 | 最终真实命令或证据 |

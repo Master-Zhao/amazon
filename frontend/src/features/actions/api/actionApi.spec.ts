@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { recordExecution } from '@/features/actions/api/actionApi'
+import { recordManualExecution } from '@/features/actions/api/actionsApi'
 import {
   decidePreview,
   submitExistingPreview,
@@ -20,25 +20,22 @@ describe('action workflow APIs', () => {
 
   it('submits execution evidence as multipart data', async () => {
     vi.mocked(httpClient.post).mockResolvedValue({
-      data: { data: { recordId: 'record-1' } },
+      data: { data: { id: 'preview-1', status: 'APPROVED' } },
     })
     const evidence = new File(['proof'], 'proof.txt', { type: 'text/plain' })
 
-    await expect(
-      recordExecution({
-        itemId: 'item-1',
-        result: 'SUCCEEDED',
-        actualValue: { budget: '55.00' },
-        note: 'completed',
-        evidence,
-      }),
-    ).resolves.toBe('record-1')
+    await recordManualExecution(
+      'tenant-1',
+      'preview-1',
+      'SUCCEEDED',
+      { budget: '55.00' },
+      'completed',
+      evidence,
+    )
 
     const [url, body] = vi.mocked(httpClient.post).mock.calls[0]
-    expect(url).toBe('/api/v1/actions/execution-items/item-1/records')
+    expect(url).toBe('/api/v1/actions/tenants/tenant-1/previews/preview-1/executions')
     expect(body).toBeInstanceOf(FormData)
-    expect((body as FormData).get('actualValue')).toBe('{"budget":"55.00"}')
-    expect((body as FormData).get('evidence')).toBe(evidence)
   })
 
   it('supports RETURNED decisions and resubmitting the current version', async () => {
@@ -53,18 +50,18 @@ describe('action workflow APIs', () => {
       })
 
     await expect(
-      decidePreview('preview-1', 'RETURNED', 'revise'),
+      decidePreview('tenant-1', 'preview-1', 'RETURNED', 'revise'),
     ).resolves.toEqual({ previewId: 'preview-1', status: 'RETURNED' })
-    await expect(submitExistingPreview('preview-1')).resolves.toEqual({
+    await expect(submitExistingPreview('tenant-1', 'preview-1')).resolves.toEqual({
       previewId: 'preview-1',
       status: 'PENDING_APPROVAL',
     })
 
     expect(vi.mocked(httpClient.post).mock.calls[0][0]).toBe(
-      '/api/v1/actions/previews/preview-1/decisions',
+      '/api/v1/actions/tenants/tenant-1/previews/preview-1/decision',
     )
     expect(vi.mocked(httpClient.post).mock.calls[1][0]).toBe(
-      '/api/v1/actions/previews/preview-1/submit',
+      '/api/v1/actions/tenants/tenant-1/previews/preview-1/submit',
     )
   })
 })

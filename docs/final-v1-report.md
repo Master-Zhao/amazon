@@ -1,5 +1,9 @@
 # Amazon 广告智能优化系统 V1 最终报告
 
+> 历史报告：其中旧测试数量和 E2E PASS 只描述原里程碑。当前重新验收结果由
+> 根目录 `V1_VERIFIED_DELIVERY_REPORT.md` 取代；当前 Playwright 是
+> `NOT VERIFIED`，不得引用本文件宣称当前 HEAD 的浏览器链路通过。
+
 ## 交付结论
 
 M0—M6 已按授权完成并停止扩展。系统可以用虚构 fixtures 和 `MockLLMProvider` 演示：

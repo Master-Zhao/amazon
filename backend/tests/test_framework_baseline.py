@@ -155,6 +155,8 @@ def test_celery_tasks_only_delegate_to_services(monkeypatch):
 
 @pytest.mark.django_db
 def test_knowledge_center_requires_authentication_and_returns_only_published_articles():
+    from apps.tenants.models import Tenant, TenantMembership
+
     category = KnowledgeCategory.objects.create(code="acos", name="ACOS", order=1)
     published = KnowledgeArticle.objects.create(
         category=category,
@@ -171,25 +173,20 @@ def test_knowledge_center_requires_authentication_and_returns_only_published_art
     )
     client = APIClient()
 
-    assert client.get("/api/v1/knowledge/").status_code == 401
+    assert client.get("/api/v1/knowledge/tenants/t-1/articles").status_code == 401
     user = get_user_model().objects.create_user(
         username="knowledge-reader",
         email="knowledge-reader@example.invalid",
         password="password",
     )
+    tenant = Tenant.objects.create(name="KT", tenant_type="PERSONAL")
+    TenantMembership.objects.create(
+        tenant=tenant, user=user, membership_role="OWNER"
+    )
     client.force_authenticate(user)
-    response = client.get("/api/v1/knowledge/")
+    response = client.get(f"/api/v1/knowledge/tenants/{tenant.pk}/articles")
 
     assert response.status_code == 200
-    articles = [
-        article
-        for item in response.json()["data"]["categories"]
-        for article in item["articles"]
-    ]
-    assert {
-        "id": str(published.pk),
-        "slug": "acos-basics",
-        "title": "ACOS Basics",
-        "body": "Published",
-    } in articles
+    articles = response.json()["data"]
+    assert any(a["slug"] == "acos-basics" and a["title"] == "ACOS Basics" for a in articles)
     assert all(article["slug"] != "internal-draft" for article in articles)

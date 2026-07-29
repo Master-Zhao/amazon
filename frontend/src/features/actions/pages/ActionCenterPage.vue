@@ -2,121 +2,224 @@
 import { onMounted, ref, watch } from 'vue'
 
 import {
+  decideActionPreview,
   fetchActionPreviews,
-  recordExecution,
+  recordManualExecution,
+  submitActionPreview,
   type ActionPreview,
-} from '@/features/actions/api/actionApi'
-import { useTenantContextStore } from '@/features/tenant-context/stores/context'
+} from '@/features/actions/api/actionsApi'
+import { useTenantContextStore } from '@/features/tenant-context/stores/tenantContext'
+import { normalizeApiError } from '@/shared/api/httpClient'
 
 const context = useTenantContextStore()
 const items = ref<ActionPreview[]>([])
 const loading = ref(false)
-const busyItem = ref<string | null>(null)
-const error = ref<string | null>(null)
-type EvidenceFile = NonNullable<
-  Parameters<typeof recordExecution>[0]['evidence']
->
-const evidenceFiles = ref<Record<string, EvidenceFile | undefined>>({})
+const busyPreviewId = ref<string | null>(null)
+const errorMessage = ref<string | null>(null)
 
 async function load(): Promise<void> {
-  if (!context.selectedProfileId) return
+  if (!context.tenantId || !context.profileId) {
+    items.value = []
+    return
+  }
   loading.value = true
-  error.value = null
+  errorMessage.value = null
   try {
-    items.value = await fetchActionPreviews(context.selectedProfileId)
-  } catch {
-    error.value = '审批执行数据加载失败或当前账号无权限。'
+    items.value = await fetchActionPreviews(context.tenantId, context.profileId)
+  } catch (error) {
+    errorMessage.value = normalizeApiError(error).message
   } finally {
     loading.value = false
   }
 }
 
-async function confirm(itemId: string, result: 'SUCCEEDED' | 'FAILED' | 'SKIPPED') {
-  busyItem.value = itemId
-  error.value = null
+async function submit(preview: ActionPreview): Promise<void> {
+  if (!context.tenantId) return
+  busyPreviewId.value = preview.id
+  errorMessage.value = null
   try {
-    await recordExecution({
-      itemId,
-      result,
-      note: '人工在 Amazon 后台核对后回填',
-      evidence: evidenceFiles.value[itemId],
-    })
-    await load()
-  } catch {
-    error.value = '执行回填失败；请检查状态、权限和幂等冲突。'
+    const updated = await submitActionPreview(context.tenantId, preview.id)
+    items.value = items.value.map((item) => (item.id === updated.id ? updated : item))
+  } catch (error) {
+    errorMessage.value = normalizeApiError(error).message
   } finally {
-    busyItem.value = null
+    busyPreviewId.value = null
   }
 }
 
-function selectEvidence(itemId: string, event: unknown): void {
-  const target = (
-    event as { target?: { files?: ArrayLike<EvidenceFile> | null } }
-  ).target
-  evidenceFiles.value[itemId] = target?.files?.[0]
+async function decide(
+  preview: ActionPreview,
+  decision: 'APPROVED' | 'REJECTED' | 'RETURNED',
+): Promise<void> {
+  if (!context.tenantId) return
+  busyPreviewId.value = preview.id
+  errorMessage.value = null
+  try {
+    const updated = await decideActionPreview(
+      context.tenantId,
+      preview.id,
+      decision,
+      decision === 'APPROVED' ? '审批通过' : decision === 'REJECTED' ? '审批拒绝' : '退回修订',
+    )
+    items.value = items.value.map((item) => (item.id === updated.id ? updated : item))
+  } catch (error) {
+    errorMessage.value = normalizeApiError(error).message
+  } finally {
+    busyPreviewId.value = null
+  }
 }
 
-onMounted(load)
-watch(() => context.selectedProfileId, load)
+async function recordExecution(
+  preview: ActionPreview,
+  outcome: 'SUCCEEDED' | 'FAILED' | 'SKIPPED',
+): Promise<void> {
+  if (!context.tenantId) return
+  busyPreviewId.value = preview.id
+  errorMessage.value = null
+  try {
+    const updated = await recordManualExecution(
+      context.tenantId,
+      preview.id,
+      outcome,
+      {},
+      '人工在 Amazon 后台核对后回填',
+    )
+    items.value = items.value.map((item) => (item.id === updated.id ? updated : item))
+  } catch (error) {
+    errorMessage.value = normalizeApiError(error).message
+  } finally {
+    busyPreviewId.value = null
+  }
+}
+
+watch(() => [context.tenantId, context.profileId], () => void load())
+onMounted(async () => {
+  if (context.status === 'idle') await context.initialize()
+  await load()
+})
 </script>
 
 <template>
-  <section class="panel">
-    <p class="eyebrow">APPROVAL & EXECUTION</p>
-    <h2>审批、版本与人工执行</h2>
-    <p v-if="!context.selectedProfileId" class="empty-state">请先选择 Advertising Profile。</p>
-    <p v-else-if="loading">正在加载动作预览…</p>
-    <p v-if="error" class="error-banner">{{ error }}</p>
-    <p v-else-if="!loading && items.length === 0" class="empty-state">
-      暂无动作预览，请先在智能优化页选择建议。
+  <section class="report-page">
+    <header class="report-heading">
+      <div>
+        <p class="eyebrow">APPROVAL & EXECUTION</p>
+        <h2>审批、版本与人工执行</h2>
+        <p>Action Preview 创建后在此提交审批、审批决策和回填执行结果。</p>
+      </div>
+      <button class="secondary-button" type="button" @click="load">
+        {{ loading ? '刷新中…' : '刷新' }}
+      </button>
+    </header>
+
+    <div v-if="errorMessage" class="error-panel" role="alert">
+      {{ errorMessage }}
+    </div>
+    <p v-if="!context.isComplete" class="empty-panel">
+      请先完成演示上下文并选择 Advertising Profile。
     </p>
-    <article v-for="preview in items" :key="preview.id" class="hero-card compact-card">
-      <h3>Preview {{ preview.id }}</h3>
-      <p>
-        {{ preview.status }} · 版本 {{ preview.currentVersion }} ·
-        {{ preview.version?.frozenAt ? '已冻结' : '可编辑' }}
-      </p>
-      <details>
-        <summary>版本内容与审批记录</summary>
-        <pre>{{ preview.version?.items }}</pre>
-        <ul>
-          <li v-for="approval in preview.approvals" :key="approval.id">
-            {{ approval.decision }} · {{ approval.comment }}
-          </li>
-        </ul>
-      </details>
-      <div v-if="preview.execution" class="card-list">
-        <h4>人工执行清单 · {{ preview.execution.status }}</h4>
-        <section
-          v-for="executionItem in preview.execution.items"
-          :key="executionItem.id"
-          class="selection-card"
-        >
-          <span>
-            <strong>{{ executionItem.action.actionType }} · {{ executionItem.status }}</strong>
-            <code>{{ executionItem.action }}</code>
-          </span>
-          <div v-if="executionItem.status === 'PENDING'" class="button-row">
-            <label>
-              执行证据（可选）
-              <input
-                type="file"
-                accept=".jpg,.jpeg,.png,.pdf,.txt"
-                @change="selectEvidence(executionItem.id, $event)"
-              >
-            </label>
-            <button :disabled="busyItem === executionItem.id" @click="confirm(executionItem.id, 'SUCCEEDED')">
+    <p v-else-if="!loading && items.length === 0" class="empty-panel">
+      暂无动作预览，请先在智能优化页生成 Action Preview。
+    </p>
+    <template v-else>
+      <article v-for="preview in items" :key="preview.id" class="workflow-section">
+        <header>
+          <div>
+            <small>{{ preview.actionType }} · {{ preview.status }}</small>
+            <h3>{{ preview.campaignName }} — Preview #{{ preview.id }}</h3>
+          </div>
+          <span>版本 {{ preview.currentVersionNumber }}</span>
+        </header>
+
+        <dl v-if="preview.currentVersion">
+          <dt>Before</dt>
+          <dd>{{ preview.currentVersion.actionPayload.beforeValue }}</dd>
+          <dt>After</dt>
+          <dd>{{ preview.currentVersion.actionPayload.afterValue }}</dd>
+          <dt>Reason</dt>
+          <dd>{{ preview.currentVersion.actionPayload.reason }}</dd>
+        </dl>
+
+        <div v-if="preview.approvals.length" class="preview-actions">
+          <h4>审批记录</h4>
+          <ul>
+            <li v-for="approval in preview.approvals" :key="approval.id">
+              {{ approval.decision }} · {{ approval.decidedByEmail }} · {{ approval.comment }}
+            </li>
+          </ul>
+        </div>
+
+        <div v-if="preview.executions.length" class="preview-actions">
+          <h4>执行记录</h4>
+          <ul>
+            <li v-for="execution in preview.executions" :key="execution.id">
+              {{ execution.outcome }} · {{ execution.recordedByEmail }} · {{ execution.note }}
+            </li>
+          </ul>
+        </div>
+
+        <div class="preview-actions">
+          <button
+            v-if="preview.status === 'DRAFT'"
+            type="button"
+            :disabled="busyPreviewId === preview.id"
+            @click="submit(preview)"
+          >
+            提交审批
+          </button>
+          <button
+            v-if="preview.status === 'PENDING_APPROVAL'"
+            type="button"
+            :disabled="busyPreviewId === preview.id"
+            @click="decide(preview, 'APPROVED')"
+          >
+            审批通过
+          </button>
+          <button
+            v-if="preview.status === 'PENDING_APPROVAL'"
+            class="secondary-button"
+            type="button"
+            :disabled="busyPreviewId === preview.id"
+            @click="decide(preview, 'REJECTED')"
+          >
+            审批拒绝
+          </button>
+          <button
+            v-if="preview.status === 'PENDING_APPROVAL'"
+            class="secondary-button"
+            type="button"
+            :disabled="busyPreviewId === preview.id"
+            @click="decide(preview, 'RETURNED')"
+          >
+            退回修订
+          </button>
+          <template v-if="preview.status === 'APPROVED'">
+            <button
+              type="button"
+              :disabled="busyPreviewId === preview.id"
+              @click="recordExecution(preview, 'SUCCEEDED')"
+            >
               确认成功
             </button>
-            <button class="secondary-button" :disabled="busyItem === executionItem.id" @click="confirm(executionItem.id, 'FAILED')">
+            <button
+              class="secondary-button"
+              type="button"
+              :disabled="busyPreviewId === preview.id"
+              @click="recordExecution(preview, 'FAILED')"
+            >
               标记失败
             </button>
-            <button class="secondary-button" :disabled="busyItem === executionItem.id" @click="confirm(executionItem.id, 'SKIPPED')">
+            <button
+              class="secondary-button"
+              type="button"
+              :disabled="busyPreviewId === preview.id"
+              @click="recordExecution(preview, 'SKIPPED')"
+            >
               跳过
             </button>
-          </div>
-        </section>
-      </div>
-    </article>
+          </template>
+        </div>
+      </article>
+    </template>
   </section>
 </template>

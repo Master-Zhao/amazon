@@ -619,6 +619,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/connectivity/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 前后端连通性测试
+         * @description 无需认证，直接从数据库读取 Tenant 列表，用于验证前端→API→数据库→返回→渲染全链路。
+         */
+        get: operations["api_v1_connectivity_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/context/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get current user context summary */
+        get: operations["api_v1_context_current_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/context/tenants": {
         parameters: {
             query?: never;
@@ -704,14 +741,114 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/knowledge/": {
+    "/api/v1/knowledge/tenants/{tenant_id}/articles": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["api_v1_knowledge_retrieve"];
+        get: operations["knowledge_article_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/tenants/{tenant_id}/articles/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["knowledge_article_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/tenants/{tenant_id}/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["api_v1_knowledge_tenants_categories_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List notifications for current user */
+        get: operations["api_v1_notifications_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark a notification as read */
+        post: operations["api_v1_notifications_read_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark all notifications as read */
+        post: operations["api_v1_notifications_read_all_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get unread notification count */
+        get: operations["api_v1_notifications_unread_count_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -845,6 +982,57 @@ export interface paths {
         put?: never;
         /** Add another StoreMarketplace SKU/ASIN listing to a product */
         post: operations["api_v1_products_tenants_listings_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recommendations/tenants/{tenant_id}/{recommendation_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept an ACTIVE recommendation */
+        post: operations["api_v1_recommendations_tenants_accept_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recommendations/tenants/{tenant_id}/{recommendation_id}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dismiss an ACTIVE or ACCEPTED recommendation */
+        post: operations["api_v1_recommendations_tenants_dismiss_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recommendations/tenants/{tenant_id}/{recommendation_id}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revise an ACTIVE or ACCEPTED recommendation with a new revision */
+        post: operations["api_v1_recommendations_tenants_revisions_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1265,6 +1453,10 @@ export interface components {
         CreateTeamRequest: {
             name: string;
         };
+        CurrentContext: {
+            user: components["schemas"]["AuthenticatedUser"];
+            tenants: components["schemas"]["TenantOption"][];
+        };
         CurrentUserResponse: {
             code: string;
             message: string;
@@ -1296,6 +1488,9 @@ export interface components {
          * @enum {string}
          */
         DecisionEnum: "APPROVED" | "REJECTED" | "RETURNED";
+        DismissRequestRequest: {
+            reason?: string;
+        };
         EffectEvaluation: {
             readonly id: number;
             status: string;
@@ -1413,6 +1608,9 @@ export interface components {
             evidence_file?: string;
             idempotency_key: string;
         };
+        MarkedCount: {
+            marked_count: number;
+        };
         Marketplace: {
             id: string;
             code: string;
@@ -1428,6 +1626,28 @@ export interface components {
             membershipRole: string;
             isActive: boolean;
         };
+        Notification: {
+            readonly id: number;
+            notification_type?: components["schemas"]["NotificationTypeEnum"];
+            title: string;
+            content?: string;
+            target_route?: string;
+            is_read?: boolean;
+            /** Format: date-time */
+            read_at?: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        /**
+         * @description * `SYSTEM` - System
+         *     * `ANALYSIS_COMPLETE` - Analysis Complete
+         *     * `APPROVAL_REQUIRED` - Approval Required
+         *     * `ACTION_EXECUTED` - Action Executed
+         *     * `REPORT_IMPORTED` - Report Imported
+         *     * `ANOMALY_DETECTED` - Anomaly Detected
+         * @enum {string}
+         */
+        NotificationTypeEnum: "SYSTEM" | "ANALYSIS_COMPLETE" | "APPROVAL_REQUIRED" | "ACTION_EXECUTED" | "REPORT_IMPORTED" | "ANOMALY_DETECTED";
         /**
          * @description * `SUCCEEDED` - Succeeded
          *     * `SUCCESS` - Success (legacy)
@@ -1549,6 +1769,19 @@ export interface components {
         ReturnedVersionRequestRequest: {
             action_payload: unknown;
         };
+        ReviseRequestRequest: {
+            afterValue: unknown;
+            reason: string;
+            evidence: unknown;
+            riskLevel: components["schemas"]["RiskLevelEnum"];
+        };
+        /**
+         * @description * `LOW` - LOW
+         *     * `MEDIUM` - MEDIUM
+         *     * `HIGH` - HIGH
+         * @enum {string}
+         */
+        RiskLevelEnum: "LOW" | "MEDIUM" | "HIGH";
         RoleOption: {
             id: string;
             name: string;
@@ -1670,6 +1903,9 @@ export interface components {
             name: string;
             tenantType: string;
             membershipRole: string;
+        };
+        UnreadCount: {
+            unread_count: number;
         };
     };
     responses: never;
@@ -2616,6 +2852,43 @@ export interface operations {
             };
         };
     };
+    api_v1_connectivity_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tenant 列表与数据库记录数 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_context_current_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentContext"];
+                };
+            };
+        };
+    };
     api_v1_context_tenants_list: {
         parameters: {
             query?: never;
@@ -2721,7 +2994,110 @@ export interface operations {
             };
         };
     };
-    api_v1_knowledge_retrieve: {
+    knowledge_article_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 知识文章列表 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    knowledge_article_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 知识文章详情 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_knowledge_tenants_categories_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 知识分类列表 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_v1_notifications_list: {
+        parameters: {
+            query?: {
+                tenant_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notification"][];
+                };
+            };
+        };
+    };
+    api_v1_notifications_read_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notification"];
+                };
+            };
+        };
+    };
+    api_v1_notifications_read_all_create: {
         parameters: {
             query?: never;
             header?: never;
@@ -2730,12 +3106,32 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description 知识文章 */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["MarkedCount"];
+                };
+            };
+        };
+    };
+    api_v1_notifications_unread_count_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnreadCount"];
+                };
             };
         };
     };
@@ -2981,6 +3377,84 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductRow"];
+                };
+            };
+        };
+    };
+    api_v1_recommendations_tenants_accept_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recommendation_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Recommendation"];
+                };
+            };
+        };
+    };
+    api_v1_recommendations_tenants_dismiss_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recommendation_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DismissRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["DismissRequestRequest"];
+                "multipart/form-data": components["schemas"]["DismissRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Recommendation"];
+                };
+            };
+        };
+    };
+    api_v1_recommendations_tenants_revisions_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recommendation_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviseRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ReviseRequestRequest"];
+                "multipart/form-data": components["schemas"]["ReviseRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Recommendation"];
                 };
             };
         };

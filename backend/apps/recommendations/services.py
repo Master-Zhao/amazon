@@ -1,7 +1,7 @@
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 
 from apps.advertising.models import (
     AdGroup,
@@ -11,7 +11,15 @@ from apps.advertising.models import (
     MatchType,
     ProductTarget,
 )
-from apps.recommendations.models import Recommendation, RecommendationRevision
+from apps.audit.services import append_audit_log
+from apps.permissions.models import ProfileAccessLevel
+from apps.permissions.services import require_profile_scope
+from apps.recommendations.models import (
+    ActionType,
+    Recommendation,
+    RecommendationRevision,
+    RecommendationStatus,
+)
 
 ALLOWED_ACTIONS = {
     "UPDATE_CAMPAIGN_BUDGET",
@@ -192,3 +200,125 @@ def persist_recommendations(*, task, items):
             )
         created.append(recommendation)
     return created
+
+
+def _authorize_recommendation(*, user, tenant_id, recommendation_id):
+    recommendation = (
+        Recommendation.objects.select_related("tenant", "profile", "campaign")
+        .prefetch_related("revisions")
+        .filter(pk=recommendation_id, tenant_id=tenant_id)
+        .first()
+    )
+    if recommendation is None:
+        raise NotFound("建议不存在或不在当前卖家空间")
+    scope = require_profile_scope(
+        user=user,
+        tenant_id=tenant_id,
+        profile_id=recommendation.profile_id,
+        permission_code="recommendations.operate",
+        minimum_level=ProfileAccessLevel.OPERATE,
+    )
+    return scope, recommendation
+
+
+@transaction.atomic
+def accept_recommendation(*, request, tenant_id, recommendation_id) -> Recommendation:
+    scope, recommendation = _authorize_recommendation(
+        user=request.user,
+        tenant_id=tenant_id,
+        recommendation_id=recommendation_id,
+    )
+    if recommendation.status != RecommendationStatus.ACTIVE:
+        raise ValidationError("仅 ACTIVE 状态的建议可以接受")
+    recommendation.status = RecommendationStatus.ACCEPTED
+    recommendation.save(update_fields=["status"])
+    append_audit_log(
+        request=request,
+        tenant=scope.membership.tenant,
+        actor=request.user,
+        event="recommendation.accepted",
+        object_type="Recommendation",
+        object_id=recommendation.pk,
+        after_data={"status": RecommendationStatus.ACCEPTED},
+    )
+    return recommendation
+
+
+@transaction.atomic
+def dismiss_recommendation(*, request, tenant_id, recommendation_id, reason="") -> Recommendation:
+    scope, recommendation = _authorize_recommendation(
+        user=request.user,
+        tenant_id=tenant_id,
+        recommendation_id=recommendation_id,
+    )
+    if recommendation.status not in {
+        RecommendationStatus.ACTIVE,
+        RecommendationStatus.ACCEPTED,
+    }:
+        raise ValidationError("仅 ACTIVE 或 ACCEPTED 状态的建议可以拒绝")
+    recommendation.status = RecommendationStatus.DISMISSED
+    recommendation.save(update_fields=["status"])
+    append_audit_log(
+        request=request,
+        tenant=scope.membership.tenant,
+        actor=request.user,
+        event="recommendation.dismissed",
+        object_type="Recommendation",
+        object_id=recommendation.pk,
+        after_data={"status": RecommendationStatus.DISMISSED, "reason": reason},
+    )
+    return recommendation
+
+
+@transaction.atomic
+def revise_recommendation(
+    *,
+    request,
+    tenant_id,
+    recommendation_id,
+    after_value,
+    reason,
+    evidence,
+    risk_level,
+) -> Recommendation:
+    scope, recommendation = _authorize_recommendation(
+        user=request.user,
+        tenant_id=tenant_id,
+        recommendation_id=recommendation_id,
+    )
+    if recommendation.status not in {
+        RecommendationStatus.ACTIVE,
+        RecommendationStatus.ACCEPTED,
+    }:
+        raise ValidationError("仅 ACTIVE 或 ACCEPTED 状态的建议可以修订")
+    current_revision = recommendation.revisions.filter(
+        revision_number=recommendation.current_revision_number
+    ).first()
+    if current_revision is None:
+        raise ValidationError("建议修订版本缺失")
+    new_number = recommendation.current_revision_number + 1
+    RecommendationRevision.objects.create(
+        recommendation=recommendation,
+        revision_number=new_number,
+        schema_version=current_revision.schema_version,
+        action_type=current_revision.action_type,
+        object_type=current_revision.object_type,
+        object_id=current_revision.object_id,
+        before_value=current_revision.before_value,
+        after_value=after_value,
+        reason=reason,
+        evidence=evidence,
+        risk_level=risk_level,
+    )
+    recommendation.current_revision_number = new_number
+    recommendation.save(update_fields=["current_revision_number"])
+    append_audit_log(
+        request=request,
+        tenant=scope.membership.tenant,
+        actor=request.user,
+        event="recommendation.revised",
+        object_type="Recommendation",
+        object_id=recommendation.pk,
+        after_data={"revision_number": new_number},
+    )
+    return recommendation

@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "engines": {
-    "node": ">=24 <25",
-    "pnpm": ">=11 <12"
+    "node": ">=18",
+    "pnpm": ">=9"
   },
   "scripts": {
     "dev": "vite",
@@ -26,7 +26,7 @@
   "devDependencies": {
     "@eslint/js": ">=9 <10",
     "@playwright/test": "1.61.1",
-    "@types/node": ">=24 <25",
+    "@types/node": ">=20",
     "@vitejs/plugin-vue": ">=6 <7",
     "@vue/test-utils": ">=2.4 <3",
     "eslint": ">=9 <10",

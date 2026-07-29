@@ -34,8 +34,7 @@ export default async function globalSetup(): Promise<void> {
     'e2e@example.invalid',
     '--username',
     'e2e',
-    '--password',
-    password,
+    `--password=${password}`,
   )
   manage('seed_demo_context', '--email', 'e2e@example.invalid')
 }

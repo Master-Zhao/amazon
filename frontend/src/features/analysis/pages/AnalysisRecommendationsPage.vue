@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-import { createActionPreview } from '@/features/actions/api/actionsApi'
+import {
+  createActionPreview,
+  type ActionPreview,
+} from '@/features/actions/api/actionsApi'
 import {
   acceptRecommendation,
   cancelAgentRun,
@@ -22,6 +25,7 @@ const recommendations = ref<Recommendation[]>([])
 const loading = ref(false)
 const errorMessage = ref<string | null>(null)
 const createdPreviewIds = ref<Record<string, string>>({})
+const createdPreviews = ref<Record<string, ActionPreview>>({})
 let pollTimer: ReturnType<typeof globalThis.setTimeout> | null = null
 
 const canRun = computed(() => {
@@ -97,6 +101,7 @@ async function makePreview(recommendation: Recommendation): Promise<void> {
       recommendation.id,
     )
     createdPreviewIds.value[recommendation.id] = preview.id
+    createdPreviews.value[recommendation.id] = preview
   } catch (error) {
     errorMessage.value = normalizeApiError(error).message
   }
@@ -278,6 +283,10 @@ onBeforeUnmount(() => {
                     : '生成 Action Preview'
                 }}
               </button>
+            </div>
+            <div v-if="createdPreviews[item.id]" class="workflow-section" style="margin-top: 0.5rem">
+              <small>Action Preview · {{ createdPreviews[item.id]!.status }} · 版本 {{ createdPreviews[item.id]!.currentVersionNumber }}</small>
+              <p>已创建动作预览，请前往「审批执行」页面提交审批和执行。</p>
             </div>
           </article>
         </div>

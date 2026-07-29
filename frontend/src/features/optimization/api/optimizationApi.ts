@@ -85,24 +85,23 @@ export async function createAndSubmitPreview(input: {
   const created = await httpClient.post<
     ApiEnvelope<{ previewId: string; status: string }>
   >(
-    '/api/v1/actions/previews',
+    `/api/v1/actions/tenants/${input.tenantId}/profiles/${input.profileId}/previews`,
     {
-      tenantId: input.tenantId,
-      profileId: input.profileId,
       recommendationIds: input.recommendationIds,
     },
     { headers: { 'Idempotency-Key': crypto.randomUUID() } },
   )
-  const submitted = await submitExistingPreview(created.data.data.previewId)
+  const submitted = await submitExistingPreview(input.tenantId, created.data.data.previewId)
   return submitted
 }
 
 export async function submitExistingPreview(
+  tenantId: string,
   previewId: string,
 ): Promise<{ previewId: string; status: string }> {
   const submitted = await httpClient.post<
     ApiEnvelope<{ previewId: string; status: string }>
-  >(`/api/v1/actions/previews/${previewId}/submit`)
+  >(`/api/v1/actions/tenants/${tenantId}/previews/${previewId}/submit`)
   return {
     previewId: submitted.data.data.previewId,
     status: submitted.data.data.status,
@@ -110,6 +109,7 @@ export async function submitExistingPreview(
 }
 
 export async function decidePreview(
+  tenantId: string,
   previewId: string,
   decision: 'APPROVED' | 'REJECTED' | 'RETURNED',
   comment: string,
@@ -117,9 +117,8 @@ export async function decidePreview(
   const response = await httpClient.post<
     ApiEnvelope<{ previewId: string; status: string }>
   >(
-    `/api/v1/actions/previews/${previewId}/decisions`,
-    { decision, comment },
-    { headers: { 'Idempotency-Key': crypto.randomUUID() } },
+    `/api/v1/actions/tenants/${tenantId}/previews/${previewId}/decision`,
+    { decision, comment, idempotencyKey: crypto.randomUUID() },
   )
   return {
     previewId: response.data.data.previewId,

@@ -107,3 +107,44 @@
 4. 再补齐页面的 loading/empty/error/retry/success、字段和权限状态。
 5. 最后用真实浏览器逐页交互，所有未实际验证项保持
    `IMPLEMENTED_NOT_FULLY_VERIFIED` 或 `NOT_IMPLEMENTED`。
+
+## Stage 5 修复后复核
+
+当前路由均使用懒加载，七个一级菜单由后端 `permissionCodes` 控制：
+工作台、数据中心、广告分析、智能优化、审批执行、知识中心、系统管理。
+菜单隐藏只改善体验，后端仍执行 Tenant/Store/Profile/动作权限校验。
+
+| 路由 | 当前交互 | 结果 |
+|---|---|---|
+| `/login` | 真实登录、失败信息、refresh/me 恢复、退出 | 组件/API 测试通过；浏览器 E2E NOT VERIFIED |
+| `/context` | 四级级联、单选自动恢复、切换清理下级 | 组件/API/Docker HTTP 通过 |
+| `/reports/imports` | 类型、文件、进度、轮询、任务、错误、重处理、下载 | 组件/API/Docker Campaign 上传通过 |
+| `/dashboard` | 币种/站点分组图表及分析子页入口 | 组件/build 通过 |
+| `/campaigns`、详情、配置 | 筛选、指标、异常、趋势、目标 ACOS/规则 | 组件/API 通过 |
+| `/targeting`、`/search-terms` | 独立事实指标和 null reason | 组件/API 通过 |
+| `/analysis` | Agent 运行/取消、建议接受/修订/拒绝、Preview 创建 | 组件/API 通过 |
+| `/actions` | submit/withdraw/approve/reject/return、新版本、三种执行、证据、效果评估 | API/组件通过；浏览器 E2E NOT VERIFIED |
+| `/knowledge` | 已发布知识查询和错误/空状态 | 组件/API 通过 |
+| `/system`、`/audit` | Role 查询/创建入口、上下文/审计/诊断入口、审计查询 | API/组件通过 |
+
+### 已修复
+
+- Tenant/Profile 切换后页面重新查询。
+- 报表异步轮询、部分成功和行级错误展示。
+- Targeting/Search Term 不再用原始 `<pre>` 作为页面。
+- Recommendation 与 Action Preview 的真实状态转换。
+- `RETURNED` 新版本、`WITHDRAWN`、REJECTED、三种执行结果和效果评估入口。
+- 服务端错误由统一 Axios 错误对象展示。
+- test Compose backend/worker 共享上传卷，修复真实 Celery 读文件失败。
+
+### 仍未满足的交互要求
+
+- 自动 Chrome E2E 两条路径未获得 PASS；修复后的唯一 SQLite 配置待本机复验。
+- 关键审阅仍使用内联卡片；没有一个集中展示 Tenant、Store、Marketplace、
+  Profile、数据范围、证据、风险及全体操作者字段的完整对话框。
+- Recommendation/Agent 的完整结构化输出详情展示不充分。
+- 批量执行部分成功没有可操作的批量页面或 API。
+- 页面级分页/排序并未覆盖所有长列表；正式数据量可用性未验证。
+
+这些项分别在 `V1_ACCEPTANCE_MATRIX.md` 标记为
+`IMPLEMENTED_NOT_FULLY_VERIFIED` 或 `NOT_IMPLEMENTED`，不能据页面存在宣称通过。

@@ -75,13 +75,15 @@ PERSONAL Owner 可自确认；TEAM/COMPANY 提交人不能自批。ApprovalRecor
 
 ## 9. 测试证据
 
-- 后端：81 项通过。
+- 后端：112 项通过。
 - 前端：9 个文件、31 项通过；lint/typecheck/build 通过。
-- Chrome E2E：完整主演示链路 1 项通过。
+- Chrome E2E：本轮 NOT VERIFIED；两次均在浏览器启动前的旧固定 SQLite
+  迁移历史处失败，已改唯一测试库但未违反两次上限继续运行。
+- 替代证据：后端 112/112、前端 46/46、当前源码 Compose 7 服务 healthy，
+  Docker HTTP/Celery/MySQL Campaign 上传链路通过。
 - OpenAPI：生成、验证和 TypeScript 类型同步通过。
 - M6 将补最终 Compose 状态、部署文档和性能计划；不把目标写成实测结果。
 
 ## 10. 已知限制
 
 真实三报表样例仍未获得；真实 LLM、Amazon Ads API、第三方数据源、跨币种汇总、多级审批、库存/财务均不在 V1。性能基线尚未在参考 8C16G 环境实测。
-

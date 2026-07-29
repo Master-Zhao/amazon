@@ -1119,6 +1119,31 @@ paths:
           description: ''
         '401':
           description: 刷新令牌缺失、无效、过期或已撤销
+  /api/v1/connectivity/:
+    get:
+      operationId: api_v1_connectivity_retrieve
+      description: 无需认证，直接从数据库读取 Tenant 列表，用于验证前端→API→数据库→返回→渲染全链路。
+      summary: 前后端连通性测试
+      tags:
+      - connectivity
+      responses:
+        '200':
+          description: Tenant 列表与数据库记录数
+  /api/v1/context/current:
+    get:
+      operationId: api_v1_context_current_retrieve
+      summary: Get current user context summary
+      tags:
+      - tenant-context
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentContext'
+          description: ''
   /api/v1/context/tenants:
     get:
       operationId: api_v1_context_tenants_list
@@ -1236,16 +1261,132 @@ paths:
                 items:
                   $ref: '#/components/schemas/StoreMarketplaceOption'
           description: ''
-  /api/v1/knowledge/:
+  /api/v1/knowledge/tenants/{tenant_id}/articles:
     get:
-      operationId: api_v1_knowledge_retrieve
+      operationId: knowledge_article_list
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
       tags:
       - knowledge
       security:
       - bearerAuth: []
       responses:
         '200':
-          description: 知识文章
+          description: 知识文章列表
+  /api/v1/knowledge/tenants/{tenant_id}/articles/{slug}:
+    get:
+      operationId: knowledge_article_detail
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - knowledge
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: 知识文章详情
+  /api/v1/knowledge/tenants/{tenant_id}/categories:
+    get:
+      operationId: api_v1_knowledge_tenants_categories_retrieve
+      parameters:
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - knowledge
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: 知识分类列表
+  /api/v1/notifications/:
+    get:
+      operationId: api_v1_notifications_list
+      summary: List notifications for current user
+      parameters:
+      - in: query
+        name: tenant_id
+        schema:
+          type: string
+      tags:
+      - notifications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+          description: ''
+  /api/v1/notifications/{id}/read:
+    post:
+      operationId: api_v1_notifications_read_create
+      summary: Mark a notification as read
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - notifications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+  /api/v1/notifications/read-all:
+    post:
+      operationId: api_v1_notifications_read_all_create
+      summary: Mark all notifications as read
+      tags:
+      - notifications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarkedCount'
+          description: ''
+  /api/v1/notifications/unread-count:
+    get:
+      operationId: api_v1_notifications_unread_count_retrieve
+      summary: Get unread notification count
+      tags:
+      - notifications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCount'
+          description: ''
   /api/v1/permissions/tenants/{tenant_id}/permissions:
     get:
       operationId: api_v1_permissions_tenants_permissions_list
@@ -1527,6 +1668,107 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProductRow'
+          description: ''
+  /api/v1/recommendations/tenants/{tenant_id}/{recommendation_id}/accept:
+    post:
+      operationId: api_v1_recommendations_tenants_accept_create
+      summary: Accept an ACTIVE recommendation
+      parameters:
+      - in: path
+        name: recommendation_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - recommendations
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recommendation'
+          description: ''
+  /api/v1/recommendations/tenants/{tenant_id}/{recommendation_id}/dismiss:
+    post:
+      operationId: api_v1_recommendations_tenants_dismiss_create
+      summary: Dismiss an ACTIVE or ACCEPTED recommendation
+      parameters:
+      - in: path
+        name: recommendation_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - recommendations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DismissRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DismissRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DismissRequestRequest'
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recommendation'
+          description: ''
+  /api/v1/recommendations/tenants/{tenant_id}/{recommendation_id}/revisions:
+    post:
+      operationId: api_v1_recommendations_tenants_revisions_create
+      summary: Revise an ACTIVE or ACCEPTED recommendation with a new revision
+      parameters:
+      - in: path
+        name: recommendation_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - recommendations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviseRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReviseRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReviseRequestRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recommendation'
           description: ''
   /api/v1/recommendations/tenants/{tenant_id}/profiles/{profile_id}:
     get:
@@ -2410,6 +2652,18 @@ components:
           maxLength: 160
       required:
       - name
+    CurrentContext:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/AuthenticatedUser'
+        tenants:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantOption'
+      required:
+      - tenants
+      - user
     CurrentUserResponse:
       type: object
       properties:
@@ -2488,6 +2742,12 @@ components:
         * `APPROVED` - Approved
         * `REJECTED` - Rejected
         * `RETURNED` - Returned
+    DismissRequestRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 1000
     EffectEvaluation:
       type: object
       properties:
@@ -2782,6 +3042,13 @@ components:
       - executed_at
       - idempotency_key
       - outcome
+    MarkedCount:
+      type: object
+      properties:
+        marked_count:
+          type: integer
+      required:
+      - marked_count
     Marketplace:
       type: object
       properties:
@@ -2821,6 +3088,52 @@ components:
       - isActive
       - membershipRole
       - userId
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        notification_type:
+          $ref: '#/components/schemas/NotificationTypeEnum'
+        title:
+          type: string
+          maxLength: 256
+        content:
+          type: string
+        target_route:
+          type: string
+          maxLength: 512
+        is_read:
+          type: boolean
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - title
+    NotificationTypeEnum:
+      enum:
+      - SYSTEM
+      - ANALYSIS_COMPLETE
+      - APPROVAL_REQUIRED
+      - ACTION_EXECUTED
+      - REPORT_IMPORTED
+      - ANOMALY_DETECTED
+      type: string
+      description: |-
+        * `SYSTEM` - System
+        * `ANALYSIS_COMPLETE` - Analysis Complete
+        * `APPROVAL_REQUIRED` - Approval Required
+        * `ACTION_EXECUTED` - Action Executed
+        * `REPORT_IMPORTED` - Report Imported
+        * `ANOMALY_DETECTED` - Anomaly Detected
     OutcomeEnum:
       enum:
       - SUCCEEDED
@@ -3133,6 +3446,32 @@ components:
         action_payload: {}
       required:
       - action_payload
+    ReviseRequestRequest:
+      type: object
+      properties:
+        afterValue: {}
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        evidence: {}
+        riskLevel:
+          $ref: '#/components/schemas/RiskLevelEnum'
+      required:
+      - afterValue
+      - evidence
+      - reason
+      - riskLevel
+    RiskLevelEnum:
+      enum:
+      - LOW
+      - MEDIUM
+      - HIGH
+      type: string
+      description: |-
+        * `LOW` - LOW
+        * `MEDIUM` - MEDIUM
+        * `HIGH` - HIGH
     RoleOption:
       type: object
       properties:
@@ -3465,6 +3804,13 @@ components:
       - membershipRole
       - name
       - tenantType
+    UnreadCount:
+      type: object
+      properties:
+        unread_count:
+          type: integer
+      required:
+      - unread_count
   securitySchemes:
     bearerAuth:
       type: http

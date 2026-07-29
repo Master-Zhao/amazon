@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "apps.recommendations",
     "apps.actions",
     "apps.knowledge",
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [

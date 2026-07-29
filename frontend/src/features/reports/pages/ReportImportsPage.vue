@@ -172,7 +172,8 @@ onBeforeUnmount(clearPoll)
     <header class="report-heading">
       <div>
         <p class="eyebrow">ASYNCHRONOUS DATA INTAKE</p>
-        <h2>Campaign、Targeting 与 Search Term 报表导入</h2>
+        <h2>数据中心</h2>
+        <p><strong>Campaign、Targeting 与 Search Term 报表导入</strong></p>
         <p>
           文件经 Django 权限检查后保存，由 Redis/Celery 异步解析并通过 Service
           发布到 MySQL。页面不会用静态结果模拟导入状态。

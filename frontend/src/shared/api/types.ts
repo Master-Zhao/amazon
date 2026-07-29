@@ -35,3 +35,19 @@ export interface LoginData {
 export interface AccessTokenData {
   accessToken: string
 }
+
+export interface Notification {
+  id: number
+  notificationType: string
+  title: string
+  content: string
+  targetRoute: string
+  isRead: boolean
+  readAt: string | null
+  createdAt: string
+}
+
+export interface DirectorySegment {
+  label: string
+  route: string
+}

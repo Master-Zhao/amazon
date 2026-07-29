@@ -12,7 +12,7 @@ import {
   type AnalysisTaskSummary,
   type Recommendation,
 } from '@/features/optimization/api/optimizationApi'
-import { useTenantContextStore } from '@/features/tenant-context/stores/context'
+import { useTenantContextStore } from '@/features/tenant-context/stores/tenantContext'
 
 const context = useTenantContextStore()
 const analysis = ref<AnalysisTask | null>(null)
@@ -24,12 +24,12 @@ const error = ref<string | null>(null)
 const history = ref<AnalysisTaskSummary[]>([])
 
 async function load(): Promise<void> {
-  if (!context.selectedProfileId) return
+  if (!context.profileId) return
   error.value = null
   try {
     const [recommendationItems, taskItems] = await Promise.all([
-      fetchRecommendations(context.selectedProfileId),
-      fetchAnalysisTasks(context.selectedProfileId),
+      fetchRecommendations(context.profileId),
+      fetchAnalysisTasks(context.profileId),
     ])
     recommendations.value = recommendationItems
     history.value = taskItems
@@ -39,19 +39,19 @@ async function load(): Promise<void> {
 }
 
 onMounted(load)
-watch(() => context.selectedProfileId, load)
+watch(() => context.profileId, load)
 
 async function analyze(): Promise<void> {
-  if (!context.selectedTenantId || !context.selectedProfileId) return
+  if (!context.tenantId || !context.profileId) return
   busy.value = true
   error.value = null
   try {
     analysis.value = await runAnalysis(
-      context.selectedTenantId,
-      context.selectedProfileId,
+      context.tenantId,
+      context.profileId,
     )
-    recommendations.value = await fetchRecommendations(context.selectedProfileId)
-    history.value = await fetchAnalysisTasks(context.selectedProfileId)
+    recommendations.value = await fetchRecommendations(context.profileId)
+    history.value = await fetchAnalysisTasks(context.profileId)
   } catch {
     error.value = '分析任务执行失败，请核对报表数据与权限。'
   } finally {
@@ -61,16 +61,16 @@ async function analyze(): Promise<void> {
 
 async function submitPreview(): Promise<void> {
   if (
-    !context.selectedTenantId ||
-    !context.selectedProfileId ||
+    !context.tenantId ||
+    !context.profileId ||
     selectedIds.value.length === 0
   ) return
   busy.value = true
   error.value = null
   try {
     preview.value = await createAndSubmitPreview({
-      tenantId: context.selectedTenantId,
-      profileId: context.selectedProfileId,
+      tenantId: context.tenantId,
+      profileId: context.profileId,
       recommendationIds: selectedIds.value,
     })
   } catch {
@@ -81,11 +81,12 @@ async function submitPreview(): Promise<void> {
 }
 
 async function approve(): Promise<void> {
-  if (!preview.value) return
+  if (!preview.value || !context.tenantId) return
   busy.value = true
   error.value = null
   try {
     preview.value = await decidePreview(
+      context.tenantId,
       preview.value.previewId,
       'APPROVED',
       '在界面确认动作预览',
@@ -98,11 +99,12 @@ async function approve(): Promise<void> {
 }
 
 async function returnForRevision(): Promise<void> {
-  if (!preview.value) return
+  if (!preview.value || !context.tenantId) return
   busy.value = true
   error.value = null
   try {
     preview.value = await decidePreview(
+      context.tenantId,
       preview.value.previewId,
       'RETURNED',
       '退回并创建下一版 Action Preview',
@@ -115,11 +117,11 @@ async function returnForRevision(): Promise<void> {
 }
 
 async function resubmit(): Promise<void> {
-  if (!preview.value) return
+  if (!preview.value || !context.tenantId) return
   busy.value = true
   error.value = null
   try {
-    preview.value = await submitExistingPreview(preview.value.previewId)
+    preview.value = await submitExistingPreview(context.tenantId, preview.value.previewId)
   } catch {
     error.value = '退回版本重新提交失败。'
   } finally {
@@ -132,7 +134,7 @@ async function resubmit(): Promise<void> {
   <section class="panel">
     <p class="eyebrow">OPTIMIZATION WORKFLOW</p>
     <h2>分析、建议与人工执行闭环</h2>
-    <p v-if="!context.selectedProfileId" class="empty-state">
+    <p v-if="!context.profileId" class="empty-state">
       请先在卖家空间选择 Advertising Profile。
     </p>
     <template v-else>

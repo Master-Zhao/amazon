@@ -12,7 +12,10 @@ curl.exe http://localhost:8080/health/ready
 演示账号不提供内置密码。用 `DEMO_USER_PASSWORD` 临时环境变量执行：
 
 ```powershell
-docker compose -f compose.local.yml run --rm -e DEMO_USER_PASSWORD backend python manage.py seed_demo_context --email demo@example.invalid
+$env:DEMO_USER_PASSWORD = Read-Host "输入本机演示密码"
+docker compose -f compose.local.yml run --rm -e DEMO_USER_PASSWORD backend python manage.py seed_demo_user --email demo@example.invalid --username demo
+docker compose -f compose.local.yml run --rm backend python manage.py seed_demo_context --email demo@example.invalid
+Remove-Item Env:DEMO_USER_PASSWORD
 ```
 
 主 fixture：`tests/fixtures/reports/campaign-anomalous.csv`。备用：`campaign-valid.csv`、`campaign-partial-errors.csv`。
@@ -30,12 +33,12 @@ docker compose -f compose.local.yml run --rm -e DEMO_USER_PASSWORD backend pytho
 9. 查看 Campaign 行的“异常”。后端依据版本化 HIGH_ACOS 规则产生，不由 LLM 判定。
 10. 点击“智能优化”，点击“运行四 Agent 分析”。页面显示 SUCCEEDED、Agent 数 4。
 11. 查看 `UPDATE_CAMPAIGN_BUDGET` Recommendation、before/after、风险和原因。
-12. 勾选建议，点击“冻结版本并提交审批”。后端创建 Preview、内容哈希并冻结版本。
-13. 页面显示 `PENDING_APPROVAL`。讲解：“提交后的版本不可修改。”
-14. PERSONAL 演示账号点击“审批通过”。页面显示 `APPROVED`。说明 TEAM/COMPANY 提交人自批会返回 403。
+12. 点击“生成 Action Preview”，再进入“审批执行”页面审阅 before/after、原因与风险。
+13. 点击“提交审批”，页面显示 `PENDING_APPROVAL`。讲解：“提交后的版本不可修改。”
+14. PERSONAL 演示账号点击“批准”。页面显示 `APPROVED`。说明 TEAM/COMPANY 提交人自批会返回 403。
 15. 点击“审批执行”，查看版本、审批记录和人工执行清单。强调系统没有调用 Amazon。
-16. 点击“确认成功”。页面显示执行项 `SUCCEEDED`，后端写只追加 ExecutionRecord。
-17. 打开 `/audit` 查看 `EXECUTION_RECORDED`，然后退出登录。讲解：“requestId 串起动作链；退出会撤销 Refresh。”
+16. 可先选附件证据，再点击“回填人工执行成功”。页面显示执行项 `SUCCEEDED`，后端写只追加 ExecutionRecord。
+17. 打开 `/audit` 查看 `action_preview.execution_recorded`，然后退出登录。讲解：“requestId 串起动作链；退出会撤销 Refresh。”
 
 ## 异常与备用
 

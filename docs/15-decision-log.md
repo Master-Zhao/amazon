@@ -37,7 +37,7 @@
 | D-111 | 已确认 | 动作范围为 Campaign 预算/启停、Keyword 竞价/启停、Product Target 竞价/启停、新增普通 Keyword、新增 Negative Keyword | 上下限、证据和漂移细节待实施期确认 |
 | D-115 | 已确认 | LLM 仅接收当前 Tenant、已授权 Profile、本次分析必要的最少结构化数据，不发送凭据或其他 Tenant 数据 | 真实 Provider 不属于当前接入范围 |
 | D-117 | 已确认 | JWT 双 Token；Access 短期且前端内存优先，Refresh 使用 HttpOnly Cookie | CSRF、SameSite、轮换、吊销细节在 Phase 1/2 固化 |
-| D-118 | 已确认 | Python 3.13、Django 5.2 LTS、DRF 3.16.x、Celery 5.6.x、Node 24 LTS、Vite 8.x、MySQL 8.4 LTS、Redis 7.x | Phase 1 必须做实际兼容验证，不得擅自降级 |
+| D-118 | 已确认 | Python 3.13、Django 5.2 LTS、DRF 3.16.x、Celery 5.6.x、Node 24 LTS、Vite 8.x、MySQL 8.4 LTS、Redis 7.x | Phase 1 必须做实际兼容验证，不得擅自降级；ADR-001 尝试降至 3.11 因中文路径编码问题被否决 |
 | D-119 | 已确认 | 所有金额以 Decimal 字符串和 currency 传输，不存在默认业务币种 | 无 |
 | D-121 | 已确认 | 文件级致命错误整份失败；合法行入库、错误行记录；两者并存为 PARTIAL_SUCCEEDED | 具体错误分类需随三类 Schema 固化 |
 | D-124 | 已确认 | PERSONAL Tenant Owner 可自我确认；TEAM/COMPANY 提交人不得审批自己的方案 | 代理审批不属于 V1 |
@@ -58,7 +58,7 @@
 | D-133 | 已确认 | JSON camel/snake 转换由 DRF 公共 Parser/Renderer 递归完成 | Serializer 不逐字段手工转换 |
 | D-134 | 已确认 | Phase 1 Celery 仅实现无业务语义的 smoke task | Redis 作为 Broker/短期结果，不是正式事实存储 |
 | D-135 | 已确认 | 前端认证、Tenant 与 refresh 能力仅保留空扩展点 | 不生成 Token、Tenant 或假登录接口 |
-| D-136 | 已确认 | 本机默认 Python 3.12 不改变项目目标；uv 与容器实际使用 Python 3.13.3 | 兼容测试已覆盖 Django、Celery、MySQL 与前端运行结构 |
+| D-136 | 已确认 | 本机默认 Python 3.12 不改变项目目标；uv 与容器实际使用 Python 3.13.3 | 兼容测试已覆盖 Django、Celery、MySQL 与前端运行结构；Python 3.11 因中文路径编码问题不可用（ADR-001） |
 | D-137 | 已确认 | 生产后端镜像以 uid 10001 运行，Django 使用 Gunicorn；前端由 Nginx 提供构建产物 | TLS 终止、监控、备份和高可用仍待生产环境设计 |
 | D-138 | 已确认 | Django 框架内置 `django_*`、`auth_*` 表豁免项目业务表前缀规则；项目自定义表仍必须使用已批准的模块前缀 | 项目发起人于 2026-07-28 确认；不改写已执行的 Django 基础迁移 |
 | D-139 | 已确认 | ECharts 不在 Phase 1 安装；首次实现真实 Dashboard 或趋势图页面时再引入 | 避免添加当前未使用依赖，不改变主规格最终技术栈 |
@@ -133,6 +133,22 @@ Phase 2A 验证状态：API 认证链路、SQLite/MySQL 后端测试、前端单
 | D-126 执行部分成功表示 | 多Item可能结果不同 | 任务增加部分终态；仍WAITING_CONFIRMATION并逐项展示；失败整个任务 | 先逐项记录，任务确认规则结合允许动作确定 | 不擅自新增/改名现有状态 | 任务汇总逻辑 |
 | D-127 Audit/File保留期 | 影响法规、成本和删除权 | 永久；固定年限；分级 | 按法规与业务类别分级 | 审计和附件价值不同 | 归档和物理清理 |
 | D-128 现有隔离目录归属 | 防止误覆盖 | 属于其他项目；本项目遗留；占位 | 人工明确并继续保持隔离，除非另行授权 | 当前规则禁止读取复用 | 对该目录的任何读取/修改/移动/删除 |
+
+## 2.5 ADR：Python 运行版本从 3.13 降至 3.11（2026-07-29）
+
+| 项目 | 内容 |
+|---|---|
+| ADR-ID | ADR-001 |
+| 状态 | **已否决** |
+| 决策 | 后端 Python 运行版本从 3.13 降至 3.11 |
+| 背景 | 用户偏好 Python 3.11；`pyproject.toml` 已声明 `requires-python >= 3.11`；所有核心依赖均兼容 Python 3.11 |
+| 兼容验证 | 依赖兼容性通过；但实际验证发现阻断性问题（见下方） |
+| 阻断原因 | 项目工作目录 `C:\QSZ\技术方案` 含中文字符，Python 3.11 的 `site` 模块在 Windows GBK 环境下读取 venv `.pth` 文件时触发 `UnicodeDecodeError`，导致 venv 完全无法启动。Python 3.13 已修复此编码问题。在纯 ASCII 路径下 3.11 运行正常 |
+| 结论 | 在当前中文路径工作目录下，Python 3.11 无法使用；维持 Python 3.13。若后续迁移至纯 ASCII 路径可重新评估 |
+| 否决人 | 自动化验证 |
+| 日期 | 2026-07-29 |
+
+D-118、D-136 维持原 Python 3.13 决策，不受 ADR-001 影响。
 
 ## 5. 优先确认顺序
 

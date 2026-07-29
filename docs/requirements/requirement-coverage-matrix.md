@@ -1,6 +1,6 @@
 # V1 需求覆盖矩阵
 
-状态只使用 `IMPLEMENTED_AND_TESTED`、`IMPLEMENTED_NOT_FULLY_VERIFIED`、`RESERVED_BY_CONFIRMED_SCOPE`、`BLOCKED_BY_REAL_SAMPLE`、`NOT_IMPLEMENTED`。本矩阵已随 Framework Baseline 复核；“测试”列只记录实际证据。最终统计：`IMPLEMENTED_AND_TESTED=44`、`IMPLEMENTED_NOT_FULLY_VERIFIED=6`、`RESERVED_BY_CONFIRMED_SCOPE=7`、`BLOCKED_BY_REAL_SAMPLE=3`、`NOT_IMPLEMENTED=0`，共 60 项。
+状态只使用 `IMPLEMENTED_AND_TESTED`、`IMPLEMENTED_NOT_FULLY_VERIFIED`、`RESERVED_BY_CONFIRMED_SCOPE`、`BLOCKED_BY_REAL_SAMPLE`、`NOT_IMPLEMENTED`。本矩阵已随当前复核更新；“测试”列只记录实际证据。最终统计：`IMPLEMENTED_AND_TESTED=42`、`IMPLEMENTED_NOT_FULLY_VERIFIED=8`、`RESERVED_BY_CONFIRMED_SCOPE=7`、`BLOCKED_BY_REAL_SAMPLE=3`、`NOT_IMPLEMENTED=1`，共 61 项。
 
 | ID | 需求 | 来源 | 模块 | 实现/迁移/API/页面 | 测试与文档 | 状态 | 验证证据与风险 |
 |---|---|---|---|---|---|---|---|
@@ -10,7 +10,7 @@
 | AUTH-004 | Refresh 轮换、吊销与重放拒绝 | 主规格 6 | accounts | `sys_refresh_token`、refresh/logout | 轮换/撤销/并发事务测试 | IMPLEMENTED_AND_TESTED | MySQL 证据来自 Phase 2A |
 | AUTH-005 | `/auth/me` 与用户禁用 | 主规格 6 | accounts | `/auth/me` | disabled/expired/forged tests | IMPLEMENTED_AND_TESTED | Token 只证明账号身份 |
 | AUTH-006 | 登录成功/失败只追加审计且不泄露凭据 | 主规格 6、17 | accounts | `audit_auth_event` | 审计与日志测试 | IMPLEMENTED_AND_TESTED | 完整业务 AuditLog 在 M4 |
-| AUTH-007 | 页面刷新恢复与并发 401 单次刷新 | 主规格 6 | frontend auth | auth store、Axios interceptor | unit/Chrome E2E | IMPLEMENTED_AND_TESTED | reload 实际触发 refresh/me |
+| AUTH-007 | 页面刷新恢复与并发 401 单次刷新 | 主规格 6 | frontend auth | auth store、Axios interceptor | unit/API；Chrome NOT VERIFIED | IMPLEMENTED_AND_TESTED | refresh/me 与并发单次刷新自动测试；真实 reload 待 E2E |
 | ORG-001 | User 多 Tenant 与 Tenant 类型 | 主规格 7 | tenants | models/migration/context API | `test_tenant_permissions.py`、data-model | IMPLEMENTED_AND_TESTED | 多 Tenant/类型测试 |
 | ORG-002 | TenantMembership、可选 Team、TeamMember | 主规格 7 | tenants | models/services、0001 | personal/team tests | IMPLEMENTED_AND_TESTED | PERSONAL 无虚拟 Team |
 | STORE-001 | Tenant→Store→StoreMarketplace→Marketplace→Profile | 主规格 7 | stores | models/0001/context API | context tests、data-model | IMPLEMENTED_AND_TESTED | D-101 已确认；真实账号未验证 |
@@ -44,8 +44,9 @@
 | ACTION-003 | 只追加 ApprovalRecord 与退回新版本 | 主规格 13 | actions | append-only model + RETURNED version + UI | 冻结/退回/重提交/重复审批测试 | IMPLEMENTED_AND_TESTED | `test_returned_preview_creates_and_freezes_a_new_version`；基础 UI 已提供 |
 | ACTION-004 | 人工执行清单、部分回填与证据 | 主规格 13 | actions | task/item/record API + multipart FileStorage + UI | 证据适配、限制、路径、幂等、只追加测试 | IMPLEMENTED_AND_TESTED | `test_execution_evidence_effect_evaluation_and_records_are_append_only` |
 | ACTION-005 | 效果评估基础任务与结果 | 主规格 13 | actions | EffectEvaluation + Task → Service | 创建/重复调用幂等/Task 委托测试 | IMPLEMENTED_AND_TESTED | baseline 基础范围完成；完整归因明确列后续 backlog |
+| ACTION-006 | 批量执行部分成功 | 本次 50 项验收 41 | actions/frontend | 无批量执行 API/UI | 无 | NOT_IMPLEMENTED | 当前只支持单个 Preview 结果回填 |
 | KNOW-001 | 轻量只读知识中心 | 主规格 14 | knowledge | seed/API/UI | API 认证/只返回 published + 前端 build | IMPLEMENTED_AND_TESTED | `test_knowledge_center_requires_authentication_and_returns_only_published_articles` |
-| UI-001 | 七个一级菜单与真实业务页面 | 主规格 15 | frontend | 权限菜单/业务页面/API | unit/Playwright E2E | IMPLEMENTED_AND_TESTED | Chrome 主链路已验证 |
+| UI-001 | 七个一级菜单与真实业务页面 | 主规格 15 | frontend | 权限菜单/业务页面/API | 17 files / 46 unit/component；Playwright 未进入浏览器 | IMPLEMENTED_NOT_FULLY_VERIFIED | API/组件通过；真实 Chrome 链路 NOT VERIFIED |
 | UI-002 | loading/normal/empty/partial/failure/forbidden | 主规格 15 | frontend | 页面状态与统一错误 | unit/API 权限/E2E | IMPLEMENTED_NOT_FULLY_VERIFIED | 非法分支主要由后端测试覆盖 |
 | API-001 | 统一信封、camelCase、字符串 ID、Decimal+currency | 主规格 16 | core | renderer/parser/serialization + OpenAPI | case conversion/identifier/analytics tests | IMPLEMENTED_AND_TESTED | `test_case_conversion.py`、`test_identifier_fields.py`、`test_analytics.py` |
 | AUDIT-001 | 关键业务 AuditLog 只追加和查询 | 主规格 17 | audit | model/service/API/UI | 实例/批量删除拒绝测试 | IMPLEMENTED_AND_TESTED | M5 扩大事件覆盖 |
@@ -55,7 +56,7 @@
 | PERF-004 | 限流、背压、缓存隔离、可观测性 | 主规格 18 | core/config/integrations | TenantUserRateThrottle、tenant_cache_key、队列隔离、MonitoringSink | 隔离/限流/结构化事件测试 | IMPLEMENTED_NOT_FULLY_VERIFIED | 框架边界已实现；多实例精度、生产 exporter/告警及背压容量未在生产等价环境验证 |
 | PERF-005 | 可重复压测脚本与计划 | 主规格 18 | tests/performance | `load_smoke.py` 与计划 | 10 RPS × 5 秒，50/50 成功 | IMPLEMENTED_NOT_FULLY_VERIFIED | 300 用户、200 RPS、10 分钟未执行 |
 | DEPLOY-001 | local/test/prod Compose 与健康检查 | 主规格 19 | infra | Phase 1/M6 | 三套静态校验；test 7 服务 healthy | IMPLEMENTED_AND_TESTED | local 8000 按要求未启动；test 8081 已验证 |
-| TEST-001 | 后端/前端/OpenAPI/Compose/E2E 验收 | 主规格 20 | tests | M0—M6 | SQLite/MySQL 82；前端 31；E2E 1 | IMPLEMENTED_AND_TESTED | 正式性能与真实样例另列未验证 |
+| TEST-001 | 后端/前端/OpenAPI/Compose/E2E 验收 | 主规格 20 | tests | M0—M6 | 后端 112；前端 46；Compose/HTTP smoke；E2E NOT VERIFIED | IMPLEMENTED_NOT_FULLY_VERIFIED | 两次 Playwright 在 global setup 失败，不能记 PASS |
 | DOC-001 | 架构/API/部署/测试/演示文档 | 主规格 21 | docs | M0—M6 | 最终报告/演示/部署/备份/性能 | IMPLEMENTED_AND_TESTED | 文档中的 NOT VERIFIED 项保持显式 |
 | RESERVED-001 | 第三方报表来源 Adapter | 主规格 4、10 | integrations | M2 | contract tests | RESERVED_BY_CONFIRMED_SCOPE | 不真实接入 |
 | RESERVED-002 | Amazon Ads API 报表来源 Adapter | 主规格 4、10 | integrations | M2 | contract tests | RESERVED_BY_CONFIRMED_SCOPE | 不真实调用 |
@@ -85,7 +86,7 @@
 | ACTION-004 | 升级 AND_TESTED | multipart、FileStorage、证据路径和只追加测试 |
 | ACTION-005 | 升级 AND_TESTED | 基础评估创建、幂等和 Task → Service；完整归因另列 backlog |
 | KNOW-001 | 升级 AND_TESTED | 认证、published 过滤、前端 build |
-| UI-002 | 保留 NOT_FULLY | 核心 E2E 通过，但所有页面的全部失败分支未逐一浏览器验证 |
+| UI-002 | 保留 NOT_FULLY | 组件/API 分支通过；当前核心 E2E 未进入浏览器，全部失败分支未逐一验收 |
 | API-001 | 升级 AND_TESTED | envelope、case、字符串 ID、Decimal/currency 自动测试 |
 | PERF-003 | 保留 NOT_FULLY | 分页/索引/Selector 已实现；正式规模 EXPLAIN/查询数未采集 |
 | PERF-005 | 保留 NOT_FULLY | 脚本与 10 RPS 烟雾存在；正式容量场景未执行 |

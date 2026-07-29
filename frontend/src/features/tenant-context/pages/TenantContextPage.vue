@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { useTenantContextStore } from '@/features/tenant-context/stores/tenantContext'
 
 const contextStore = useTenantContextStore()
+const router = useRouter()
 
 onMounted(() => contextStore.initialize())
+
+function goToDataCenter() {
+  router.push({ name: 'report-imports' })
+}
 </script>
 
 <template>
@@ -119,10 +125,15 @@ onMounted(() => contextStore.initialize())
     </div>
 
     <footer v-if="contextStore.isComplete" class="context-summary">
-      <strong>{{ contextStore.currentTenant?.name }}</strong>
-      <span>{{ contextStore.currentStore?.name }}</span>
-      <span>{{ contextStore.currentMarketplace?.marketplace.code }}</span>
-      <span>{{ contextStore.currentProfile?.name }}</span>
+      <div class="summary-info">
+        <strong>{{ contextStore.currentTenant?.name }}</strong>
+        <span>{{ contextStore.currentStore?.name }}</span>
+        <span>{{ contextStore.currentMarketplace?.marketplace.code }}</span>
+        <span>{{ contextStore.currentProfile?.name }}</span>
+      </div>
+      <button type="button" class="primary-button" @click="goToDataCenter">
+        进入数据中心
+      </button>
     </footer>
   </section>
 </template>

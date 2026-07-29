@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/features/auth/stores/auth'
@@ -14,7 +14,29 @@ const password = ref('')
 const submitting = ref(false)
 const error = ref<ApiError | null>(null)
 
+const emailError = computed(() => {
+  if (!email.value) return ''
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return re.test(email.value) ? '' : '请输入有效的邮箱地址'
+})
+
+const passwordError = computed(() => {
+  if (!password.value) return ''
+  return password.value.length < 1 ? '密码不能为空' : ''
+})
+
+const canSubmit = computed(() => {
+  return (
+    email.value.length > 0 &&
+    password.value.length > 0 &&
+    !emailError.value &&
+    !passwordError.value &&
+    !submitting.value
+  )
+})
+
 async function submit(): Promise<void> {
+  if (!canSubmit.value) return
   submitting.value = true
   error.value = null
   try {
@@ -33,7 +55,7 @@ async function submit(): Promise<void> {
 <template>
   <section class="login-card">
     <div>
-      <p class="eyebrow">SECURE ACCOUNT ACCESS</p>
+      <p class="eyebrow">AMAZON ADS OPTIMIZER</p>
       <h2>登录广告优化工作台</h2>
       <p>访问令牌仅保存在页面内存中，刷新令牌由浏览器的 HttpOnly Cookie 管理。</p>
     </div>
@@ -47,7 +69,9 @@ async function submit(): Promise<void> {
         type="email"
         autocomplete="username"
         required
+        :disabled="submitting"
       >
+      <span v-if="emailError" class="field-error">{{ emailError }}</span>
 
       <label for="password">密码</label>
       <input
@@ -57,9 +81,11 @@ async function submit(): Promise<void> {
         type="password"
         autocomplete="current-password"
         required
+        :disabled="submitting"
       >
+      <span v-if="passwordError" class="field-error">{{ passwordError }}</span>
 
-      <button type="submit" :disabled="submitting">
+      <button type="submit" :disabled="!canSubmit">
         {{ submitting ? '正在登录…' : '登录' }}
       </button>
 

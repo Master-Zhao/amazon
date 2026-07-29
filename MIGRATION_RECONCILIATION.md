@@ -187,3 +187,16 @@ python -m pytest backend/tests/test_migration_reconciliation.py
 ```
 
 运行本机命令时必须通过未跟踪环境变量提供数据库密码，不得提交真实 `.env`。
+
+## 2026-07-28 最终复核
+
+- 后端全量测试：112 passed / 25 warnings。
+- 当前源码 MySQL 空库 Compose 迁移从
+  `contenttypes.0001_initial` 连续执行到
+  `recommendations.0002_expand_v1_action_types`，全部成功。
+- 当前动作后续迁移为 `actions.0003_effect_evaluation` 与
+  `actions.0004_execution_outcome_succeeded`；既有数据库通过只向前兼容逻辑
+  保留更丰富的 `action_effect_evaluation` 表。
+- `makemigrations --check --dry-run`：No changes detected。
+- 当前源码 18000 后端容器停止再启动后，持久 MySQL 中 21 个 ImportTask
+  仍可查询，最新状态为 `SUCCEEDED`。

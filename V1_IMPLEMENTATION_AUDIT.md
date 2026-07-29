@@ -213,3 +213,37 @@ advertising.0003_campaign_target_acos
 3. 为冲突应用设计只向前的兼容迁移，不使用 `--fake`；
 4. 同时准备空数据库从零迁移和旧数据库升级测试；
 5. 在复制出的测试数据库验证数据行、索引和约束不丢失后，才允许升级现有库。
+
+## 最终复核（HEAD 基于 `396a52f`）
+
+Stage 2—5 已在原架构上完成迁移协调、演示 seed、三报表、三事实、
+指标/异常、四 Agent、Recommendation、Action Preview、审批、人工执行、
+基础效果评估、审计和真实 Vue 页面。没有重写为新项目，也没有修改既有标签。
+
+实际证据：
+
+- 现有 MySQL 无损升级和隔离备份恢复通过；关键行数升级前后不减少。
+- 当前迁移图在 MySQL 空库从零执行成功；无迁移差异。
+- 后端 112/112、前端 17 files / 46 tests、lint、typecheck、build、
+  OpenAPI 校验和 TypeScript 生成通过。
+- 当前源码 test Compose 先构建、再迁移、再启动，7 个服务 healthy；
+  live、ready、前端均为 HTTP 200。
+- Docker HTTP 烟雾真实完成登录、四级上下文、Campaign fixture 上传、
+  Celery 处理和 MySQL `SUCCEEDED` 写入。
+- 当前源码 18000 后端应用容器重启后，持久 MySQL 中 21 个 ImportTask
+  仍可查询。
+
+仍不能升级为完整 RC2：
+
+- Playwright 两次均在浏览器启动前被固定旧 SQLite 的迁移历史阻断；
+  已改为每次运行唯一 SQLite，但按两次上限未第三次执行，状态为
+  `IMPLEMENTED_NOT_FULLY_VERIFIED`。
+- 第二条“不同权限用户”浏览器路径没有实际通过。
+- 批量执行部分成功没有批量 API/UI，状态为 `NOT_IMPLEMENTED`。
+- 完整审批/执行审阅弹窗没有统一对话框；现有页面为可操作的内联卡片，
+  部分要求字段仍未集中展示。
+- 三类真实 Amazon 脱敏样例仍为 `BLOCKED_BY_REAL_SAMPLE`。
+
+因此当前结论是：核心 V1 服务链路已实现并由 API、单元、组件、Docker 烟雾
+覆盖，但“全部页面/弹窗及两条 Playwright 路径均已验证”的严格 V1 验收尚未
+达成，不创建 `v1-framework-rc2`。

@@ -1,5 +1,10 @@
 # DEMO-MILESTONE 验证报告
 
+> 历史检查点说明：本文件记录 `3023e84` / `demo-milestone` 当时的结果，
+> 不代表当前 HEAD 的重新验收。2026-07-28 当前复核的 Playwright 为
+> `NOT VERIFIED`；请以根目录 `V1_VERIFIED_DELIVERY_REPORT.md` 和
+> `V1_ACCEPTANCE_MATRIX.md` 为准。
+
 版本基线：`9f1806c feat: complete v1 frontend workflow`  
 验证日期：2026-07-28  
 数据：全部为 `.invalid` 演示账号和仓库内虚构 fixture。

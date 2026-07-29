@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from apps.accounts.serializers import AuthenticatedUserSerializer
+
 
 class TenantOptionSerializer(serializers.Serializer):
     id = serializers.CharField()
@@ -39,3 +41,8 @@ class ProfileOptionSerializer(serializers.Serializer):
 class ContextCapabilitiesSerializer(serializers.Serializer):
     permissionCodes = serializers.ListField(child=serializers.CharField())
     membershipRole = serializers.CharField()
+
+
+class CurrentContextSerializer(serializers.Serializer):
+    user = AuthenticatedUserSerializer()
+    tenants = TenantOptionSerializer(many=True)

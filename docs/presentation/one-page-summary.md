@@ -8,9 +8,10 @@
 
 **安全**：Access Token 仅内存，Refresh 仅 HttpOnly Cookie；每次业务请求重新校验 Membership、功能权限、Store/Profile 和对象归属；LLM 不裁决指标、金额、权限和状态；不保存隐藏思维过程。
 
-**演示证据**：Chrome E2E 已实际通过会话恢复、四级上下文、高 ACOS Campaign 导入、Dashboard 异常、四 Agent 建议、Preview、审批、人工回填、审计和退出。后端 81 项、前端 31 项通过。
+**当前复核证据**：后端 112 项、前端 46 项、Compose/健康和 Docker
+HTTP/Celery/MySQL Campaign 链路通过。Chrome E2E 本轮两次均在浏览器启动前
+因旧固定 SQLite 迁移历史失败，修复后未第三次执行，必须标记 NOT VERIFIED。
 
 **明确边界**：不调用 Amazon Ads 写 API；不接真实 LLM/第三方来源；不跨币种汇总；不做多级审批、微服务、复杂 RAG、库存或财务。
 
 **未充分验证**：真实 Amazon 导出样例；参考 8C16G 环境性能；当前机器最终 Docker 运行态将在 M6 如实复验。
-

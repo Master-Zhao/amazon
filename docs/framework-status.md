@@ -1,19 +1,26 @@
-# V1 Framework Baseline 状态
+# V1 Framework 当前复核状态
 
-| 领域 | 状态 | 证据/说明 |
+复核日期：2026-07-28。历史 `demo-milestone` 与 `v1-framework-rc1` 标签保持不动。
+
+| 领域 | 状态 | 当前证据/限制 |
 |---|---|---|
-| Django/DRF/Celery | IMPLEMENTED_AND_TESTED | check、无迁移差异、103 tests、Task → Service |
-| Vue/Router/Pinia/Axios | IMPLEMENTED_AND_TESTED | lint、typecheck、10 files/33 tests、build、E2E |
-| MySQL/Redis/Nginx/Compose | IMPLEMENTED_AND_TESTED | M6 7 服务 healthy；本次 3 套静态检查 |
-| JWT 与 Tenant/Store/Profile/RBAC | IMPLEMENTED_AND_TESTED | 隔离/重放测试和浏览器恢复/四级上下文 |
-| 三报表导入 | BLOCKED_BY_REAL_SAMPLE | 虚构 CSV/XLSX 与流式输出通过；真实导出未验证 |
-| 三事实/指标/异常 | IMPLEMENTED_AND_TESTED | Decimal、粒度、继承、规则和 Task 委托测试 |
-| Mock Agent/11 类 Recommendation | IMPLEMENTED_AND_TESTED | schema + 11 类确定性 Service 测试；逐类 E2E 为 backlog |
-| Preview/退回/审批/执行/审计 | IMPLEMENTED_AND_TESTED | 冻结、只追加、证据、幂等和基础效果评估 |
-| 限流/缓存/监控框架 | IMPLEMENTED_NOT_FULLY_VERIFIED | Tenant 隔离自动测试；生产多实例/exporter/告警未验证 |
-| 真实 LLM/Amazon/第三方 | RESERVED_BY_CONFIRMED_SCOPE | 正式 Adapter 接口存在但不联网 |
-| 正式容量/TLS/备份恢复 | IMPLEMENTED_NOT_FULLY_VERIFIED | 计划与命令存在，生产等价验证未执行 |
+| Django/DRF/Celery | IMPLEMENTED_AND_TESTED | check；无迁移差异；112/112 tests；Task → Service |
+| Vue/Router/Pinia/Axios | IMPLEMENTED_AND_TESTED | lint/typecheck/build；17 files / 46 tests；路由懒加载 |
+| MySQL/Redis/Nginx/Compose | IMPLEMENTED_AND_TESTED | 三套静态检查；当前源码 test 栈 7 服务 healthy；HTTP/Celery/MySQL smoke |
+| JWT 与 Tenant/Store/Profile/RBAC | IMPLEMENTED_AND_TESTED | API/组件/隔离测试及 Docker HTTP 四级上下文 |
+| 三报表导入 | BLOCKED_BY_REAL_SAMPLE | 虚构 CSV/XLSX 通过；真实 Amazon 导出未验证 |
+| 三事实/指标/异常 | IMPLEMENTED_AND_TESTED | Decimal、null reason、粒度、币种、规则 |
+| Mock Agent/Recommendation | IMPLEMENTED_AND_TESTED | 四 Invocation、统一 Schema、重试幂等、11 类校验 |
+| Preview/审批/执行/效果/审计 | IMPLEMENTED_AND_TESTED | 只追加、漂移、职责分离、证据、基础评估 |
+| 真实浏览器全路径 | IMPLEMENTED_NOT_FULLY_VERIFIED | 两次 Playwright 在浏览器启动前被旧固定 SQLite 阻断；修复后未第三次运行 |
+| 完整业务对话框 | IMPLEMENTED_NOT_FULLY_VERIFIED | 可操作内联页面存在；要求的全部上下文字段未集中展示 |
+| 批量执行部分成功 | NOT_IMPLEMENTED | 仅支持单 Preview 的执行结果回填 |
+| 真实 LLM/Amazon/第三方 | RESERVED_BY_CONFIRMED_SCOPE | Adapter 边界存在；不联网、不自动执行 |
+| 正式容量/TLS/备份恢复 | IMPLEMENTED_NOT_FULLY_VERIFIED | 文档/脚本存在；生产等价验证未执行 |
 
-矩阵最终统计：44 / 6 / 7 / 3 / 0（按 AND_TESTED、NOT_FULLY、RESERVED、
-BLOCKED、NOT_IMPLEMENTED 顺序）。稳定演示仍为 `3023e84` /
-`demo-milestone`。
+50 项矩阵当前主分类为 44 `IMPLEMENTED_AND_TESTED`、5
+`IMPLEMENTED_NOT_FULLY_VERIFIED`、1 `NOT_IMPLEMENTED`；多项已测试能力另附
+浏览器 `NOT VERIFIED` 注记。详见根目录 `V1_ACCEPTANCE_MATRIX.md`。
+
+由于两条 Playwright 未通过且批量执行部分成功未实现，不创建
+`v1-framework-rc2`。

@@ -2,6 +2,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from apps.accounts.services import serialize_user
 from apps.core.responses import api_response
 from apps.stores.selectors import (
     context_capabilities,
@@ -12,6 +13,7 @@ from apps.stores.selectors import (
 )
 from apps.stores.serializers import (
     ContextCapabilitiesSerializer,
+    CurrentContextSerializer,
     ProfileOptionSerializer,
     StoreMarketplaceOptionSerializer,
     StoreOptionSerializer,
@@ -96,4 +98,24 @@ class ContextCapabilitiesView(APIView):
         return api_response(
             request,
             data=context_capabilities(user=request.user, tenant_id=tenant_id),
+        )
+
+
+class CurrentContextView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Get current user context summary",
+        responses={200: CurrentContextSerializer},
+        tags=["tenant-context"],
+    )
+    def get(self, request):
+        user_data = serialize_user(request.user)
+        tenants = tenant_options(request.user)
+        return api_response(
+            request,
+            data={
+                "user": user_data,
+                "tenants": tenants,
+            },
         )

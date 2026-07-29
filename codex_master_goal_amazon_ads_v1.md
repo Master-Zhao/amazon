@@ -17,7 +17,7 @@
 5. 可上传并异步导入 Campaign、Targeting、Search Term 三类报表。
 6. 可展示标准化广告数据、确定性指标与异常结果。
 7. 可通过 MockLLMProvider 稳定运行四类智能体。
-8. 可生成 Recommendation、Action Preview，并完成单级审批、人工执行回填和效果评估基础闭环。
+8. 可生成 Recommendation、Action Preview，并完成人工执行回填和效果评估基础闭环（V1 不再需要审批步骤，Action Preview 生成后直接可执行）。
 9. 可验证 User、Tenant、Store、Marketplace、AdvertisingProfile、RBAC 与数据权限隔离。
 10. 可查询只追加的业务审计日志。
 11. 可通过 Docker Compose 启动。

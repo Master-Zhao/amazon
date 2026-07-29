@@ -2,6 +2,7 @@ from django.urls import path
 
 from apps.stores.views import (
     ContextCapabilitiesView,
+    CurrentContextView,
     MarketplaceOptionsView,
     ProfileOptionsView,
     StoreOptionsView,
@@ -9,6 +10,7 @@ from apps.stores.views import (
 )
 
 urlpatterns = [
+    path("current", CurrentContextView.as_view(), name="context-current"),
     path("tenants", TenantOptionsView.as_view(), name="context-tenants"),
     path(
         "tenants/<str:tenant_id>/capabilities",
