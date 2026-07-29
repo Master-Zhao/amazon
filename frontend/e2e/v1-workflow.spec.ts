@@ -16,8 +16,9 @@ if (!password) throw new Error('E2E_USER_PASSWORD was not created by global setu
 async function login(page: Page): Promise<void> {
   await page.goto('/login')
   await page.getByLabel('邮箱').fill('e2e@example.invalid')
-  await page.getByLabel('密码').fill(password!)
-  await page.getByRole('button', { name: '登录' }).click()
+  await page.getByLabel('密码', { exact: true }).fill(password!)
+  await page.getByRole('button', { name: '登录工作台' }).click()
+  await page.waitForURL(/\/advertising\/overview|\/$/)
   await expect(page.getByRole('heading', { name: /欢迎回来/ })).toBeVisible()
 }
 
@@ -92,5 +93,5 @@ test('Campaign 部分错误导入可查询任务与行级错误并正常退出',
 
   await page.getByLabel('用户菜单').click()
   await page.getByRole('button', { name: '退出登录' }).click()
-  await expect(page.getByRole('heading', { name: '登录广告优化工作台' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible()
 })

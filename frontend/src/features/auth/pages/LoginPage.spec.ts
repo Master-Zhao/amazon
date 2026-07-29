@@ -29,6 +29,85 @@ describe('login page', () => {
     vi.resetAllMocks()
   })
 
+  it('keeps submit disabled until required credentials are valid', async () => {
+    const { router, pinia } = createTestContext()
+    await router.push('/login')
+    await router.isReady()
+    const wrapper = mount(LoginPage, {
+      global: { plugins: [pinia, router] },
+    })
+
+    const submitButton = wrapper.get('button[type="submit"]')
+    expect(submitButton.attributes('disabled')).toBeDefined()
+    expect(wrapper.get('input[name="password"]').attributes('type')).toBe(
+      'password',
+    )
+
+    await wrapper.get('input[name="email"]').setValue('not-an-email')
+    await wrapper.get('input[name="password"]').setValue('secret')
+    expect(wrapper.text()).toContain('请输入有效的邮箱地址')
+    expect(submitButton.attributes('disabled')).toBeDefined()
+
+    await wrapper
+      .get('input[name="email"]')
+      .setValue('demo@example.invalid')
+    expect(submitButton.attributes('disabled')).toBeUndefined()
+  })
+
+  it('toggles password visibility without submitting the form', async () => {
+    const { router, pinia } = createTestContext()
+    await router.push('/login')
+    await router.isReady()
+    const wrapper = mount(LoginPage, {
+      global: { plugins: [pinia, router] },
+    })
+
+    await wrapper.get('button[aria-label="显示密码"]').trigger('click')
+    expect(wrapper.get('input[name="password"]').attributes('type')).toBe(
+      'text',
+    )
+    expect(wrapper.get('button[aria-label="隐藏密码"]')).toBeTruthy()
+    expect(loginAccount).not.toHaveBeenCalled()
+  })
+
+  it('locks the form and reports progress while login is pending', async () => {
+    let resolveLogin: ((value: unknown) => void) | undefined
+    vi.mocked(loginAccount).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveLogin = resolve
+        }) as ReturnType<typeof loginAccount>,
+    )
+    const { router, pinia } = createTestContext()
+    await router.push('/login')
+    await router.isReady()
+    const wrapper = mount(LoginPage, {
+      global: { plugins: [pinia, router] },
+    })
+
+    await wrapper
+      .get('input[name="email"]')
+      .setValue('demo@example.invalid')
+    await wrapper.get('input[name="password"]').setValue('local-password')
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.get('form').attributes('aria-busy')).toBe('true')
+    expect(wrapper.get('button[type="submit"]').text()).toContain('正在登录')
+    expect(wrapper.get('input[name="email"]').attributes('disabled')).toBeDefined()
+
+    resolveLogin?.({
+      accessToken: 'access',
+      user: {
+        id: '1',
+        email: 'demo@example.invalid',
+        username: 'demo',
+        firstName: '',
+        lastName: '',
+      },
+    })
+    await flushPromises()
+  })
+
   it('submits credentials and redirects after successful login', async () => {
     vi.mocked(loginAccount).mockResolvedValue({
       accessToken: 'access',
@@ -84,5 +163,21 @@ describe('login page', () => {
       'AUTH_INVALID_CREDENTIALS',
     )
     expect(wrapper.get('[role="alert"]').text()).toContain('req_login_failed')
+
+    vi.mocked(loginAccount).mockResolvedValue({
+      accessToken: 'access',
+      user: {
+        id: '1',
+        email: 'demo@example.invalid',
+        username: 'demo',
+        firstName: '',
+        lastName: '',
+      },
+    })
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(loginAccount).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
   })
 })

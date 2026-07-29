@@ -6,8 +6,8 @@ if (!password) throw new Error('E2E_USER_PASSWORD was not created by global setu
 async function login(page: Page): Promise<void> {
   await page.goto('/login')
   await page.getByLabel('邮箱').fill('e2e@example.invalid')
-  await page.getByLabel('密码').fill(password!)
-  await page.getByRole('button', { name: '登录' }).click()
+  await page.getByLabel('密码', { exact: true }).fill(password!)
+  await page.getByRole('button', { name: '登录工作台' }).click()
   await page.waitForURL(/\/advertising\/overview|\/$/)
 }
 
@@ -62,7 +62,115 @@ test('登录→广告总览→创建广告→通知→帮助→头像菜单→�
   await expect(page.getByText('退出登录')).toBeVisible()
 
   await page.getByRole('button', { name: '退出登录' }).click()
-  await expect(page.getByRole('heading', { name: '登录广告优化工作台' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible()
+})
+
+test('登录页在常用视口保持完整布局且不出现横向溢出', async ({ page }) => {
+  const viewports = [
+    { width: 1440, height: 900 },
+    { width: 1280, height: 720 },
+    { width: 768, height: 1024 },
+    { width: 390, height: 844 },
+  ]
+
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport)
+    await page.goto('/login')
+    await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible()
+    await expect(page.getByLabel('邮箱')).toBeVisible()
+    await expect(
+      page.getByLabel('密码', { exact: true }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: '登录工作台' }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('navigation', { name: '业务导航' }),
+    ).toHaveCount(0)
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true)
+  }
+})
+
+test('登录表单支持键盘顺序操作', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await page.goto('/login')
+
+  await page.keyboard.press('Tab')
+  await expect(page.getByLabel('邮箱')).toBeFocused()
+  await page.keyboard.type('e2e@example.invalid')
+
+  await page.keyboard.press('Tab')
+  await expect(page.getByLabel('密码', { exact: true })).toBeFocused()
+  await page.keyboard.type('keyboard-check')
+
+  await page.keyboard.press('Tab')
+  await expect(
+    page.getByRole('button', { name: '显示密码' }),
+  ).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(
+    page.getByRole('button', { name: '登录工作台' }),
+  ).toBeFocused()
+})
+
+test('错误凭据可见反馈后允许使用正确凭据重试', async ({ page }) => {
+  const pageErrors: string[] = []
+  const consoleErrors: string[] = []
+  const expectedAuthConsoleDiagnostics: string[] = []
+  const failedRequests: string[] = []
+  const unexpectedResponses: string[] = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  page.on('console', (message) => {
+    if (message.type() !== 'error') return
+    if (
+      message
+        .text()
+        .includes('server responded with a status of 401 (Unauthorized)')
+    ) {
+      expectedAuthConsoleDiagnostics.push(message.text())
+      return
+    }
+    consoleErrors.push(message.text())
+  })
+  page.on('requestfailed', (request) => {
+    failedRequests.push(
+      `${request.url()} ${request.failure()?.errorText ?? 'request failed'}`,
+    )
+  })
+  page.on('response', (response) => {
+    if (response.status() < 400) return
+    const isExpectedAnonymousRefresh =
+      response.status() === 401 && response.url().includes('/auth/refresh')
+    const isExpectedInvalidLogin =
+      response.status() === 401 && response.url().includes('/auth/login')
+    if (!isExpectedAnonymousRefresh && !isExpectedInvalidLogin) {
+      unexpectedResponses.push(`${response.status()} ${response.url()}`)
+    }
+  })
+
+  await page.goto('/login')
+  await page.getByLabel('邮箱').fill('e2e@example.invalid')
+  await page
+    .getByLabel('密码', { exact: true })
+    .fill('incorrect-password')
+  await page.getByRole('button', { name: '登录工作台' }).click()
+
+  await expect(page.getByRole('alert')).toContainText('邮箱或密码错误')
+  await expect(page).toHaveURL(/\/login$/)
+
+  await page.getByLabel('密码', { exact: true }).fill(password!)
+  await page.getByRole('button', { name: '登录工作台' }).click()
+  await page.waitForURL(/\/advertising\/overview|\/$/)
+  await expect(page.getByRole('heading', { name: /欢迎回来/ })).toBeVisible()
+  expect(pageErrors).toEqual([])
+  expect(consoleErrors).toEqual([])
+  expect(expectedAuthConsoleDiagnostics).toHaveLength(2)
+  expect(failedRequests).toEqual([])
+  expect(unexpectedResponses).toEqual([])
 })
 
 test('刷新后恢复登录状态', async ({ page }) => {
