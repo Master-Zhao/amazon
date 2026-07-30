@@ -67,6 +67,17 @@ export function readRequestId(response: AxiosResponse): string | null {
 }
 
 export function normalizeApiError(error: unknown): ApiError {
+  if (
+    isRecord(error) &&
+    typeof error.code === 'string' &&
+    typeof error.message === 'string' &&
+    'status' in error &&
+    'requestId' in error &&
+    'fieldErrors' in error &&
+    'retryable' in error
+  ) {
+    return error as unknown as ApiError
+  }
   if (!axios.isAxiosError(error)) {
     return {
       status: null,

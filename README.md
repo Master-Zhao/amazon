@@ -12,6 +12,8 @@
   `export NAME=value`，将 `Remove-Item Env:NAME` 改为 `unset NAME`
 
 复制 `.env.example` 为本机 `.env`，只在本机设置秘密。不要提交 `.env`。
+使用 `config.settings.local` 时，Django 会读取该文件；已显式设置的进程
+环境变量优先于 `.env`。
 
 ## 从零全容器启动
 
@@ -69,6 +71,46 @@ Worker 与 Beat 使用相同后端环境：
 uv run --project backend celery --workdir backend -A config worker --loglevel=INFO --queues=default,imports,analysis,maintenance
 uv run --project backend celery --workdir backend -A config beat --loglevel=INFO
 ```
+
+## 两个远程广告数据库（只读）
+
+项目登录、权限、审计和正式业务状态始终使用 `default` 项目库。远程 SCM
+与广告分析库只通过后端 `scm_remote`、`ads_analysis_remote` 别名读取，
+前端不得直连数据库，Django 也不会对这两个别名执行迁移。
+
+在本机未跟踪的 `.env` 中填写 `.env.example` 所列变量，并使用只有
+`SELECT` 权限的数据库账号：
+
+```dotenv
+REMOTE_AD_DATABASES_ENABLED=true
+SCM_REMOTE_DB_NAME=
+SCM_REMOTE_DB_USER=
+SCM_REMOTE_DB_PASSWORD=
+SCM_REMOTE_DB_HOST=
+SCM_REMOTE_DB_PORT=3306
+ADS_ANALYSIS_REMOTE_DB_NAME=
+ADS_ANALYSIS_REMOTE_DB_USER=
+ADS_ANALYSIS_REMOTE_DB_PASSWORD=
+ADS_ANALYSIS_REMOTE_DB_HOST=
+ADS_ANALYSIS_REMOTE_DB_PORT=3306
+REMOTE_AD_PROFILE_MERCHANT_MAP={"PROJECT-EXTERNAL-PROFILE-ID":{"merchantId":235,"merchantCode":"W0568"}}
+REMOTE_AD_MAX_ROWS=200
+```
+
+`REMOTE_AD_PROFILE_MERCHANT_MAP` 的键是项目
+`AdvertisingProfile.external_profile_id`，值必须同时包含两个远程库共享的
+`mer_id` 与精确 `mer_code`。二者同时参与查询过滤；不能只配置其中一个，
+因为现有数据中两列都不是全局一一对应关系。
+该映射是跨系统数据范围边界，必须由可信运维人员配置，不能由普通 Tenant
+成员任意选择。修改 `.env` 后重建后端、Worker 与 Beat：
+
+```powershell
+docker compose -f compose.local.yml up -d --build backend celery-worker celery-beat frontend
+```
+
+登录并完成 Tenant → Store → Marketplace → Profile 上下文后，访问
+`http://localhost:5173/remote-data`。不提供日期时默认读取该商户最新数据日，
+单次最多返回 `REMOTE_AD_MAX_ROWS` 条聚合记录。
 
 ## 数据、fixture 与演示
 

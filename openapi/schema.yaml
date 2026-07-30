@@ -947,6 +947,43 @@ paths:
                 items:
                   $ref: '#/components/schemas/DashboardRow'
           description: ''
+  /api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/remote-campaigns:
+    get:
+      operationId: api_v1_analytics_tenants_profiles_remote_campaigns_list
+      summary: List read-only Campaign metrics from the mapped remote SCM and advertising
+        analysis databases
+      parameters:
+      - in: query
+        name: endDate
+        schema:
+          type: string
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: startDate
+        schema:
+          type: string
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - analytics
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RemoteCampaignMetricRow'
+          description: ''
   /api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/search-terms:
     get:
       operationId: api_v1_analytics_tenants_profiles_search_terms_list
@@ -3389,6 +3426,69 @@ components:
         * `SUPERSEDED` - Superseded
         * `ACCEPTED` - Accepted
         * `DISMISSED` - Dismissed
+    RemoteCampaignMetricRow:
+      type: object
+      properties:
+        id:
+          type: string
+        external_campaign_id:
+          type: string
+        campaign_name:
+          type: string
+        report_date:
+          type: string
+          format: date
+        currency_code:
+          type: string
+        impressions:
+          type: integer
+        clicks:
+          type: integer
+        spend:
+          type: string
+        orders:
+          type: integer
+        sales:
+          type: string
+        daily_budget:
+          type: string
+          nullable: true
+        state:
+          type: string
+        ctr:
+          $ref: '#/components/schemas/FormulaValue'
+        cpc:
+          $ref: '#/components/schemas/FormulaValue'
+        cvr:
+          $ref: '#/components/schemas/FormulaValue'
+        acos:
+          $ref: '#/components/schemas/FormulaValue'
+        roas:
+          $ref: '#/components/schemas/FormulaValue'
+        scm_matched:
+          type: boolean
+        source_system:
+          type: string
+      required:
+      - acos
+      - campaign_name
+      - clicks
+      - cpc
+      - ctr
+      - currency_code
+      - cvr
+      - daily_budget
+      - external_campaign_id
+      - id
+      - impressions
+      - orders
+      - report_date
+      - roas
+      - sales
+      - scm_matched
+      - source_system
+      - spend
+      - state
     ReportTypeEnum:
       enum:
       - CAMPAIGN

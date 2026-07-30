@@ -123,6 +123,20 @@ export const routes: RouteRecordRaw[] = [
     },
   },
   {
+    path: '/remote-data',
+    name: 'remote-campaign-data',
+    component: () =>
+      import('@/features/analytics/pages/RemoteCampaignDataPage.vue'),
+    meta: {
+      title: '远程 Campaign 数据',
+      requiresAuth: true,
+      directoryPath: [
+        { label: '首页', route: '/' },
+        { label: 'remote-data', route: '/remote-data' },
+      ],
+    },
+  },
+  {
     path: '/campaigns/:campaignId',
     name: 'campaign-detail',
     component: () =>

@@ -488,6 +488,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/remote-campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List read-only Campaign metrics from the mapped remote SCM and advertising analysis databases */
+        get: operations["api_v1_analytics_tenants_profiles_remote_campaigns_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/analytics/tenants/{tenant_id}/profiles/{profile_id}/search-terms": {
         parameters: {
             query?: never;
@@ -1743,6 +1760,28 @@ export interface components {
          * @enum {string}
          */
         RecommendationStatusEnum: "ACTIVE" | "SUPERSEDED" | "ACCEPTED" | "DISMISSED";
+        RemoteCampaignMetricRow: {
+            id: string;
+            external_campaign_id: string;
+            campaign_name: string;
+            /** Format: date */
+            report_date: string;
+            currency_code: string;
+            impressions: number;
+            clicks: number;
+            spend: string;
+            orders: number;
+            sales: string;
+            daily_budget: string | null;
+            state: string;
+            ctr: components["schemas"]["FormulaValue"];
+            cpc: components["schemas"]["FormulaValue"];
+            cvr: components["schemas"]["FormulaValue"];
+            acos: components["schemas"]["FormulaValue"];
+            roas: components["schemas"]["FormulaValue"];
+            scm_matched: boolean;
+            source_system: string;
+        };
         /**
          * @description * `CAMPAIGN` - Campaign
          *     * `TARGETING` - Targeting
@@ -2686,6 +2725,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DashboardRow"][];
+                };
+            };
+        };
+    };
+    api_v1_analytics_tenants_profiles_remote_campaigns_list: {
+        parameters: {
+            query?: {
+                endDate?: string;
+                startDate?: string;
+            };
+            header?: never;
+            path: {
+                profile_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemoteCampaignMetricRow"][];
                 };
             };
         };

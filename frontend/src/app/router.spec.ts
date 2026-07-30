@@ -12,6 +12,7 @@ describe('router foundation', () => {
       'reports-index',
       'report-imports',
       'campaign-metrics',
+      'remote-campaign-data',
       'campaign-detail',
       'analytics-configuration',
       'analytics-dashboard',

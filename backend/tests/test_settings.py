@@ -161,6 +161,29 @@ def test_invalid_jwt_configuration_fails_without_exposing_values():
     assert invalid_value not in result.stdout + result.stderr
 
 
+def test_remote_profile_mapping_requires_exact_merchant_scope():
+    result = run_settings_import(
+        "config.settings.local",
+        {
+            "REMOTE_AD_PROFILE_MERCHANT_MAP": (
+                '{"REMOTE-PROFILE":{"merchantId":235,"merchantCode":"W0568"}}'
+            )
+        },
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_remote_profile_mapping_rejects_legacy_merchant_id_only_value():
+    result = run_settings_import(
+        "config.settings.local",
+        {"REMOTE_AD_PROFILE_MERCHANT_MAP": '{"REMOTE-PROFILE":235}'},
+    )
+
+    assert result.returncode != 0
+    assert "positive merchantId and non-empty merchantCode" in result.stderr
+
+
 def test_prod_settings_reject_insecure_refresh_cookie():
     result = run_settings_import(
         "config.settings.prod",

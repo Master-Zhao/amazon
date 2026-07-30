@@ -17,6 +17,10 @@ from apps.analytics.models import (
 from apps.analytics.services import metric_formulas, resolve_target_acos
 from apps.permissions.models import ProfileAccessLevel
 from apps.permissions.services import require_profile_scope
+from integrations.advertising_data.remote_databases import (
+    RemoteAdvertisingDataReader,
+    remote_scope_for_profile,
+)
 
 
 def _date(value: str | None, field: str) -> date | None:
@@ -491,6 +495,71 @@ def search_term_metric_rows(
                 "acos": _formula_payload(formulas["acos"]),
                 "roas": _formula_payload(formulas["roas"]),
                 "source_batch_id": str(metric.source_batch_id),
+            }
+        )
+    return rows
+
+
+def remote_campaign_metric_rows(
+    *,
+    user,
+    tenant_id,
+    profile_id,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict[str, object]]:
+    scope = require_profile_scope(
+        user=user,
+        tenant_id=tenant_id,
+        profile_id=profile_id,
+        permission_code="analytics.view",
+        minimum_level=ProfileAccessLevel.VIEW,
+    )
+    start = _date(start_date, "start_date")
+    end = _date(end_date, "end_date")
+    if start and end and start > end:
+        raise ValidationError({"end_date": ["Must be on or after start_date."]})
+
+    remote_scope = remote_scope_for_profile(scope.profile.external_profile_id)
+    metrics = RemoteAdvertisingDataReader().campaign_metrics(
+        merchant_id=remote_scope.merchant_id,
+        merchant_code=remote_scope.merchant_code,
+        start_date=start,
+        end_date=end,
+    )
+    rows: list[dict[str, object]] = []
+    for metric in metrics:
+        formulas = metric_formulas(
+            impressions=metric.impressions,
+            clicks=metric.clicks,
+            spend=metric.spend,
+            orders=metric.orders,
+            sales=metric.sales,
+        )
+        rows.append(
+            {
+                "id": (
+                    f"remote:{metric.report_date.isoformat()}:"
+                    f"{metric.external_campaign_id}"
+                ),
+                "external_campaign_id": metric.external_campaign_id,
+                "campaign_name": metric.campaign_name,
+                "report_date": metric.report_date,
+                "currency_code": scope.profile.currency_code,
+                "impressions": metric.impressions,
+                "clicks": metric.clicks,
+                "spend": _decimal_string(metric.spend),
+                "orders": metric.orders,
+                "sales": _decimal_string(metric.sales),
+                "daily_budget": _decimal_string(metric.daily_budget),
+                "state": metric.state,
+                "ctr": _formula_payload(formulas["ctr"]),
+                "cpc": _formula_payload(formulas["cpc"]),
+                "cvr": _formula_payload(formulas["cvr"]),
+                "acos": _formula_payload(formulas["acos"]),
+                "roas": _formula_payload(formulas["roas"]),
+                "scm_matched": metric.scm_matched,
+                "source_system": "REMOTE_MYSQL",
             }
         )
     return rows

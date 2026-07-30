@@ -1,7 +1,33 @@
 import os
 from collections.abc import Iterable
+from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
+
+
+def load_env_file(path: Path) -> None:
+    """Load a local dotenv file without replacing explicit process settings."""
+    if not path.is_file():
+        return
+
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+
+        key, separator, value = stripped.partition("=")
+        key = key.strip()
+        if not separator or not key:
+            continue
+
+        value = value.strip()
+        if (
+            len(value) >= 2
+            and value[0] == value[-1]
+            and value[0] in {'"', "'"}
+        ):
+            value = value[1:-1]
+        os.environ.setdefault(key, value)
 
 
 def env(name: str, default: str | None = None) -> str | None:
@@ -64,5 +90,34 @@ def mysql_database_config() -> dict[str, object]:
         "OPTIONS": {
             "charset": "utf8mb4",
             "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+        },
+    }
+
+
+def remote_mysql_database_config(prefix: str) -> dict[str, object]:
+    required_names = (
+        f"{prefix}_DB_NAME",
+        f"{prefix}_DB_USER",
+        f"{prefix}_DB_PASSWORD",
+        f"{prefix}_DB_HOST",
+        f"{prefix}_DB_PORT",
+    )
+    values = {name: env(name) for name in required_names}
+    missing = [name for name, value in values.items() if not value]
+    if missing:
+        raise ImproperlyConfigured(
+            "Missing remote database configuration: " + ", ".join(missing)
+        )
+    return {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": values[f"{prefix}_DB_NAME"],
+        "USER": values[f"{prefix}_DB_USER"],
+        "PASSWORD": values[f"{prefix}_DB_PASSWORD"],
+        "HOST": values[f"{prefix}_DB_HOST"],
+        "PORT": values[f"{prefix}_DB_PORT"],
+        "CONN_MAX_AGE": env_int(f"{prefix}_DB_CONN_MAX_AGE", 60),
+        "OPTIONS": {
+            "charset": "utf8mb4",
+            "init_command": "SET SESSION TRANSACTION READ ONLY",
         },
     }

@@ -44,6 +44,28 @@ export interface CampaignMetricRow {
   anomalies: CampaignAnomaly[]
 }
 
+export interface RemoteCampaignMetricRow {
+  id: string
+  externalCampaignId: string
+  campaignName: string
+  reportDate: string
+  currencyCode: string
+  impressions: number
+  clicks: number
+  spend: string
+  orders: number
+  sales: string
+  dailyBudget: string | null
+  state: string
+  ctr: FormulaValue
+  cpc: FormulaValue
+  cvr: FormulaValue
+  acos: FormulaValue
+  roas: FormulaValue
+  scmMatched: boolean
+  sourceSystem: 'REMOTE_MYSQL'
+}
+
 export interface CampaignDetail {
   campaignId: string
   externalCampaignId: string
@@ -160,6 +182,19 @@ export function fetchCampaignMetrics(
   return data(
     httpClient.get(
       `/api/v1/analytics/tenants/${tenantId}/profiles/${profileId}/campaigns`,
+      { params: filters },
+    ),
+  )
+}
+
+export function fetchRemoteCampaignMetrics(
+  tenantId: string,
+  profileId: string,
+  filters: { startDate?: string; endDate?: string } = {},
+): Promise<RemoteCampaignMetricRow[]> {
+  return data(
+    httpClient.get(
+      `/api/v1/analytics/tenants/${tenantId}/profiles/${profileId}/remote-campaigns`,
       { params: filters },
     ),
   )

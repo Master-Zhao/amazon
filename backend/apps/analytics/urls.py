@@ -6,6 +6,7 @@ from apps.analytics.views import (
     CampaignMetricDetailView,
     CampaignMetricListView,
     DashboardView,
+    RemoteCampaignMetricListView,
     SearchTermMetricListView,
     TargetingMetricListView,
     TargetAcosConfigurationView,
@@ -21,6 +22,11 @@ urlpatterns = [
         "tenants/<str:tenant_id>/profiles/<str:profile_id>/campaigns",
         CampaignMetricListView.as_view(),
         name="campaign-metric-list",
+    ),
+    path(
+        "tenants/<str:tenant_id>/profiles/<str:profile_id>/remote-campaigns",
+        RemoteCampaignMetricListView.as_view(),
+        name="remote-campaign-metric-list",
     ),
     path(
         "tenants/<str:tenant_id>/profiles/<str:profile_id>/campaigns/"

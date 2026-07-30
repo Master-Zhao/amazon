@@ -7,6 +7,7 @@ from apps.analytics.selectors import (
     campaign_detail,
     campaign_metric_rows,
     dashboard_rows,
+    remote_campaign_metric_rows,
     search_term_metric_rows,
     targeting_metric_rows,
 )
@@ -17,6 +18,7 @@ from apps.analytics.serializers import (
     CampaignDetailSerializer,
     CampaignMetricRowSerializer,
     DashboardRowSerializer,
+    RemoteCampaignMetricRowSerializer,
     SearchTermMetricRowSerializer,
     TargetingMetricRowSerializer,
     TargetAcosUpdateSerializer,
@@ -77,6 +79,35 @@ class CampaignMetricListView(APIView):
         return api_response(
             request,
             data=CampaignMetricRowSerializer(rows, many=True).data,
+        )
+
+
+class RemoteCampaignMetricListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary=(
+            "List read-only Campaign metrics from the mapped remote SCM "
+            "and advertising analysis databases"
+        ),
+        parameters=[
+            OpenApiParameter("startDate", str, required=False),
+            OpenApiParameter("endDate", str, required=False),
+        ],
+        responses={200: RemoteCampaignMetricRowSerializer(many=True)},
+        tags=["analytics"],
+    )
+    def get(self, request, tenant_id, profile_id):
+        rows = remote_campaign_metric_rows(
+            user=request.user,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+            start_date=request.query_params.get("startDate"),
+            end_date=request.query_params.get("endDate"),
+        )
+        return api_response(
+            request,
+            data=RemoteCampaignMetricRowSerializer(rows, many=True).data,
         )
 
 

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from datetime import timedelta
 from decimal import Decimal
@@ -14,6 +15,7 @@ from config.settings.environment import (
     env_list,
     env_positive_int,
     mysql_database_config,
+    remote_mysql_database_config,
 )
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -86,6 +88,48 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 DATABASES = {"default": mysql_database_config()}
+REMOTE_AD_DATABASES_ENABLED = env_bool("REMOTE_AD_DATABASES_ENABLED", False)
+if REMOTE_AD_DATABASES_ENABLED:
+    DATABASES.update(
+        {
+            "scm_remote": remote_mysql_database_config("SCM_REMOTE"),
+            "ads_analysis_remote": remote_mysql_database_config(
+                "ADS_ANALYSIS_REMOTE"
+            ),
+        }
+    )
+DATABASE_ROUTERS = ["config.db_routers.ReadOnlyRemoteDatabaseRouter"]
+
+try:
+    REMOTE_AD_PROFILE_MERCHANT_MAP = json.loads(
+        env("REMOTE_AD_PROFILE_MERCHANT_MAP", "{}")
+    )
+except json.JSONDecodeError as exc:
+    raise ImproperlyConfigured(
+        "REMOTE_AD_PROFILE_MERCHANT_MAP must be a JSON object"
+    ) from exc
+if not isinstance(REMOTE_AD_PROFILE_MERCHANT_MAP, dict):
+    raise ImproperlyConfigured(
+        "REMOTE_AD_PROFILE_MERCHANT_MAP must be a JSON object"
+    )
+for _profile_key, _remote_scope in REMOTE_AD_PROFILE_MERCHANT_MAP.items():
+    if (
+        not isinstance(_profile_key, str)
+        or not _profile_key
+        or not isinstance(_remote_scope, dict)
+        or set(_remote_scope) != {"merchantId", "merchantCode"}
+        or not isinstance(_remote_scope["merchantId"], int)
+        or isinstance(_remote_scope["merchantId"], bool)
+        or _remote_scope["merchantId"] <= 0
+        or not isinstance(_remote_scope["merchantCode"], str)
+        or not _remote_scope["merchantCode"].strip()
+    ):
+        raise ImproperlyConfigured(
+            "REMOTE_AD_PROFILE_MERCHANT_MAP keys must be non-empty strings "
+            "and values must contain a positive merchantId and non-empty "
+            "merchantCode"
+        )
+REMOTE_AD_MAX_ROWS = env_positive_int("REMOTE_AD_MAX_ROWS", 200)
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

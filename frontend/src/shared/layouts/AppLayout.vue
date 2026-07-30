@@ -114,6 +114,9 @@ const isLoginPage = computed(() => route.name === 'login')
           <RouterLink v-if="can('analytics.view')" to="/dashboard">
             广告分析
           </RouterLink>
+          <RouterLink v-if="can('analytics.view')" to="/remote-data">
+            远程数据
+          </RouterLink>
           <RouterLink
             v-if="can('analysis.run', 'recommendations.view')"
             to="/analysis"
