@@ -47,12 +47,14 @@ describe('auth store', () => {
       accessToken: 'access-login',
       user,
     })
+    vi.mocked(fetchCurrentUser).mockResolvedValue(user)
     const store = useAuthStore()
 
     await store.login(user.email, 'password')
 
     expect(store.accessToken).toBe('access-login')
     expect(store.currentUser).toEqual(user)
+    expect(fetchCurrentUser).toHaveBeenCalledOnce()
     expect(localStorage.length).toBe(0)
   })
 
@@ -64,6 +66,24 @@ describe('auth store', () => {
       code: 'AUTH_INVALID_CREDENTIALS',
     })
     expect(store.isAuthenticated).toBe(false)
+  })
+
+  it('clears the new token when the post-login authenticated request fails', async () => {
+    vi.mocked(loginAccount).mockResolvedValue({
+      accessToken: 'access-login',
+      user,
+    })
+    vi.mocked(fetchCurrentUser).mockRejectedValue({
+      code: 'AUTH_TOKEN_INVALID',
+    })
+    const store = useAuthStore()
+
+    await expect(store.login(user.email, 'password')).rejects.toMatchObject({
+      code: 'AUTH_TOKEN_INVALID',
+    })
+
+    expect(store.accessToken).toBeNull()
+    expect(store.currentUser).toBeNull()
   })
 
   it('restores a session with refresh then me', async () => {

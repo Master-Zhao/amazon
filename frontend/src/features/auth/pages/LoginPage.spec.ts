@@ -29,7 +29,7 @@ describe('login page', () => {
     vi.resetAllMocks()
   })
 
-  it('keeps submit disabled until required credentials are valid', async () => {
+  it('accepts an alphanumeric account identifier without email validation', async () => {
     const { router, pinia } = createTestContext()
     await router.push('/login')
     await router.isReady()
@@ -43,15 +43,34 @@ describe('login page', () => {
       'password',
     )
 
-    await wrapper.get('input[name="email"]').setValue('not-an-email')
-    await wrapper.get('input[name="password"]').setValue('secret')
-    expect(wrapper.text()).toContain('请输入有效的邮箱地址')
-    expect(submitButton.attributes('disabled')).toBeDefined()
+    const identifierInput = wrapper.get('input[name="identifier"]')
+    expect(identifierInput.attributes('type')).toBe('text')
+    expect(identifierInput.attributes('autocomplete')).toBe('username')
+    expect(identifierInput.attributes('autocapitalize')).toBe('none')
+    expect(identifierInput.attributes('spellcheck')).toBe('false')
+    expect(wrapper.get('label[for="identifier"]').text()).toBe('账号或邮箱')
 
-    await wrapper
-      .get('input[name="email"]')
-      .setValue('demo@example.invalid')
+    await identifierInput.setValue('W0765')
+    await wrapper.get('input[name="password"]').setValue('secret')
+    expect(wrapper.text()).not.toContain('请输入有效的邮箱地址')
     expect(submitButton.attributes('disabled')).toBeUndefined()
+  })
+
+  it('rejects an identifier containing only whitespace', async () => {
+    const { router, pinia } = createTestContext()
+    await router.push('/login')
+    await router.isReady()
+    const wrapper = mount(LoginPage, {
+      global: { plugins: [pinia, router] },
+    })
+
+    await wrapper.get('input[name="identifier"]').setValue('   ')
+    await wrapper.get('input[name="password"]').setValue('secret')
+
+    expect(wrapper.text()).toContain('请输入账号或邮箱')
+    expect(
+      wrapper.get('button[type="submit"]').attributes('disabled'),
+    ).toBeDefined()
   })
 
   it('toggles password visibility without submitting the form', async () => {
@@ -86,14 +105,16 @@ describe('login page', () => {
     })
 
     await wrapper
-      .get('input[name="email"]')
+      .get('input[name="identifier"]')
       .setValue('demo@example.invalid')
     await wrapper.get('input[name="password"]').setValue('local-password')
     await wrapper.get('form').trigger('submit')
 
     expect(wrapper.get('form').attributes('aria-busy')).toBe('true')
     expect(wrapper.get('button[type="submit"]').text()).toContain('正在登录')
-    expect(wrapper.get('input[name="email"]').attributes('disabled')).toBeDefined()
+    expect(
+      wrapper.get('input[name="identifier"]').attributes('disabled'),
+    ).toBeDefined()
 
     resolveLogin?.({
       accessToken: 'access',
@@ -126,13 +147,13 @@ describe('login page', () => {
       global: { plugins: [pinia, router] },
     })
 
-    await wrapper.get('input[name="email"]').setValue('demo@example.invalid')
+    await wrapper.get('input[name="identifier"]').setValue('W0765')
     await wrapper.get('input[name="password"]').setValue('local-password')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
     expect(loginAccount).toHaveBeenCalledWith(
-      'demo@example.invalid',
+      'W0765',
       'local-password',
     )
     expect(router.currentRoute.value.name).toBe('home')
@@ -142,7 +163,7 @@ describe('login page', () => {
     vi.mocked(loginAccount).mockRejectedValue({
       status: 401,
       code: 'AUTH_INVALID_CREDENTIALS',
-      message: '邮箱或密码错误',
+      message: '账号或密码错误',
       requestId: 'req_login_failed',
       fieldErrors: {},
       retryable: false,
@@ -154,7 +175,9 @@ describe('login page', () => {
       global: { plugins: [pinia, router] },
     })
 
-    await wrapper.get('input[name="email"]').setValue('demo@example.invalid')
+    await wrapper
+      .get('input[name="identifier"]')
+      .setValue('demo@example.invalid')
     await wrapper.get('input[name="password"]').setValue('wrong')
     await wrapper.get('form').trigger('submit')
     await flushPromises()

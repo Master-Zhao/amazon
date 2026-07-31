@@ -3,6 +3,7 @@ from pathlib import Path
 from datetime import timedelta
 from decimal import Decimal
 
+from corsheaders.defaults import default_headers
 from kombu import Queue
 
 from django.core.exceptions import ImproperlyConfigured
@@ -57,6 +58,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "apps.core.middleware.AccessControlAllowHeadersMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "apps.core.middleware.RequestIdMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -87,9 +89,19 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-DATABASES = {"default": mysql_database_config()}
+REMOTE_MULTI_DATABASE_MODE = env_bool("REMOTE_MULTI_DATABASE_MODE", False)
 REMOTE_AD_DATABASES_ENABLED = env_bool("REMOTE_AD_DATABASES_ENABLED", False)
-if REMOTE_AD_DATABASES_ENABLED:
+REMOTE_SCM_AUTH_ENABLED = env_bool("REMOTE_SCM_AUTH_ENABLED", False)
+
+if REMOTE_MULTI_DATABASE_MODE:
+    DATABASES = {
+        "default": mysql_database_config("SYSTEM_DB"),
+        "scm_remote": remote_mysql_database_config("SCM"),
+    }
+else:
+    DATABASES = {"default": mysql_database_config()}
+
+if REMOTE_AD_DATABASES_ENABLED and not REMOTE_MULTI_DATABASE_MODE:
     DATABASES.update(
         {
             "scm_remote": remote_mysql_database_config("SCM_REMOTE"),
@@ -97,6 +109,10 @@ if REMOTE_AD_DATABASES_ENABLED:
                 "ADS_ANALYSIS_REMOTE"
             ),
         }
+    )
+if REMOTE_SCM_AUTH_ENABLED and "scm_remote" not in DATABASES:
+    raise ImproperlyConfigured(
+        "REMOTE_SCM_AUTH_ENABLED requires a configured scm_remote database"
     )
 DATABASE_ROUTERS = ["config.db_routers.ReadOnlyRemoteDatabaseRouter"]
 
@@ -180,6 +196,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = (*default_headers, "x-token")
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
 
 SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", False)
@@ -294,14 +311,27 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_RESULT_EXPIRES = env_int("CELERY_RESULT_EXPIRES", 3600)
 CELERY_BEAT_SCHEDULE: dict[str, object] = {}
 
-REQUIRED_CONFIGURATION_KEYS = (
-    "DJANGO_SECRET_KEY",
-    "DB_NAME",
-    "DB_USER",
-    "DB_PASSWORD",
-    "REDIS_URL",
-    "CELERY_BROKER_URL",
-)
+if REMOTE_MULTI_DATABASE_MODE:
+    REQUIRED_CONFIGURATION_KEYS = (
+        "DJANGO_SECRET_KEY",
+        "SYSTEM_DB_NAME",
+        "SYSTEM_DB_USER",
+        "SYSTEM_DB_PASSWORD",
+        "SCM_DB_NAME",
+        "SCM_DB_USER",
+        "SCM_DB_PASSWORD",
+        "REDIS_URL",
+        "CELERY_BROKER_URL",
+    )
+else:
+    REQUIRED_CONFIGURATION_KEYS = (
+        "DJANGO_SECRET_KEY",
+        "DB_NAME",
+        "DB_USER",
+        "DB_PASSWORD",
+        "REDIS_URL",
+        "CELERY_BROKER_URL",
+    )
 
 LOGGING = {
     "version": 1,

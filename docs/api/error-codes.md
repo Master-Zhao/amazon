@@ -5,7 +5,7 @@
 | `SUCCESS` | 2xx | 请求成功 |
 | `VALIDATION_ERROR` | 400 | 输入校验失败或已处理但无专用映射的 DRF 错误 |
 | `AUTH_REQUIRED` | 401 | 受保护接口缺少有效 Access Token |
-| `AUTH_INVALID_CREDENTIALS` | 401 | 邮箱或密码错误；不区分账号不存在和密码错误 |
+| `AUTH_INVALID_CREDENTIALS` | 401 | 账号或密码错误；不区分账号不存在和密码错误 |
 | `AUTH_TOKEN_MISSING` | 401 | 缺少 Refresh Token Cookie |
 | `AUTH_TOKEN_INVALID` | 401 | Access/Refresh Token 格式、签名、类型或用户标识无效 |
 | `AUTH_TOKEN_EXPIRED` | 401 | Access/Refresh Token 已过期 |
@@ -17,7 +17,7 @@
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | 请求媒体类型不支持 |
 | `RATE_LIMITED` | 429 | 请求被限流 |
 | `INTERNAL_ERROR` | 500 | 未处理服务器异常；响应不暴露堆栈 |
-| `SERVICE_NOT_READY` | 503 | MySQL、Redis 或必需配置未就绪 |
+| `SERVICE_NOT_READY` | 503 | MySQL、Redis、远程账号源或必需配置未就绪 |
 
 错误示例：
 

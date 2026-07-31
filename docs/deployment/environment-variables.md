@@ -24,6 +24,26 @@
 | `USE_MYSQL_TESTS` | test 可选 | `false` | 不使用 | 容器集成时 `true` | 不使用 | 否 | `settings/test.py` |
 | `MYSQL_ROOT_PASSWORD` | Compose 是 | 无 | 本地占位值 | 隔离测试值 | 密钥管理注入 | 是 | MySQL 容器初始化 |
 
+独立远程双数据库模式仅由 `compose.remote-db.yml` 设置
+`REMOTE_MULTI_DATABASE_MODE=true` 后启用，不改变 `compose.local.yml` 的本地模式：
+
+| 变量 | 必需 | 用途 | 敏感 |
+|---|---|---|---|
+| `SYSTEM_DB_HOST` / `SYSTEM_DB_PORT` | 是 | 项目自有 Django 系统库地址 | 否 |
+| `SYSTEM_DB_NAME` / `SYSTEM_DB_USER` / `SYSTEM_DB_PASSWORD` | 是 | `DATABASES["default"]`，承载用户、Tenant、Token、Session 与审计 | Password 是 |
+| `SCM_DB_HOST` / `SCM_DB_PORT` | 是 | 既有 SCM 外部业务库地址 | 否 |
+| `SCM_DB_NAME` / `SCM_DB_USER` / `SCM_DB_PASSWORD` | 是 | `DATABASES["scm_remote"]`，只读外部业务数据 | Password 是 |
+| `DB_CONN_MAX_AGE` | 否 | 两个连接共享的持久连接秒数，默认 `60` | 否 |
+| `REMOTE_SCM_AUTH_ENABLED` | 否 | 默认 `false`；启用 `eb_merchant_admin` 只读认证，要求已配置 `scm_remote` | 否 |
+
+`scm_remote` 使用连接级只读事务、数据库路由拒绝迁移，并禁止与项目模型建立
+跨数据库关系。部署时仍必须使用仅有 `SELECT` 权限的 SCM 数据库账号；应用层边界
+不能替代数据库最小权限。
+
+远程账号认证只读取账号 ID、商户 ID、账号、bcrypt 哈希和启停/删除状态。密码哈希
+不持久化到项目库；首次认证成功后，项目系统库创建本地身份映射。部署前必须先对
+项目系统库执行迁移，远程账号登录本身不会获得任何 Tenant/Profile 权限。
+
 ## Redis、Celery、HTTP Cookie 与 TLS
 
 | 变量 | 必需 | 代码默认值 | local | test | prod 建议 | 敏感 | 使用位置 |

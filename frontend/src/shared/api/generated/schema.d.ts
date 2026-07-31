@@ -566,8 +566,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 使用邮箱和密码登录
-         * @description 响应体返回短期 Access Token 和基本用户信息；长期 Refresh Token 仅通过受环境配置约束的 HttpOnly Cookie 设置，不出现在 JSON 中。
+         * 使用账号或邮箱和密码登录
+         * @description 推荐使用 identifier 提交用户名、账号编号或邮箱；兼容旧 email 字段，但两者不能同时提供。响应体返回短期 Access Token 和基本用户信息；长期 Refresh Token 仅通过受环境配置约束的 HttpOnly Cookie 设置，不出现在 JSON 中。
          */
         post: operations["api_v1_auth_login_create"];
         delete?: never;
@@ -605,7 +605,7 @@ export interface paths {
         };
         /**
          * 获取当前账号基本信息
-         * @description Authorization Header 必须使用 Bearer Access Token。
+         * @description 推荐使用 Authorization: Bearer <Access Token>；同时兼容 X-Token: <Access Token>。两者同时存在时必须一致。
          */
         get: operations["api_v1_auth_me_retrieve"];
         put?: never;
@@ -1600,8 +1600,13 @@ export interface components {
          */
         ImportTaskStatusEnum: "QUEUED" | "RUNNING" | "SUCCEEDED" | "PARTIAL_SUCCEEDED" | "FAILED";
         LoginRequest: {
-            /** Format: email */
-            email: string;
+            /** @description 推荐字段；可填写用户名、账号编号或邮箱。 */
+            identifier?: string;
+            /**
+             * Format: email
+             * @description 向后兼容字段；新客户端应使用 identifier。
+             */
+            email?: string;
             password: string;
         };
         LoginResponse: {

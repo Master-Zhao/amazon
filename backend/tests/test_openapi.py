@@ -16,3 +16,12 @@ def test_openapi_schema_can_be_generated():
     assert "/api/v1/auth/refresh" in schema["paths"]
     assert "/api/v1/auth/logout" in schema["paths"]
     assert "/api/v1/auth/me" in schema["paths"]
+
+    login_request = schema["components"]["schemas"]["LoginRequest"]
+    assert login_request["properties"]["identifier"]["type"] == "string"
+    assert "format" not in login_request["properties"]["identifier"]
+    assert login_request["properties"]["email"]["format"] == "email"
+    assert login_request["required"] == ["password"]
+    assert schema["components"]["securitySchemes"]["xTokenAuth"]["name"] == (
+        "X-Token"
+    )

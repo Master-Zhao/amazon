@@ -183,7 +183,7 @@ describe('HTTP client authentication flow', () => {
     setRefreshHandler(null)
   })
 
-  it('injects the in-memory access token as Bearer authorization', async () => {
+  it('injects the in-memory access token into both authentication headers', async () => {
     setAccessTokenProvider(() => 'memory-access')
     httpClient.defaults.adapter = (async (config) => ({
       data: { code: 'SUCCESS', message: 'ok', data: {}, requestId: 'req_auth' },
@@ -196,6 +196,7 @@ describe('HTTP client authentication flow', () => {
     const result = await httpClient.get('/protected')
 
     expect(result.config.headers.Authorization).toBe('Bearer memory-access')
+    expect(result.config.headers['X-Token']).toBe('memory-access')
   })
 
   it('injects the selected tenant scope header', async () => {
@@ -224,7 +225,10 @@ describe('HTTP client authentication flow', () => {
     setRefreshHandler(refresh)
     httpClient.defaults.adapter = (async (config) => {
       protectedCalls += 1
-      if (config.headers.Authorization === 'Bearer expired-access') {
+      if (
+        config.headers.Authorization === 'Bearer expired-access' &&
+        config.headers['X-Token'] === 'expired-access'
+      ) {
         throw new AxiosError(
           'unauthorized',
           'ERR_BAD_REQUEST',
@@ -256,6 +260,13 @@ describe('HTTP client authentication flow', () => {
     expect(refresh).toHaveBeenCalledOnce()
     expect(protectedCalls).toBe(4)
     expect(results.every((item) => item.status === 200)).toBe(true)
+    expect(
+      results.every(
+        (item) =>
+          item.config.headers.Authorization === 'Bearer fresh-access' &&
+          item.config.headers['X-Token'] === 'fresh-access',
+      ),
+    ).toBe(true)
   })
 
   it('does not recurse when the refresh endpoint itself returns 401', async () => {

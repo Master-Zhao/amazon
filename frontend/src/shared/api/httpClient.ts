@@ -127,6 +127,7 @@ httpClient.interceptors.request.use((config) => {
 
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`
+    config.headers['X-Token'] = accessToken
   }
   if (tenantId) {
     config.headers['X-Tenant-ID'] = tenantId

@@ -86,6 +86,20 @@ def test_remote_router_never_allows_migrations_on_source_databases():
     assert router.allow_migrate("default", "analytics") is None
 
 
+def test_remote_router_rejects_cross_database_relations():
+    router = ReadOnlyRemoteDatabaseRouter()
+
+    class ObjectState:
+        def __init__(self, database):
+            self._state = type("State", (), {"db": database})()
+
+    assert (
+        router.allow_relation(ObjectState("default"), ObjectState("scm_remote"))
+        is False
+    )
+    assert router.allow_relation(ObjectState("default"), ObjectState("default")) is None
+
+
 def test_remote_campaign_api_enforces_scope_and_returns_camel_case():
     user, tenant, profile = build_owner_scope(
         email="remote-owner@example.invalid",

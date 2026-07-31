@@ -56,7 +56,10 @@ HTTP 状态表达传输结果，`code` 表达稳定的应用结果。错误详�
 
 ## 客户端
 
-前端统一通过 `shared/api/httpClient.ts` 调用。Access Token 由 Pinia 认证 Store 仅保存在内存，并以 `Authorization: Bearer <token>` 注入。Refresh Token 由浏览器作为 HttpOnly Cookie 管理，Vue 不读取其值。
+前端统一通过 `shared/api/httpClient.ts` 调用。Access Token 由 Pinia 认证 Store
+仅保存在内存，并同时以 `Authorization: Bearer <token>` 和
+`X-Token: <token>` 注入已认证请求；后端兼容任一标头，两者并存时必须一致。
+Refresh Token 由浏览器作为 HttpOnly Cookie 管理，Vue 不读取其值。
 
 受保护请求收到 401 时，客户端最多刷新一次；并发 401 合并为同一个刷新请求。
 登录、刷新和退出接口不触发自动刷新，防止循环。刷新失败会清空认证内存态并
@@ -73,6 +76,6 @@ HTTP 状态表达传输结果，`code` 表达稳定的应用结果。错误详�
 | POST | `/api/v1/auth/login` | JSON 邮箱、密码 | JSON 返回 Access Token 与基本用户；设置 Refresh Cookie |
 | POST | `/api/v1/auth/refresh` | Refresh HttpOnly Cookie | JSON 返回新 Access Token；按配置轮换 Cookie |
 | POST | `/api/v1/auth/logout` | Refresh HttpOnly Cookie（可缺失） | 撤销已有刷新会话并清除 Cookie；可重复调用 |
-| GET | `/api/v1/auth/me` | Bearer Access Token | 返回当前用户基本信息 |
+| GET | `/api/v1/auth/me` | Bearer 或 `X-Token` Access Token | 返回当前用户基本信息 |
 
 Refresh Cookie 默认名称 `refresh_token`，Path 为 `/api/v1/auth/`，HttpOnly 必须为真；Secure 和 SameSite 由环境配置。生产配置强制 Secure 与 HttpOnly 为真。Cookie 不出现在 OpenAPI 响应体，API 契约以说明文字标记其传输方式。

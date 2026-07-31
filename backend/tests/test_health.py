@@ -21,6 +21,18 @@ def test_liveness_does_not_call_readiness_dependencies():
 
 
 @pytest.mark.django_db
+def test_every_backend_response_declares_x_token_as_allowed_header():
+    response = APIClient().get("/health/live")
+
+    assert response.status_code == 200
+    allowed_headers = {
+        item.strip().lower()
+        for item in response.headers["Access-Control-Allow-Headers"].split(",")
+    }
+    assert "x-token" in allowed_headers
+
+
+@pytest.mark.django_db
 def test_readiness_returns_success_when_dependencies_are_available():
     client = APIClient()
     with patch(

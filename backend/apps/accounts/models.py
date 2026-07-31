@@ -27,6 +27,47 @@ class User(AbstractUser):
         ]
 
 
+class ExternalIdentitySource(models.TextChoices):
+    SCM_MERCHANT_ADMIN = "SCM_MERCHANT_ADMIN", "SCM Merchant Admin"
+
+
+class ExternalIdentity(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="external_identities",
+    )
+    source = models.CharField(
+        max_length=32,
+        choices=ExternalIdentitySource.choices,
+    )
+    external_user_id = models.CharField(max_length=128)
+    external_merchant_id = models.CharField(max_length=128)
+    identifier = models.CharField(max_length=254)
+    last_authenticated_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "sys_external_identity"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source", "external_user_id"],
+                name="sys_external_identity_user_uniq",
+            ),
+            models.UniqueConstraint(
+                fields=["source", "identifier"],
+                name="sys_external_identity_name_uniq",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["user", "source"],
+                name="sys_external_user_source_idx",
+            )
+        ]
+
+
 class RefreshTokenRecord(models.Model):
     token_hash = models.CharField(max_length=64, unique=True)
     user = models.ForeignKey(

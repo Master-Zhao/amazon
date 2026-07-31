@@ -1,5 +1,6 @@
 import json
 from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 from django.conf import settings
@@ -11,7 +12,16 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
-from apps.accounts.models import AuthenticationAuditEvent, RefreshTokenRecord
+from apps.accounts.models import (
+    AuthenticationAuditEvent,
+    ExternalIdentity,
+    ExternalIdentitySource,
+    RefreshTokenRecord,
+)
+from integrations.identity.scm import (
+    RemoteIdentityProviderUnavailable,
+    SCMIdentity,
+)
 
 PASSWORD = "test-only-strong-password"
 
@@ -25,16 +35,31 @@ def user():
     )
 
 
-def login(client: APIClient, *, email="user@example.invalid", password=PASSWORD):
+def login(
+    client: APIClient,
+    *,
+    email="user@example.invalid",
+    identifier=None,
+    password=PASSWORD,
+):
+    credentials = {"password": password}
+    if identifier is not None:
+        credentials["identifier"] = identifier
+    elif email is not None:
+        credentials["email"] = email
     return client.post(
         "/api/v1/auth/login",
-        {"email": email, "password": password},
+        credentials,
         format="json",
     )
 
 
 def bearer(client: APIClient, access_token: str) -> None:
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+
+
+def x_token(client: APIClient, access_token: str) -> None:
+    client.credentials(HTTP_X_TOKEN=access_token)
 
 
 @pytest.mark.django_db
@@ -57,6 +82,191 @@ def test_login_is_case_insensitive_and_user_email_is_normalized(user):
 
 
 @pytest.mark.django_db
+def test_login_accepts_identifier_for_alphanumeric_username():
+    user = get_user_model().objects.create_user(
+        username="W0765",
+        email="w0765@example.invalid",
+        password=PASSWORD,
+    )
+
+    response = login(APIClient(), identifier="  W0765  ")
+
+    assert response.status_code == 200
+    assert response.json()["data"]["user"]["id"] == str(user.pk)
+
+
+@pytest.mark.django_db
+def test_login_keeps_legacy_email_request_compatible(user):
+    response = login(APIClient(), email="USER@example.invalid")
+
+    assert response.status_code == 200
+    assert response.json()["data"]["user"]["id"] == str(user.pk)
+
+
+@pytest.mark.django_db
+@override_settings(REMOTE_SCM_AUTH_ENABLED=True)
+@patch("apps.accounts.services.SCMIdentityProvider.authenticate")
+def test_remote_scm_login_provisions_passwordless_local_identity(authenticate):
+    authenticate.return_value = SCMIdentity(
+        external_user_id="155",
+        merchant_id="122",
+        identifier="W0765",
+        is_active=True,
+    )
+
+    response = login(
+        APIClient(),
+        identifier="W0765",
+        password="remote-password-not-stored",
+    )
+
+    assert response.status_code == 200
+    user = get_user_model().objects.get(username="W0765")
+    identity = ExternalIdentity.objects.get(user=user)
+    assert user.has_usable_password() is False
+    assert identity.source == ExternalIdentitySource.SCM_MERCHANT_ADMIN
+    assert identity.external_user_id == "155"
+    assert identity.external_merchant_id == "122"
+    assert identity.identifier == "W0765"
+    assert RefreshTokenRecord.objects.filter(user=user).count() == 1
+    authenticate.assert_called_once_with(
+        identifier="W0765",
+        password="remote-password-not-stored",
+    )
+
+
+@pytest.mark.django_db
+@override_settings(REMOTE_SCM_AUTH_ENABLED=True)
+@patch("apps.accounts.services.SCMIdentityProvider.authenticate")
+def test_remote_scm_login_reuses_existing_local_identity(authenticate):
+    authenticate.return_value = SCMIdentity(
+        external_user_id="155",
+        merchant_id="122",
+        identifier="W0765",
+        is_active=True,
+    )
+    client = APIClient()
+
+    first = login(client, identifier="W0765", password="remote-password")
+    second = login(client, identifier="W0765", password="remote-password")
+
+    assert first.status_code == second.status_code == 200
+    assert get_user_model().objects.filter(username="W0765").count() == 1
+    assert ExternalIdentity.objects.count() == 1
+
+
+@pytest.mark.django_db
+@override_settings(REMOTE_SCM_AUTH_ENABLED=True)
+@patch("apps.accounts.services.SCMIdentityProvider.authenticate")
+def test_remote_scm_login_does_not_take_over_colliding_local_user(authenticate):
+    local_user = get_user_model().objects.create_user(
+        username="W0765",
+        email="local-w0765@example.invalid",
+        password=PASSWORD,
+    )
+    authenticate.return_value = SCMIdentity(
+        external_user_id="155",
+        merchant_id="122",
+        identifier="W0765",
+        is_active=True,
+    )
+
+    response = login(
+        APIClient(),
+        identifier="W0765",
+        password="remote-password",
+    )
+
+    assert response.status_code == 401
+    assert response.json()["code"] == "AUTH_INVALID_CREDENTIALS"
+    assert ExternalIdentity.objects.count() == 0
+    assert get_user_model().objects.get(pk=local_user.pk).has_usable_password()
+    authenticate.assert_not_called()
+
+
+@pytest.mark.django_db
+@override_settings(REMOTE_SCM_AUTH_ENABLED=True)
+@patch("apps.accounts.services.SCMIdentityProvider.authenticate")
+def test_remote_scm_disabled_account_cannot_login(authenticate):
+    authenticate.return_value = SCMIdentity(
+        external_user_id="155",
+        merchant_id="122",
+        identifier="W0765",
+        is_active=False,
+    )
+
+    response = login(
+        APIClient(),
+        identifier="W0765",
+        password="remote-password",
+    )
+
+    assert response.status_code == 401
+    assert response.json()["code"] == "AUTH_USER_DISABLED"
+    assert ExternalIdentity.objects.count() == 0
+
+
+@pytest.mark.django_db
+@override_settings(REMOTE_SCM_AUTH_ENABLED=True)
+@patch("apps.accounts.services.SCMIdentityProvider.authenticate")
+def test_remote_scm_outage_returns_retryable_service_error(authenticate):
+    authenticate.side_effect = RemoteIdentityProviderUnavailable()
+
+    response = login(
+        APIClient(),
+        identifier="W0765",
+        password="remote-password",
+    )
+
+    assert response.status_code == 503
+    assert response.json()["code"] == "SERVICE_NOT_READY"
+    assert response.json()["message"] == "远程账号服务暂不可用"
+    assert AuthenticationAuditEvent.objects.get().outcome == (
+        "provider_unavailable"
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("payload", "expected_field"),
+    [
+        ({"password": PASSWORD}, "identifier"),
+        ({"identifier": "   ", "password": PASSWORD}, "identifier"),
+        (
+            {
+                "identifier": "phase2a-user",
+                "email": "user@example.invalid",
+                "password": PASSWORD,
+            },
+            "identifier",
+        ),
+        (
+            {
+                "identifier": "phase2a-user",
+                "password": PASSWORD,
+                "unexpected": "value",
+            },
+            "unexpected",
+        ),
+    ],
+)
+def test_login_rejects_invalid_identifier_contract(
+    user,
+    payload,
+    expected_field,
+):
+    response = APIClient().post(
+        "/api/v1/auth/login",
+        payload,
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert expected_field in response.json()["data"]["errors"]
+    assert "accessToken" not in json.dumps(response.json())
+
+
+@pytest.mark.django_db
 def test_invalid_password_and_unknown_email_share_the_same_error(user):
     client = APIClient()
     wrong_password = login(client, password="wrong-password")
@@ -66,7 +276,7 @@ def test_invalid_password_and_unknown_email_share_the_same_error(user):
         password="wrong-password",
     )
 
-    expected = ("AUTH_INVALID_CREDENTIALS", "邮箱或密码错误")
+    expected = ("AUTH_INVALID_CREDENTIALS", "账号或密码错误")
     assert (
         wrong_password.json()["code"],
         wrong_password.json()["message"],
@@ -239,6 +449,49 @@ def test_me_returns_only_basic_account_fields(user):
 
 
 @pytest.mark.django_db
+def test_me_accepts_access_token_from_x_token_header(user):
+    client = APIClient()
+    access_token = login(client).json()["data"]["accessToken"]
+    x_token(client, access_token)
+
+    response = client.get("/api/v1/auth/me")
+
+    assert response.status_code == 200
+    assert response.json()["data"]["id"] == str(user.pk)
+
+
+@pytest.mark.django_db
+def test_me_accepts_matching_authorization_and_x_token_headers(user):
+    client = APIClient()
+    access_token = login(client).json()["data"]["accessToken"]
+    client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {access_token}",
+        HTTP_X_TOKEN=access_token,
+    )
+
+    response = client.get("/api/v1/auth/me")
+
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_me_rejects_conflicting_authentication_headers(user):
+    client = APIClient()
+    access_token = login(client).json()["data"]["accessToken"]
+    other_token = str(AccessToken.for_user(user))
+    client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {access_token}",
+        HTTP_X_TOKEN=other_token,
+    )
+
+    response = client.get("/api/v1/auth/me")
+
+    assert response.status_code == 401
+    assert response.json()["code"] == "AUTH_TOKEN_INVALID"
+    assert response.json()["message"] == "认证标头中的访问令牌不一致"
+
+
+@pytest.mark.django_db
 def test_me_rejects_expired_access_token(user):
     token = AccessToken.for_user(user)
     token.set_exp(lifetime=timedelta(seconds=-1))
@@ -342,6 +595,18 @@ def test_openapi_contains_all_auth_paths_and_bearer_scheme(user):
     ):
         assert path in schema["paths"]
     assert schema["components"]["securitySchemes"]["bearerAuth"]["scheme"] == "bearer"
+    assert schema["components"]["securitySchemes"]["xTokenAuth"] == {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Token",
+        "description": (
+            "Access Token compatibility header. When Authorization is also "
+            "present, both token values must match."
+        ),
+    }
+    me_security = schema["paths"]["/api/v1/auth/me"]["get"]["security"]
+    assert {"bearerAuth": []} in me_security
+    assert {"xTokenAuth": []} in me_security
 
 
 @pytest.mark.django_db

@@ -2,7 +2,9 @@
 
 ## 范围
 
-Phase 2A 只认证全局 `accounts.User`。JWT 只证明用户身份，不携带或替代 TenantMembership、角色、Store、Marketplace、AdvertisingProfile 或业务权限。上述数据和校验均留待另行授权的后续阶段。
+认证结果始终落到项目系统库中的全局 `accounts.User`。JWT 只证明用户身份，
+不携带或替代 TenantMembership、角色、Store、Marketplace、AdvertisingProfile
+或业务权限。启用远程 SCM 认证时，SCM 身份只作为登录凭据来源，不成为权限来源。
 
 ## Token 与 Cookie
 
@@ -26,13 +28,28 @@ Simple JWT 只负责令牌密码学。项目用 `sys_refresh_token` 保存 Refre
 
 退出会撤销当前已知 Refresh 会话并以相同 Cookie 属性写入过期 Cookie。缺少、伪造、过期或已经撤销的 Cookie 也能安全重复退出。
 
-## 邮箱登录
+## 账号或邮箱登录
 
-- 创建、保存、seed 和登录查询都执行 `strip + casefold`。
+- 登录推荐使用 `identifier`，支持本地 `User.username` 或 `User.email`；旧
+  `email` 请求字段保持兼容，两者同时出现时明确拒绝。
+- identifier 只执行 `strip`，不擅自改变用户名大小写；邮箱查询保持大小写不敏感。
+- 创建、保存和 seed 的邮箱继续执行 `strip + casefold`。
 - `sys_user.email` 保留原有唯一约束，并新增 `Lower(email)` 唯一约束。
 - `accounts.0002_authentication` 先规范化已有邮箱，再增加约束；发现规范化后重复时迁移明确失败，不静默合并账号。
 - 账号不存在和密码错误统一返回 `AUTH_INVALID_CREDENTIALS` 与相同提示。
 - 登录、刷新和 Access Token 校验都拒绝 `is_active=false` 用户。
+
+### 远程 SCM 身份
+
+- `REMOTE_SCM_AUTH_ENABLED=true` 时，未命中本地账号或已绑定 SCM 身份的账号通过
+  `scm_remote.eb_merchant_admin` 验证。
+- 查询固定为参数化 `SELECT`，账号精确匹配且必须唯一；只接受
+  `status=1`、`is_del=0` 的账号。
+- bcrypt 哈希只在进程内用于单次校验，不写入项目表、响应、审计或日志。
+- 首次成功登录在 `default` 创建 `sys_user` 与 `sys_external_identity`；本地用户
+  设置不可用密码，后续仍回到 SCM 验证。
+- 本地同名用户不会自动绑定，防止远程账号接管现有本地身份。
+- 远程身份不会自动获得 TenantMembership 或数据权限。
 
 ## 前端恢复与并发刷新
 
@@ -66,7 +83,9 @@ Simple JWT 只负责令牌密码学。项目用 `sys_refresh_token` 保存 Refre
 | `JWT_COOKIE_SAME_SITE` | `Lax` | `Lax`、`Strict` 或 `None`；`None` 要求 Secure |
 | `JWT_ROTATE_REFRESH_TOKENS` | `true` | 刷新时是否轮换 |
 | `JWT_BLACKLIST_AFTER_ROTATION` | `true` | 轮换时是否撤销旧 Token |
+| `REMOTE_SCM_AUTH_ENABLED` | `false` | 启用 SCM 商户管理员只读认证；要求存在 `scm_remote` 别名 |
 
 ## 明确未实现
 
-Phase 2A 未实现 Tenant、Team、Store、Marketplace、AdvertisingProfile、Role、Permission、业务菜单、跨域 Cookie 部署验证或真实账号接入。没有真实 Amazon、第三方数据源或 LLM 调用。
+尚未实现远程账号到 TenantMembership、Store、AdvertisingProfile 权限的自动映射；
+这些权限必须在项目系统库中显式授予。没有真实 Amazon API 或真实 LLM 调用。

@@ -9,16 +9,18 @@ const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
-const email = ref('')
+const identifier = ref('')
 const password = ref('')
 const submitting = ref(false)
 const error = ref<ApiError | null>(null)
 const showPassword = ref(false)
 
-const emailError = computed(() => {
-  if (!email.value) return ''
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return re.test(email.value) ? '' : '请输入有效的邮箱地址'
+const identifierError = computed(() => {
+  if (!identifier.value) return ''
+  if (!identifier.value.trim()) return '请输入账号或邮箱'
+  return identifier.value.trim().length <= 254
+    ? ''
+    : '账号或邮箱不能超过 254 个字符'
 })
 
 const passwordError = computed(() => {
@@ -28,9 +30,10 @@ const passwordError = computed(() => {
 
 const canSubmit = computed(() => {
   return (
-    email.value.length > 0 &&
+    identifier.value.trim().length > 0 &&
+    identifier.value.trim().length <= 254 &&
     password.value.length > 0 &&
-    !emailError.value &&
+    !identifierError.value &&
     !passwordError.value &&
     !submitting.value
   )
@@ -41,7 +44,7 @@ async function submit(): Promise<void> {
   submitting.value = true
   error.value = null
   try {
-    await authStore.login(email.value, password.value)
+    await authStore.login(identifier.value, password.value)
     const redirect =
       typeof route.query.redirect === 'string' ? route.query.redirect : '/'
     await router.replace(redirect)
@@ -148,22 +151,28 @@ async function submit(): Promise<void> {
           @submit.prevent="submit"
         >
           <div class="login-field">
-            <label for="email">邮箱</label>
+            <label for="identifier">账号或邮箱</label>
             <input
-              id="email"
-              v-model="email"
-              name="email"
-              type="email"
+              id="identifier"
+              v-model="identifier"
+              name="identifier"
+              type="text"
               autocomplete="username"
-              inputmode="email"
-              placeholder="name@example.com"
+              autocapitalize="none"
+              spellcheck="false"
+              maxlength="254"
+              placeholder="请输入账号或邮箱"
               required
-              :aria-invalid="Boolean(emailError)"
-              :aria-describedby="emailError ? 'email-error' : undefined"
+              :aria-invalid="Boolean(identifierError)"
+              :aria-describedby="identifierError ? 'identifier-error' : undefined"
               :disabled="submitting"
             >
-            <span v-if="emailError" id="email-error" class="field-error">
-              {{ emailError }}
+            <span
+              v-if="identifierError"
+              id="identifier-error"
+              class="field-error"
+            >
+              {{ identifierError }}
             </span>
           </div>
 

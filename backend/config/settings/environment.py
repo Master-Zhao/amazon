@@ -78,14 +78,14 @@ def env_list(name: str, default: Iterable[str] = ()) -> list[str]:
     return [item.strip() for item in raw_value.split(",") if item.strip()]
 
 
-def mysql_database_config() -> dict[str, object]:
+def mysql_database_config(prefix: str = "DB") -> dict[str, object]:
     return {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": env("DB_NAME", "amazon_ads"),
-        "USER": env("DB_USER", "amazon_ads"),
-        "PASSWORD": env("DB_PASSWORD", ""),
-        "HOST": env("DB_HOST", "127.0.0.1"),
-        "PORT": env("DB_PORT", "3306"),
+        "NAME": env(f"{prefix}_NAME", "amazon_ads"),
+        "USER": env(f"{prefix}_USER", "amazon_ads"),
+        "PASSWORD": env(f"{prefix}_PASSWORD", ""),
+        "HOST": env(f"{prefix}_HOST", "127.0.0.1"),
+        "PORT": env(f"{prefix}_PORT", "3306"),
         "CONN_MAX_AGE": env_int("DB_CONN_MAX_AGE", 60),
         "OPTIONS": {
             "charset": "utf8mb4",
@@ -115,7 +115,10 @@ def remote_mysql_database_config(prefix: str) -> dict[str, object]:
         "PASSWORD": values[f"{prefix}_DB_PASSWORD"],
         "HOST": values[f"{prefix}_DB_HOST"],
         "PORT": values[f"{prefix}_DB_PORT"],
-        "CONN_MAX_AGE": env_int(f"{prefix}_DB_CONN_MAX_AGE", 60),
+        "CONN_MAX_AGE": env_int(
+            f"{prefix}_DB_CONN_MAX_AGE",
+            env_int("DB_CONN_MAX_AGE", 60),
+        ),
         "OPTIONS": {
             "charset": "utf8mb4",
             "init_command": "SET SESSION TRANSACTION READ ONLY",

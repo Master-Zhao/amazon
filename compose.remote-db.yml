@@ -1,0 +1,49 @@
+name: amazon-ads-remote-db
+
+x-remote-database-environment: &remote-database-environment
+  REMOTE_MULTI_DATABASE_MODE: "true"
+  SYSTEM_DB_HOST: ${SYSTEM_DB_HOST:?SYSTEM_DB_HOST is required}
+  SYSTEM_DB_PORT: ${SYSTEM_DB_PORT:-3306}
+  SYSTEM_DB_NAME: ${SYSTEM_DB_NAME:?SYSTEM_DB_NAME is required}
+  SYSTEM_DB_USER: ${SYSTEM_DB_USER:?SYSTEM_DB_USER is required}
+  SYSTEM_DB_PASSWORD: ${SYSTEM_DB_PASSWORD:?SYSTEM_DB_PASSWORD is required}
+  SCM_DB_HOST: ${SCM_DB_HOST:?SCM_DB_HOST is required}
+  SCM_DB_PORT: ${SCM_DB_PORT:-3306}
+  SCM_DB_NAME: ${SCM_DB_NAME:?SCM_DB_NAME is required}
+  SCM_DB_USER: ${SCM_DB_USER:?SCM_DB_USER is required}
+  SCM_DB_PASSWORD: ${SCM_DB_PASSWORD:?SCM_DB_PASSWORD is required}
+  DB_CONN_MAX_AGE: ${DB_CONN_MAX_AGE:-60}
+  REMOTE_AD_DATABASES_ENABLED: "false"
+  REMOTE_SCM_AUTH_ENABLED: ${REMOTE_SCM_AUTH_ENABLED:-false}
+
+services:
+  mysql:
+    profiles: !override ["local-database-disabled"]
+
+  backend:
+    environment:
+      <<: *remote-database-environment
+    depends_on: !override
+      redis:
+        condition: service_healthy
+
+  celery-worker:
+    environment:
+      <<: *remote-database-environment
+    depends_on: !override
+      redis:
+        condition: service_healthy
+
+  celery-beat:
+    environment:
+      <<: *remote-database-environment
+    depends_on: !override
+      redis:
+        condition: service_healthy
+
+  migrate:
+    environment:
+      <<: *remote-database-environment
+    depends_on: !override
+      redis:
+        condition: service_healthy

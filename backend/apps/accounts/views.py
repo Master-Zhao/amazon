@@ -48,7 +48,11 @@ def _clear_refresh_cookie(response) -> None:
 
 
 def _raise_api_failure(failure: AuthServiceFailure) -> None:
-    raise AuthenticationAPIException(failure.code, failure.message)
+    raise AuthenticationAPIException(
+        failure.code,
+        failure.message,
+        status_code=failure.status_code,
+    )
 
 
 class LoginView(APIView):
@@ -56,10 +60,12 @@ class LoginView(APIView):
     permission_classes: list[type] = []
 
     @extend_schema(
-        summary="使用邮箱和密码登录",
+        summary="使用账号或邮箱和密码登录",
         description=(
-            "响应体返回短期 Access Token 和基本用户信息；长期 Refresh Token "
-            "仅通过受环境配置约束的 HttpOnly Cookie 设置，不出现在 JSON 中。"
+            "推荐使用 identifier 提交用户名、账号编号或邮箱；兼容旧 email "
+            "字段，但两者不能同时提供。响应体返回短期 Access Token 和基本"
+            "用户信息；长期 Refresh Token 仅通过受环境配置约束的 HttpOnly "
+            "Cookie 设置，不出现在 JSON 中。"
         ),
         request=LoginSerializer,
         responses={200: LoginResponseSerializer},
@@ -153,7 +159,10 @@ class CurrentUserView(APIView):
 
     @extend_schema(
         summary="获取当前账号基本信息",
-        description="Authorization Header 必须使用 Bearer Access Token。",
+        description=(
+            "推荐使用 Authorization: Bearer <Access Token>；同时兼容 "
+            "X-Token: <Access Token>。两者同时存在时必须一致。"
+        ),
         responses={200: CurrentUserResponseSerializer},
         tags=["authentication"],
     )

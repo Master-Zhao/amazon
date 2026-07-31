@@ -13,7 +13,7 @@ from apps.core.errors import ErrorCode
 class AccessTokenAuthentication(BaseAuthentication):
     keyword = b"Bearer"
 
-    def authenticate(self, request):
+    def _authorization_token(self, request) -> str | None:
         header = get_authorization_header(request).split()
         if not header:
             return None
@@ -24,12 +24,40 @@ class AccessTokenAuthentication(BaseAuthentication):
             )
 
         try:
-            raw_token = header[1].decode("ascii")
+            return header[1].decode("ascii")
         except UnicodeDecodeError as exc:
             raise AuthenticationAPIException(
                 ErrorCode.AUTH_TOKEN_INVALID,
                 "访问令牌格式无效",
             ) from exc
+
+    def _x_token(self, request) -> str | None:
+        value = request.META.get("HTTP_X_TOKEN")
+        if value is None:
+            return None
+        raw_token = str(value).strip()
+        if not raw_token or any(character.isspace() for character in raw_token):
+            raise AuthenticationAPIException(
+                ErrorCode.AUTH_TOKEN_INVALID,
+                "访问令牌格式无效",
+            )
+        return raw_token
+
+    def authenticate(self, request):
+        authorization_token = self._authorization_token(request)
+        x_token = self._x_token(request)
+        if authorization_token is None and x_token is None:
+            return None
+        if (
+            authorization_token is not None
+            and x_token is not None
+            and authorization_token != x_token
+        ):
+            raise AuthenticationAPIException(
+                ErrorCode.AUTH_TOKEN_INVALID,
+                "认证标头中的访问令牌不一致",
+            )
+        raw_token = authorization_token or x_token
 
         try:
             payload = token_backend.decode(raw_token, verify=True)

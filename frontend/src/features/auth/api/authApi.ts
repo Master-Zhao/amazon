@@ -7,12 +7,12 @@ import type {
 } from '@/shared/api/types'
 
 export async function loginAccount(
-  email: string,
+  identifier: string,
   password: string,
 ): Promise<LoginData> {
   const response = await httpClient.post<ApiEnvelope<LoginData>>(
     '/api/v1/auth/login',
-    { email, password },
+    { identifier, password },
   )
   return response.data.data
 }

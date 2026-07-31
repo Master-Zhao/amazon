@@ -5,7 +5,7 @@ if (!password) throw new Error('E2E_USER_PASSWORD was not created by global setu
 
 async function login(page: Page): Promise<void> {
   await page.goto('/login')
-  await page.getByLabel('邮箱').fill('e2e@example.invalid')
+  await page.getByLabel('账号或邮箱').fill('e2e@example.invalid')
   await page.getByLabel('密码', { exact: true }).fill(password!)
   await page.getByRole('button', { name: '登录工作台' }).click()
   await page.waitForURL(/\/advertising\/overview|\/$/)
@@ -77,7 +77,7 @@ test('登录页在常用视口保持完整布局且不出现横向溢出', async
     await page.setViewportSize(viewport)
     await page.goto('/login')
     await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible()
-    await expect(page.getByLabel('邮箱')).toBeVisible()
+    await expect(page.getByLabel('账号或邮箱')).toBeVisible()
     await expect(
       page.getByLabel('密码', { exact: true }),
     ).toBeVisible()
@@ -100,7 +100,7 @@ test('登录表单支持键盘顺序操作', async ({ page }) => {
   await page.goto('/login')
 
   await page.keyboard.press('Tab')
-  await expect(page.getByLabel('邮箱')).toBeFocused()
+  await expect(page.getByLabel('账号或邮箱')).toBeFocused()
   await page.keyboard.type('e2e@example.invalid')
 
   await page.keyboard.press('Tab')
@@ -153,13 +153,13 @@ test('错误凭据可见反馈后允许使用正确凭据重试', async ({ page 
   })
 
   await page.goto('/login')
-  await page.getByLabel('邮箱').fill('e2e@example.invalid')
+  await page.getByLabel('账号或邮箱').fill('e2e@example.invalid')
   await page
     .getByLabel('密码', { exact: true })
     .fill('incorrect-password')
   await page.getByRole('button', { name: '登录工作台' }).click()
 
-  await expect(page.getByRole('alert')).toContainText('邮箱或密码错误')
+  await expect(page.getByRole('alert')).toContainText('账号或密码错误')
   await expect(page).toHaveURL(/\/login$/)
 
   await page.getByLabel('密码', { exact: true }).fill(password!)

@@ -11,6 +11,15 @@ class ReadOnlyRemoteDatabaseRouter:
         return None
 
     def allow_relation(self, obj1, obj2, **hints):
+        database1 = getattr(getattr(obj1, "_state", None), "db", None)
+        database2 = getattr(getattr(obj2, "_state", None), "db", None)
+        if (
+            database1
+            and database2
+            and database1 != database2
+            and ({database1, database2} & REMOTE_DATABASE_ALIASES)
+        ):
+            return False
         return None
 
     def allow_migrate(self, db, app_label, model_name=None, **hints):

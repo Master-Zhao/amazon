@@ -39,6 +39,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           description: No response body
@@ -55,6 +56,7 @@ paths:
       - tenant-management
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -77,6 +79,7 @@ paths:
       - permissions
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -111,6 +114,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           description: No response body
@@ -127,6 +131,7 @@ paths:
       - permissions
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -160,6 +165,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           content:
@@ -185,6 +191,7 @@ paths:
       - permissions
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '204':
           description: No response body
@@ -218,6 +225,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           content:
@@ -250,6 +258,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           description: No response body
@@ -266,6 +275,7 @@ paths:
       - tenant-management
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -299,6 +309,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           content:
@@ -336,6 +347,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           description: No response body
@@ -370,6 +382,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -408,6 +421,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           content:
@@ -446,6 +460,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           content:
@@ -472,6 +487,7 @@ paths:
       - actions
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -510,6 +526,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           content:
@@ -536,6 +553,7 @@ paths:
       - actions
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -562,6 +580,7 @@ paths:
       - actions
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -590,6 +609,7 @@ paths:
       - actions
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           content:
@@ -616,6 +636,7 @@ paths:
       - advertising
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -644,6 +665,7 @@ paths:
       - advertising
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -672,6 +694,7 @@ paths:
       - advertising
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -700,6 +723,7 @@ paths:
       - analysis
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -727,6 +751,7 @@ paths:
       - analysis
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '202':
           content:
@@ -761,6 +786,7 @@ paths:
       - analytics
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -802,6 +828,7 @@ paths:
       - analytics
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -828,6 +855,7 @@ paths:
       - analytics
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -866,6 +894,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           content:
@@ -904,6 +933,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -938,6 +968,7 @@ paths:
       - analytics
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -975,6 +1006,7 @@ paths:
       - analytics
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1011,6 +1043,7 @@ paths:
       - analytics
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1047,6 +1080,7 @@ paths:
       - analytics
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1074,6 +1108,7 @@ paths:
       - audit
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1086,9 +1121,9 @@ paths:
   /api/v1/auth/login:
     post:
       operationId: api_v1_auth_login_create
-      description: 响应体返回短期 Access Token 和基本用户信息；长期 Refresh Token 仅通过受环境配置约束的 HttpOnly
-        Cookie 设置，不出现在 JSON 中。
-      summary: 使用邮箱和密码登录
+      description: 推荐使用 identifier 提交用户名、账号编号或邮箱；兼容旧 email 字段，但两者不能同时提供。响应体返回短期 Access
+        Token 和基本用户信息；长期 Refresh Token 仅通过受环境配置约束的 HttpOnly Cookie 设置，不出现在 JSON 中。
+      summary: 使用账号或邮箱和密码登录
       tags:
       - authentication
       requestBody:
@@ -1127,12 +1162,14 @@ paths:
   /api/v1/auth/me:
     get:
       operationId: api_v1_auth_me_retrieve
-      description: Authorization Header 必须使用 Bearer Access Token。
+      description: '推荐使用 Authorization: Bearer <Access Token>；同时兼容 X-Token: <Access
+        Token>。两者同时存在时必须一致。'
       summary: 获取当前账号基本信息
       tags:
       - authentication
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1174,6 +1211,7 @@ paths:
       - tenant-context
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1189,6 +1227,7 @@ paths:
       - tenant-context
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1212,6 +1251,7 @@ paths:
       - tenant-context
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1238,6 +1278,7 @@ paths:
       - tenant-context
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1261,6 +1302,7 @@ paths:
       - tenant-context
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1289,6 +1331,7 @@ paths:
       - tenant-context
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1311,6 +1354,7 @@ paths:
       - knowledge
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           description: 知识文章列表
@@ -1332,6 +1376,7 @@ paths:
       - knowledge
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           description: 知识文章详情
@@ -1348,6 +1393,7 @@ paths:
       - knowledge
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           description: 知识分类列表
@@ -1364,6 +1410,7 @@ paths:
       - notifications
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1387,6 +1434,7 @@ paths:
       - notifications
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1402,6 +1450,7 @@ paths:
       - notifications
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1417,6 +1466,7 @@ paths:
       - notifications
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1437,6 +1487,7 @@ paths:
       - permissions
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1471,6 +1522,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           description: No response body
@@ -1487,6 +1539,7 @@ paths:
       - permissions
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1520,6 +1573,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           content:
@@ -1545,6 +1599,7 @@ paths:
       - permissions
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '204':
           description: No response body
@@ -1578,6 +1633,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           content:
@@ -1610,6 +1666,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           description: No response body
@@ -1627,6 +1684,7 @@ paths:
       - products
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1661,6 +1719,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           content:
@@ -1699,6 +1758,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '201':
           content:
@@ -1725,6 +1785,7 @@ paths:
       - recommendations
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1762,6 +1823,7 @@ paths:
               $ref: '#/components/schemas/DismissRequestRequest'
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1800,6 +1862,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1826,6 +1889,7 @@ paths:
       - recommendations
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1854,6 +1918,7 @@ paths:
       - reports
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1894,6 +1959,7 @@ paths:
         required: true
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '202':
           content:
@@ -1920,6 +1986,7 @@ paths:
       - reports
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1946,6 +2013,7 @@ paths:
       - reports
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -1974,6 +2042,7 @@ paths:
       - reports
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '202':
           content:
@@ -2000,6 +2069,7 @@ paths:
       - reports
       security:
       - bearerAuth: []
+      - xTokenAuth: []
       responses:
         '200':
           content:
@@ -3015,10 +3085,17 @@ components:
     LoginRequest:
       type: object
       properties:
+        identifier:
+          type: string
+          minLength: 1
+          description: 推荐字段；可填写用户名、账号编号或邮箱。
+          maxLength: 254
         email:
           type: string
           format: email
+          writeOnly: true
           minLength: 1
+          description: 向后兼容字段；新客户端应使用 identifier。
           maxLength: 254
         password:
           type: string
@@ -3026,7 +3103,6 @@ components:
           minLength: 1
           maxLength: 128
       required:
-      - email
       - password
     LoginResponse:
       type: object
@@ -3916,3 +3992,9 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    xTokenAuth:
+      type: apiKey
+      in: header
+      name: X-Token
+      description: Access Token compatibility header. When Authorization is also present,
+        both token values must match.

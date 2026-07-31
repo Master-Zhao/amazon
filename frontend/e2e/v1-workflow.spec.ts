@@ -15,7 +15,7 @@ if (!password) throw new Error('E2E_USER_PASSWORD was not created by global setu
 
 async function login(page: Page): Promise<void> {
   await page.goto('/login')
-  await page.getByLabel('邮箱').fill('e2e@example.invalid')
+  await page.getByLabel('账号或邮箱').fill('e2e@example.invalid')
   await page.getByLabel('密码', { exact: true }).fill(password!)
   await page.getByRole('button', { name: '登录工作台' }).click()
   await page.waitForURL(/\/advertising\/overview|\/$/)

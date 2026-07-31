@@ -31,10 +31,16 @@ export const useAuthStore = defineStore('auth', {
       this.accessToken = null
       this.currentUser = null
     },
-    async login(email: string, password: string) {
-      const result = await loginAccount(email, password)
+    async login(identifier: string, password: string) {
+      const result = await loginAccount(identifier, password)
       this.accessToken = result.accessToken
       this.currentUser = result.user
+      try {
+        this.currentUser = await fetchCurrentUser()
+      } catch (error) {
+        this.clearSession()
+        throw error
+      }
     },
     async refreshSession() {
       const result = await refreshAccessToken()

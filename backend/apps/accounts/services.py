@@ -5,7 +5,8 @@ from datetime import UTC, datetime
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password, make_password
-from django.db import transaction
+from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework_simplejwt.exceptions import (
     TokenBackendError,
@@ -14,8 +15,18 @@ from rest_framework_simplejwt.exceptions import (
 from rest_framework_simplejwt.state import token_backend
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
-from apps.accounts.models import AuthenticationAuditEvent, RefreshTokenRecord
+from apps.accounts.models import (
+    AuthenticationAuditEvent,
+    ExternalIdentity,
+    ExternalIdentitySource,
+    RefreshTokenRecord,
+)
 from apps.core.errors import ErrorCode
+from integrations.identity.scm import (
+    RemoteIdentityProviderUnavailable,
+    SCMIdentity,
+    SCMIdentityProvider,
+)
 
 _DUMMY_PASSWORD_HASH = make_password("phase-2a-constant-time-placeholder")
 
@@ -24,6 +35,7 @@ _DUMMY_PASSWORD_HASH = make_password("phase-2a-constant-time-placeholder")
 class AuthServiceFailure(Exception):
     code: str
     message: str
+    status_code: int = 401
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,9 +44,8 @@ class IssuedTokens:
     refresh_token: str
 
 
-def normalize_email(email: str) -> str:
-    user_model = get_user_model()
-    return user_model.objects.normalize_email(email)
+def normalize_identifier(identifier: str) -> str:
+    return identifier.strip()
 
 
 def _hash_value(value: str) -> str:
@@ -51,13 +62,17 @@ def _audit(
     event: str,
     outcome: str,
     user=None,
-    email: str = "",
+    identifier: str = "",
 ) -> None:
     AuthenticationAuditEvent.objects.create(
         event=event,
         outcome=outcome,
         user=user,
-        email_hash=_hash_value(normalize_email(email)) if email else "",
+        email_hash=(
+            _hash_value(normalize_identifier(identifier))
+            if identifier
+            else ""
+        ),
         request_id=request.request_id,
         ip_address=_client_ip(request),
     )
@@ -99,35 +114,207 @@ def _issue_tokens(user) -> IssuedTokens:
     )
 
 
-def login(*, request, email: str, password: str) -> tuple[IssuedTokens, object]:
-    normalized_email = normalize_email(email)
+def _matching_local_user(identifier: str):
     user_model = get_user_model()
-    user = user_model.objects.filter(email__iexact=normalized_email).first()
+    matching_users = list(
+        user_model.objects.filter(
+            Q(username=identifier) | Q(email__iexact=identifier)
+        ).order_by("pk")[:2]
+    )
+    return matching_users[0] if len(matching_users) == 1 else None
 
-    if user is None:
-        check_password(password, _DUMMY_PASSWORD_HASH)
-        _audit(
-            request,
-            event="login",
-            outcome="invalid_credentials",
-            email=normalized_email,
-        )
-        raise AuthServiceFailure(
-            ErrorCode.AUTH_INVALID_CREDENTIALS,
-            "邮箱或密码错误",
-        )
 
-    if not user.check_password(password):
-        _audit(
-            request,
-            event="login",
-            outcome="invalid_credentials",
+def _invalid_credentials(request, *, identifier: str, user=None):
+    check_password("", _DUMMY_PASSWORD_HASH)
+    _audit(
+        request,
+        event="login",
+        outcome="invalid_credentials",
+        user=user,
+        identifier=identifier,
+    )
+    raise AuthServiceFailure(
+        ErrorCode.AUTH_INVALID_CREDENTIALS,
+        "账号或密码错误",
+    )
+
+
+def _external_email(identity: SCMIdentity) -> str:
+    return f"scm-{identity.external_user_id}@external.invalid"
+
+
+def _provision_external_identity_once(identity: SCMIdentity):
+    source = ExternalIdentitySource.SCM_MERCHANT_ADMIN
+    now = timezone.now()
+    with transaction.atomic():
+        mapping = (
+            ExternalIdentity.objects.select_for_update()
+            .select_related("user")
+            .filter(
+                source=source,
+                external_user_id=identity.external_user_id,
+            )
+            .first()
+        )
+        if mapping is not None:
+            identifier_conflict = (
+                ExternalIdentity.objects.filter(
+                    source=source,
+                    identifier=identity.identifier,
+                )
+                .exclude(pk=mapping.pk)
+                .exists()
+            )
+            if identifier_conflict:
+                return None
+            mapping.identifier = identity.identifier
+            mapping.external_merchant_id = identity.merchant_id
+            mapping.last_authenticated_at = now
+            mapping.save(
+                update_fields=[
+                    "identifier",
+                    "external_merchant_id",
+                    "last_authenticated_at",
+                    "updated_at",
+                ]
+            )
+            return mapping.user
+
+        if ExternalIdentity.objects.filter(
+            source=source,
+            identifier=identity.identifier,
+        ).exists():
+            return None
+
+        user_model = get_user_model()
+        if user_model.objects.filter(
+            Q(username__iexact=identity.identifier)
+            | Q(email__iexact=_external_email(identity))
+        ).exists():
+            return None
+
+        user = user_model(
+            username=identity.identifier,
+            email=_external_email(identity),
+        )
+        user.set_unusable_password()
+        user.save()
+        ExternalIdentity.objects.create(
             user=user,
-            email=normalized_email,
+            source=source,
+            external_user_id=identity.external_user_id,
+            external_merchant_id=identity.merchant_id,
+            identifier=identity.identifier,
+            last_authenticated_at=now,
+        )
+        return user
+
+
+def _provision_external_identity(identity: SCMIdentity):
+    try:
+        return _provision_external_identity_once(identity)
+    except IntegrityError:
+        mapping = (
+            ExternalIdentity.objects.select_related("user")
+            .filter(
+                source=ExternalIdentitySource.SCM_MERCHANT_ADMIN,
+                external_user_id=identity.external_user_id,
+                identifier=identity.identifier,
+            )
+            .first()
+        )
+        return mapping.user if mapping is not None else None
+
+
+def _authenticate_external(
+    *,
+    request,
+    identifier: str,
+    password: str,
+):
+    try:
+        identity = SCMIdentityProvider().authenticate(
+            identifier=identifier,
+            password=password,
+        )
+    except RemoteIdentityProviderUnavailable as exc:
+        _audit(
+            request,
+            event="login",
+            outcome="provider_unavailable",
+            identifier=identifier,
         )
         raise AuthServiceFailure(
-            ErrorCode.AUTH_INVALID_CREDENTIALS,
-            "邮箱或密码错误",
+            ErrorCode.SERVICE_NOT_READY,
+            "远程账号服务暂不可用",
+            503,
+        ) from exc
+
+    if identity is None:
+        _invalid_credentials(request, identifier=identifier)
+    if not identity.is_active:
+        mapping = ExternalIdentity.objects.select_related("user").filter(
+            source=ExternalIdentitySource.SCM_MERCHANT_ADMIN,
+            external_user_id=identity.external_user_id,
+        ).first()
+        _audit(
+            request,
+            event="login",
+            outcome="user_disabled",
+            user=mapping.user if mapping is not None else None,
+            identifier=identifier,
+        )
+        raise AuthServiceFailure(
+            ErrorCode.AUTH_USER_DISABLED,
+            "账号已停用",
+        )
+
+    user = _provision_external_identity(identity)
+    if user is None:
+        _invalid_credentials(request, identifier=identifier)
+    if not user.is_active:
+        _audit(
+            request,
+            event="login",
+            outcome="user_disabled",
+            user=user,
+            identifier=identifier,
+        )
+        raise AuthServiceFailure(
+            ErrorCode.AUTH_USER_DISABLED,
+            "账号已停用",
+        )
+    return user
+
+
+def login(
+    *,
+    request,
+    identifier: str,
+    password: str,
+) -> tuple[IssuedTokens, object]:
+    normalized_identifier = normalize_identifier(identifier)
+    user = _matching_local_user(normalized_identifier)
+    external_mapping = (
+        ExternalIdentity.objects.filter(
+            user=user,
+            source=ExternalIdentitySource.SCM_MERCHANT_ADMIN,
+        ).first()
+        if user is not None
+        else None
+    )
+
+    if external_mapping is not None or user is None:
+        user = _authenticate_external(
+            request=request,
+            identifier=normalized_identifier,
+            password=password,
+        )
+    elif not user.check_password(password):
+        _invalid_credentials(
+            request,
+            identifier=normalized_identifier,
+            user=user,
         )
 
     if not user.is_active:
@@ -136,7 +323,7 @@ def login(*, request, email: str, password: str) -> tuple[IssuedTokens, object]:
             event="login",
             outcome="user_disabled",
             user=user,
-            email=normalized_email,
+            identifier=normalized_identifier,
         )
         raise AuthServiceFailure(
             ErrorCode.AUTH_USER_DISABLED,
@@ -150,7 +337,7 @@ def login(*, request, email: str, password: str) -> tuple[IssuedTokens, object]:
             event="login",
             outcome="success",
             user=user,
-            email=normalized_email,
+            identifier=normalized_identifier,
         )
     return issued, user
 

@@ -53,6 +53,7 @@ def test_explicit_test_settings_are_loaded():
     assert settings.JWT_COOKIE_HTTP_ONLY is True
     assert settings.JWT_COOKIE_SECURE is False
     assert settings.JWT_COOKIE_SAME_SITE == "Lax"
+    assert "x-token" in settings.CORS_ALLOW_HEADERS
 
 
 def test_m4_installs_only_authorized_business_apps():
@@ -182,6 +183,85 @@ def test_remote_profile_mapping_rejects_legacy_merchant_id_only_value():
 
     assert result.returncode != 0
     assert "positive merchantId and non-empty merchantCode" in result.stderr
+
+
+def test_remote_scm_auth_requires_configured_scm_database_alias():
+    result = run_settings_import(
+        "config.settings.local",
+        {
+            "REMOTE_MULTI_DATABASE_MODE": "false",
+            "REMOTE_AD_DATABASES_ENABLED": "false",
+            "REMOTE_SCM_AUTH_ENABLED": "true",
+        },
+    )
+
+    assert result.returncode != 0
+    assert (
+        "REMOTE_SCM_AUTH_ENABLED requires a configured scm_remote database"
+        in result.stderr
+    )
+
+
+def test_remote_multi_database_mode_uses_system_default_and_read_only_scm():
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "REMOTE_MULTI_DATABASE_MODE": "true",
+            "SYSTEM_DB_NAME": "system_test_database",
+            "SYSTEM_DB_USER": "system_test_user",
+            "SYSTEM_DB_PASSWORD": "system-password-must-not-be-printed",
+            "SYSTEM_DB_HOST": "system-db.example.invalid",
+            "SYSTEM_DB_PORT": "3306",
+            "SCM_DB_NAME": "scm_test_database",
+            "SCM_DB_USER": "scm_read_only_user",
+            "SCM_DB_PASSWORD": "scm-password-must-not-be-printed",
+            "SCM_DB_HOST": "scm-db.example.invalid",
+            "SCM_DB_PORT": "3306",
+            "DB_CONN_MAX_AGE": "45",
+            "REMOTE_AD_DATABASES_ENABLED": "false",
+        }
+    )
+    script = (
+        "import json, config.settings.local as s; "
+        "print(json.dumps({"
+        "'aliases': sorted(s.DATABASES), "
+        "'defaultName': s.DATABASES['default']['NAME'], "
+        "'defaultHost': s.DATABASES['default']['HOST'], "
+        "'defaultInit': s.DATABASES['default']['OPTIONS']['init_command'], "
+        "'defaultAge': s.DATABASES['default']['CONN_MAX_AGE'], "
+        "'scmName': s.DATABASES['scm_remote']['NAME'], "
+        "'scmHost': s.DATABASES['scm_remote']['HOST'], "
+        "'scmInit': s.DATABASES['scm_remote']['OPTIONS']['init_command'], "
+        "'scmAge': s.DATABASES['scm_remote']['CONN_MAX_AGE']"
+        "}))"
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=BACKEND_DIR,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload == {
+        "aliases": ["default", "scm_remote"],
+        "defaultName": "system_test_database",
+        "defaultHost": "system-db.example.invalid",
+        "defaultInit": "SET sql_mode='STRICT_TRANS_TABLES'",
+        "defaultAge": 45,
+        "scmName": "scm_test_database",
+        "scmHost": "scm-db.example.invalid",
+        "scmInit": "SET SESSION TRANSACTION READ ONLY",
+        "scmAge": 45,
+    }
+    combined_output = result.stdout + result.stderr
+    assert "system-password-must-not-be-printed" not in combined_output
+    assert "scm-password-must-not-be-printed" not in combined_output
 
 
 def test_prod_settings_reject_insecure_refresh_cookie():

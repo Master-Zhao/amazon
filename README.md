@@ -83,6 +83,7 @@ uv run --project backend celery --workdir backend -A config beat --loglevel=INFO
 
 ```dotenv
 REMOTE_AD_DATABASES_ENABLED=true
+REMOTE_SCM_AUTH_ENABLED=true
 SCM_REMOTE_DB_NAME=
 SCM_REMOTE_DB_USER=
 SCM_REMOTE_DB_PASSWORD=
@@ -96,6 +97,11 @@ ADS_ANALYSIS_REMOTE_DB_PORT=3306
 REMOTE_AD_PROFILE_MERCHANT_MAP={"PROJECT-EXTERNAL-PROFILE-ID":{"merchantId":235,"merchantCode":"W0568"}}
 REMOTE_AD_MAX_ROWS=200
 ```
+
+`REMOTE_SCM_AUTH_ENABLED=true` 允许 `eb_merchant_admin` 中状态正常的账号使用
+原 SCM 密码登录。远程库只执行参数化查询和 bcrypt 校验；首次成功后会在项目
+`default` 库创建不保存远程密码的身份映射。启用前先执行项目迁移。远程身份不会
+自动获得 Tenant、Store 或 Profile 权限，仍需在本项目中显式授权。
 
 `REMOTE_AD_PROFILE_MERCHANT_MAP` 的键是项目
 `AdvertisingProfile.external_profile_id`，值必须同时包含两个远程库共享的
