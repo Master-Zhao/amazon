@@ -636,6 +636,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/remote-account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 读取当前登录账号的远程 SCM 账号快照
+         * @description 使用当前用户在项目系统库中的 SCM 身份映射，对 scm_remote.eb_merchant_admin 执行固定参数化只读查询。仅返回当前账号的白名单字段，不返回密码哈希，也不接受远程表名、用户 ID 或商户 ID 参数。
+         */
+        get: operations["api_v1_auth_remote_account_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/connectivity/": {
         parameters: {
             query?: never;
@@ -1765,6 +1785,19 @@ export interface components {
          * @enum {string}
          */
         RecommendationStatusEnum: "ACTIVE" | "SUPERSEDED" | "ACCEPTED" | "DISMISSED";
+        RemoteAccount: {
+            source: string;
+            externalUserId: string;
+            merchantId: string;
+            identifier: string;
+            isActive: boolean;
+        };
+        RemoteAccountResponse: {
+            code: string;
+            message: string;
+            data: components["schemas"]["RemoteAccount"];
+            requestId: string;
+        };
         RemoteCampaignMetricRow: {
             id: string;
             external_campaign_id: string;
@@ -2918,6 +2951,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    api_v1_auth_remote_account_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemoteAccountResponse"];
+                };
             };
         };
     };

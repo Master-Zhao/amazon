@@ -24,3 +24,11 @@ JSON 返回并保存在前端内存；Refresh Token 只在认证路径下的 Htt
 返回 Access Token 后，前端立即请求一次 `GET /api/v1/auth/me`；这条请求及后续
 已认证请求都会携带双标头，可直接在浏览器 Network 面板检查。后端所有响应都会
 显式返回包含 `X-Token` 的 `Access-Control-Allow-Headers`。
+
+`GET /api/v1/auth/remote-account` 是远程 SCM 账号的受保护只读验证接口。
+前端通过统一 Axios 客户端携带 Access Token；后端根据当前用户在
+`sys_external_identity` 中的映射，对 `scm_remote.eb_merchant_admin` 执行固定、
+参数化且精确匹配的查询。响应只包含 `source`、`externalUserId`、`merchantId`、
+`identifier`、`isActive`，不会查询或返回密码哈希，也不接受远程表名、远程用户
+ID、商户 ID 等范围参数。本地账号没有 SCM 映射时返回 404；远程数据库不可用时
+返回 `SERVICE_NOT_READY`（503）。

@@ -296,6 +296,7 @@ export const routes: RouteRecordRaw[] = [
       import('@/features/diagnostics/pages/ConnectivityTestPage.vue'),
     meta: {
       title: '前后端连通性验证',
+      requiresAuth: true,
       directoryPath: [
         { label: '首页', route: '/' },
         { label: 'diagnostics', route: '/diagnostics/connectivity' },

@@ -20,6 +20,7 @@ from apps.accounts.models import (
 )
 from integrations.identity.scm import (
     RemoteIdentityProviderUnavailable,
+    SCMAccountSnapshot,
     SCMIdentity,
 )
 
@@ -224,6 +225,76 @@ def test_remote_scm_outage_returns_retryable_service_error(authenticate):
     assert AuthenticationAuditEvent.objects.get().outcome == (
         "provider_unavailable"
     )
+
+
+@pytest.mark.django_db
+@patch("apps.accounts.selectors.SCMIdentityProvider.account_snapshot")
+def test_remote_account_api_uses_x_token_and_returns_remote_whitelist(snapshot, user):
+    ExternalIdentity.objects.create(
+        user=user,
+        source=ExternalIdentitySource.SCM_MERCHANT_ADMIN,
+        external_user_id="155",
+        external_merchant_id="122",
+        identifier="W0765",
+        last_authenticated_at=timezone.now(),
+    )
+    snapshot.return_value = SCMAccountSnapshot(
+        external_user_id="155",
+        merchant_id="122",
+        identifier="W0765",
+        is_active=True,
+    )
+    client = APIClient()
+    x_token(client, str(AccessToken.for_user(user)))
+
+    response = client.get("/api/v1/auth/remote-account")
+
+    assert response.status_code == 200
+    assert response.json()["data"] == {
+        "source": "SCM_MERCHANT_ADMIN",
+        "externalUserId": "155",
+        "merchantId": "122",
+        "identifier": "W0765",
+        "isActive": True,
+    }
+    snapshot.assert_called_once_with(
+        external_user_id="155",
+        merchant_id="122",
+        identifier="W0765",
+    )
+
+
+@pytest.mark.django_db
+def test_remote_account_api_hides_data_from_unmapped_local_user(user):
+    client = APIClient()
+    x_token(client, str(AccessToken.for_user(user)))
+
+    response = client.get("/api/v1/auth/remote-account")
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "RESOURCE_NOT_FOUND"
+
+
+@pytest.mark.django_db
+@patch("apps.accounts.selectors.SCMIdentityProvider.account_snapshot")
+def test_remote_account_api_reports_remote_database_outage(snapshot, user):
+    ExternalIdentity.objects.create(
+        user=user,
+        source=ExternalIdentitySource.SCM_MERCHANT_ADMIN,
+        external_user_id="155",
+        external_merchant_id="122",
+        identifier="W0765",
+        last_authenticated_at=timezone.now(),
+    )
+    snapshot.side_effect = RemoteIdentityProviderUnavailable()
+    client = APIClient()
+    x_token(client, str(AccessToken.for_user(user)))
+
+    response = client.get("/api/v1/auth/remote-account")
+
+    assert response.status_code == 503
+    assert response.json()["code"] == "SERVICE_NOT_READY"
+    assert response.json()["message"] == "远程 SCM 数据服务暂不可用"
 
 
 @pytest.mark.django_db

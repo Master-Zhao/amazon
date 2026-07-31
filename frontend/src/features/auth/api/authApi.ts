@@ -6,6 +6,14 @@ import type {
   LoginData,
 } from '@/shared/api/types'
 
+export interface RemoteAccount {
+  source: 'SCM_MERCHANT_ADMIN'
+  externalUserId: string
+  merchantId: string
+  identifier: string
+  isActive: boolean
+}
+
 export async function loginAccount(
   identifier: string,
   password: string,
@@ -27,6 +35,13 @@ export async function refreshAccessToken(): Promise<AccessTokenData> {
 export async function fetchCurrentUser(): Promise<AuthenticatedUser> {
   const response = await httpClient.get<ApiEnvelope<AuthenticatedUser>>(
     '/api/v1/auth/me',
+  )
+  return response.data.data
+}
+
+export async function fetchRemoteAccount(): Promise<RemoteAccount> {
+  const response = await httpClient.get<ApiEnvelope<RemoteAccount>>(
+    '/api/v1/auth/remote-account',
   )
   return response.data.data
 }

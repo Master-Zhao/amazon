@@ -98,6 +98,21 @@ class CurrentUserResponseSerializer(serializers.Serializer):
     requestId = serializers.CharField()
 
 
+class RemoteAccountSerializer(serializers.Serializer):
+    source = serializers.CharField()
+    externalUserId = serializers.CharField()
+    merchantId = serializers.CharField()
+    identifier = serializers.CharField()
+    isActive = serializers.BooleanField()
+
+
+class RemoteAccountResponseSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    message = serializers.CharField()
+    data = RemoteAccountSerializer()
+    requestId = serializers.CharField()
+
+
 class EmptyResponseSerializer(serializers.Serializer):
     code = serializers.CharField()
     message = serializers.CharField()

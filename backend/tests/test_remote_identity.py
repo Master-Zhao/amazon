@@ -109,3 +109,33 @@ def test_scm_identity_provider_rejects_wrong_password_and_duplicate_account():
             )
             is None
         )
+
+
+@override_settings(DATABASES={"default": {}, "scm_remote": {}})
+def test_scm_account_snapshot_uses_exact_parameterized_read_only_lookup():
+    cursor = FakeCursor([(155, 122, "W0765", 1, 0)])
+    provider = scm.SCMIdentityProvider()
+
+    with patch.object(
+        scm,
+        "connections",
+        {"scm_remote": FakeConnection(cursor)},
+    ):
+        snapshot = provider.account_snapshot(
+            external_user_id="155",
+            merchant_id="122",
+            identifier="W0765",
+        )
+
+    assert snapshot == scm.SCMAccountSnapshot(
+        external_user_id="155",
+        merchant_id="122",
+        identifier="W0765",
+        is_active=True,
+    )
+    assert "FROM eb_merchant_admin" in cursor.sql
+    assert "merchant_admin_id = %s" in cursor.sql
+    assert "mer_id = %s" in cursor.sql
+    assert "BINARY account = BINARY %s" in cursor.sql
+    assert "pwd" not in cursor.sql
+    assert cursor.parameters == ["155", "122", "W0765"]

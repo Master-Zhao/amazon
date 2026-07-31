@@ -198,6 +198,16 @@ D-118、D-136 维持原 Python 3.13 决策，不受 ADR-001 影响。
 | D-165 | 已确认 | 后端接受任一 Access Token 标头；两者并存时值必须一致 | 不一致返回 `AUTH_TOKEN_INVALID`；CORS 明确允许 `X-Token` |
 | D-166 | 已确认 | 登录成功保存 Access Token 后立即请求 `/api/v1/auth/me`，后端所有响应显式声明包含 `X-Token` 的 `Access-Control-Allow-Headers` | 登录请求本身尚无 Token；`/auth/me` 是开发者工具中验证标头的确定请求 |
 
+## 2.10 当前远程 SCM 账号只读接口（2026-07-31）
+
+确认依据：项目发起人要求在 X-Token 已经由浏览器验证后，通过 API 实际读取远程
+数据库数据。本接口只用于当前已映射 SCM 账号的最小闭环，不扩大 D-163 的
+Tenant、Store 或 Profile 数据权限。
+
+| ID | 状态 | 决策 | 说明 |
+|---|---|---|---|
+| D-167 | 已确认 | 增加受保护的 `GET /api/v1/auth/remote-account`，根据当前用户的 `sys_external_identity` 映射对 `scm_remote.eb_merchant_admin` 执行固定参数化只读查询 | 只返回当前账号白名单字段；不查询密码哈希，不接受远程表名、用户 ID 或商户 ID 参数 |
+
 ## 5. 优先确认顺序
 
 1. D-101 Store/Marketplace/Profile基数。

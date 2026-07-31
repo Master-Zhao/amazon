@@ -11,7 +11,9 @@ from apps.accounts.serializers import (
     EmptyResponseSerializer,
     LoginResponseSerializer,
     LoginSerializer,
+    RemoteAccountResponseSerializer,
 )
+from apps.accounts.selectors import remote_account_for_user
 from apps.accounts.services import (
     AuthServiceFailure,
     login,
@@ -171,4 +173,26 @@ class CurrentUserView(APIView):
             request,
             data=serialize_user(request.user),
             message="当前账号获取成功",
+        )
+
+
+class RemoteAccountView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="读取当前登录账号的远程 SCM 账号快照",
+        description=(
+            "使用当前用户在项目系统库中的 SCM 身份映射，对 "
+            "scm_remote.eb_merchant_admin 执行固定参数化只读查询。"
+            "仅返回当前账号的白名单字段，不返回密码哈希，也不接受远程表名、"
+            "用户 ID 或商户 ID 参数。"
+        ),
+        responses={200: RemoteAccountResponseSerializer},
+        tags=["authentication"],
+    )
+    def get(self, request):
+        return api_response(
+            request,
+            data=remote_account_for_user(request.user),
+            message="远程 SCM 账号数据读取成功",
         )

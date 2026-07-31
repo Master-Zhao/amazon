@@ -22,7 +22,65 @@ class SCMIdentity:
     is_active: bool
 
 
+@dataclass(frozen=True, slots=True)
+class SCMAccountSnapshot:
+    external_user_id: str
+    merchant_id: str
+    identifier: str
+    is_active: bool
+
+
 class SCMIdentityProvider:
+    def account_snapshot(
+        self,
+        *,
+        external_user_id: str,
+        merchant_id: str,
+        identifier: str,
+    ) -> SCMAccountSnapshot | None:
+        if SCM_ALIAS not in settings.DATABASES:
+            raise RemoteIdentityProviderUnavailable(
+                "SCM identity database is not configured"
+            )
+
+        try:
+            with connections[SCM_ALIAS].cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT
+                        merchant_admin_id,
+                        mer_id,
+                        account,
+                        status,
+                        is_del
+                    FROM eb_merchant_admin
+                    WHERE merchant_admin_id = %s
+                      AND mer_id = %s
+                      AND BINARY account = BINARY %s
+                    ORDER BY merchant_admin_id
+                    LIMIT 2
+                    """,
+                    [external_user_id, merchant_id, identifier],
+                )
+                rows = list(cursor.fetchall())
+        except DatabaseError as exc:
+            logger.exception(
+                "Remote SCM account snapshot query failed",
+                extra={"identity_source": "SCM_MERCHANT_ADMIN"},
+            )
+            raise RemoteIdentityProviderUnavailable() from exc
+
+        if len(rows) != 1:
+            return None
+
+        remote_user_id, remote_merchant_id, account, status, is_deleted = rows[0]
+        return SCMAccountSnapshot(
+            external_user_id=str(remote_user_id),
+            merchant_id=str(remote_merchant_id),
+            identifier=str(account),
+            is_active=int(status) == 1 and int(is_deleted) == 0,
+        )
+
     def authenticate(
         self,
         *,
