@@ -18,27 +18,29 @@
 ## 从零全容器启动
 
 ```powershell
-docker compose -f compose.local.yml config --quiet
-docker compose -f compose.local.yml up -d mysql redis
-docker compose -f compose.local.yml --profile tools run --rm migrate
+docker compose -p amazon-ads-local -f compose.local.yml config --quiet
+docker compose -p amazon-ads-local -f compose.local.yml up -d mysql redis
+docker compose -p amazon-ads-local -f compose.local.yml --profile tools run --rm migrate
 
 $env:DEMO_USER_PASSWORD = Read-Host "输入本机演示密码"
-docker compose -f compose.local.yml run --rm -e DEMO_USER_PASSWORD backend python manage.py seed_demo_user --email demo@example.invalid --username demo
-docker compose -f compose.local.yml run --rm backend python manage.py seed_demo_context --email demo@example.invalid
+docker compose -p amazon-ads-local -f compose.local.yml run --rm -e DEMO_USER_PASSWORD backend python manage.py seed_demo_user --email demo@example.invalid --username demo
+docker compose -p amazon-ads-local -f compose.local.yml run --rm backend python manage.py seed_demo_context --email demo@example.invalid
 Remove-Item Env:DEMO_USER_PASSWORD
 
-docker compose -f compose.local.yml up -d backend celery-worker celery-beat frontend nginx
-docker compose -f compose.local.yml ps
+docker compose -p amazon-ads-local -f compose.local.yml up -d backend celery-worker celery-beat frontend nginx
+docker compose -p amazon-ads-local -f compose.local.yml ps
 curl.exe http://localhost:8080/health/live
 curl.exe http://localhost:8080/health/ready
-docker compose -f compose.local.yml exec backend python manage.py celery_smoke --timeout 30
+docker compose -p amazon-ads-local -f compose.local.yml exec backend python manage.py celery_smoke --timeout 30
 ```
 
-浏览器入口为 `http://localhost:8080/`，OpenAPI UI 为
-`http://localhost:8080/api/docs/`。停止但保留数据：
+启动脚本默认打开广告总览 `http://localhost:8080/advertising/overview`；
+账号工作台仍保留在 `http://localhost:8080/`，OpenAPI UI 为
+`http://localhost:8080/api/docs/`。如不希望自动打开浏览器，可使用
+`.\start.ps1 -NoBrowser`。停止但保留数据：
 
 ```powershell
-docker compose -f compose.local.yml down
+docker compose -p amazon-ads-local -f compose.local.yml down
 ```
 
 除非确认数据可丢弃，不要添加 `--volumes`。
@@ -48,7 +50,7 @@ docker compose -f compose.local.yml down
 先用 Compose 启动 MySQL/Redis，再在两个终端运行应用：
 
 ```powershell
-docker compose -f compose.local.yml up -d mysql redis
+docker compose -p amazon-ads-local -f compose.local.yml up -d mysql redis
 $env:DJANGO_SETTINGS_MODULE='config.settings.local'
 $env:DB_HOST='127.0.0.1'
 $env:REDIS_URL='redis://127.0.0.1:6379/0'
@@ -103,7 +105,15 @@ REMOTE_AD_MAX_ROWS=200
 `default` 库创建不保存远程密码的身份映射。启用前先执行项目迁移。远程身份不会
 自动获得 Tenant、Store 或 Profile 权限，仍需在本项目中显式授权。
 
-`REMOTE_AD_PROFILE_MERCHANT_MAP` 的键是项目
+账号首次通过远程 SCM 认证后，可由可信运维人员创建其本地权限上下文和数据库映射：
+
+```powershell
+docker compose -p amazon-ads-local -f compose.local.yml exec backend python manage.py sync_remote_account_context --username W0765 --merchant-code W0765
+```
+
+命令会先在远程分析库验证该 `merchantId/merchantCode` 确实存在数据，再写入本地
+`ads_profile_remote_scope`；不会复制远程 Campaign 明细。`REMOTE_AD_PROFILE_MERCHANT_MAP`
+保留为兼容回退，其键是项目
 `AdvertisingProfile.external_profile_id`，值必须同时包含两个远程库共享的
 `mer_id` 与精确 `mer_code`。二者同时参与查询过滤；不能只配置其中一个，
 因为现有数据中两列都不是全局一一对应关系。
@@ -111,7 +121,7 @@ REMOTE_AD_MAX_ROWS=200
 成员任意选择。修改 `.env` 后重建后端、Worker 与 Beat：
 
 ```powershell
-docker compose -f compose.local.yml up -d --build backend celery-worker celery-beat frontend
+docker compose -p amazon-ads-local -f compose.local.yml up -d --build backend celery-worker celery-beat frontend
 ```
 
 登录并完成 Tenant → Store → Marketplace → Profile 上下文后，访问

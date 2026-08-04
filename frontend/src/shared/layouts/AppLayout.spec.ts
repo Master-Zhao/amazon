@@ -5,24 +5,24 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import AppLayout from '@/shared/layouts/AppLayout.vue'
 
-describe('AppLayout business navigation', () => {
-  it('highlights data center and advertising analytics independently', async () => {
+describe('AppLayout shell navigation', () => {
+  it('removes the legacy horizontal business navigation and keeps the advertising sidebar', async () => {
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [
         {
-          path: '/reports/imports',
-          name: 'report-imports',
+          path: '/advertising/overview',
+          name: 'advertising-overview',
           component: { template: '<div />' },
         },
         {
-          path: '/dashboard',
-          name: 'analytics-dashboard',
+          path: '/advertising/create',
+          name: 'advertising-create',
           component: { template: '<div />' },
         },
       ],
     })
-    await router.push('/reports/imports')
+    await router.push('/advertising/overview')
     await router.isReady()
 
     const wrapper = mount(AppLayout, {
@@ -37,17 +37,15 @@ describe('AppLayout business navigation', () => {
       slots: { default: '<div>content</div>' },
     })
 
-    const dataCenterLink = wrapper.get(
-      'nav.module-nav a[href="/reports/imports"]',
+    expect(wrapper.find('nav.module-nav').exists()).toBe(false)
+    expect(wrapper.find('[aria-label="业务导航"]').exists()).toBe(false)
+    expect(wrapper.get('a[aria-label="创建广告"]').attributes('href')).toBe(
+      '/advertising/create',
     )
-    const analyticsLink = wrapper.get('nav.module-nav a[href="/dashboard"]')
-    expect(dataCenterLink.classes()).toContain('router-link-active')
-    expect(analyticsLink.classes()).not.toContain('router-link-active')
-
-    await router.push('/dashboard')
-    await flushPromises()
-    expect(dataCenterLink.classes()).not.toContain('router-link-active')
-    expect(analyticsLink.classes()).toContain('router-link-active')
+    const overviewLink = wrapper.get('a[aria-label="广告总览"]')
+    expect(overviewLink.attributes('href')).toBe('/advertising/overview')
+    expect(overviewLink.classes()).toContain('router-link-active')
+    expect(wrapper.text()).toContain('content')
   })
 
   it('opens help from the question icon without activating business modules', async () => {
@@ -110,12 +108,7 @@ describe('AppLayout business navigation', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.name).toBe('help-center')
-    expect(
-      wrapper.get('a[href="/reports/imports"]').classes(),
-    ).not.toContain('router-link-active')
-    expect(wrapper.get('a[href="/dashboard"]').classes()).not.toContain(
-      'router-link-active',
-    )
+    expect(wrapper.find('nav.module-nav').exists()).toBe(false)
 
     await router.push('/help/faq/reports-guide')
     await flushPromises()

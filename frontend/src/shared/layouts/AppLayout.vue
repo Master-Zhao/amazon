@@ -12,18 +12,6 @@ const authStore = useAuthStore()
 const tenantContextStore = useTenantContextStore()
 const route = useRoute()
 
-const permissions = computed(
-  () => new Set(tenantContextStore.permissionCodes),
-)
-const hasTenantContext = computed(() => Boolean(tenantContextStore.tenantId))
-
-function can(...codes: string[]): boolean {
-  return (
-    !hasTenantContext.value ||
-    codes.some((code) => permissions.value.has(code))
-  )
-}
-
 watch(
   () => authStore.currentUser,
   (user) => {
@@ -101,46 +89,6 @@ const isLoginPage = computed(() => route.name === 'login')
       </nav>
 
       <div class="main-area">
-        <nav class="module-nav" aria-label="业务导航">
-          <RouterLink to="/">工作台</RouterLink>
-          <RouterLink to="/context">卖家空间</RouterLink>
-          <RouterLink to="/advertising/overview">广告总览</RouterLink>
-          <RouterLink
-            v-if="can('reports.view', 'reports.upload')"
-            to="/reports/imports"
-          >
-            数据中心
-          </RouterLink>
-          <RouterLink v-if="can('analytics.view')" to="/dashboard">
-            广告分析
-          </RouterLink>
-          <RouterLink v-if="can('analytics.view')" to="/remote-data">
-            远程数据
-          </RouterLink>
-          <RouterLink
-            v-if="can('analysis.run', 'recommendations.view')"
-            to="/analysis"
-          >
-            智能优化
-          </RouterLink>
-          <RouterLink
-            v-if="
-              can('actions.operate', 'approvals.approve', 'executions.execute')
-            "
-            to="/actions"
-          >
-            审批执行
-          </RouterLink>
-          <RouterLink v-if="can('knowledge.view')" to="/knowledge">
-            知识中心
-          </RouterLink>
-          <RouterLink
-            v-if="can('context.view', 'rbac.manage', 'audit.view')"
-            to="/system"
-          >
-            系统管理
-          </RouterLink>
-        </nav>
         <main class="content">
           <slot />
         </main>

@@ -324,8 +324,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List normalized Sponsored Products Campaign entities */
-        get: operations["api_v1_advertising_tenants_profiles_campaigns_list"];
+        /** List read-only remote Sponsored Products Campaign performance */
+        get: operations["api_v1_advertising_tenants_profiles_campaigns_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/advertising/tenants/{tenant_id}/profiles/{profile_id}/campaigns/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export the filtered read-only remote Campaign list as CSV */
+        get: operations["api_v1_advertising_tenants_profiles_campaigns_export_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1422,6 +1439,14 @@ export interface components {
             firstName: string;
             lastName: string;
         };
+        CampaignDashboard: {
+            trend: components["schemas"]["CampaignTrendPoint"][];
+            risk_levels: components["schemas"]["CampaignRiskLevel"][];
+            evaluated_campaigns: number;
+            target_acos: string | null;
+            unavailable_rule_codes: string[];
+            risk_semantics: string;
+        };
         CampaignDetail: {
             campaign_id: string;
             external_campaign_id: string;
@@ -1458,21 +1483,77 @@ export interface components {
             source_batch_id: string;
             anomalies: components["schemas"]["Anomaly"][];
         };
-        CampaignRow: {
-            id: string;
-            external_campaign_id: string;
+        CampaignOverviewItem: {
+            campaign_key: string;
             name: string;
-            ad_product_type: string;
-            state: string;
-            daily_budget: string | null;
+            reference_code: string;
+            enabled: boolean;
+            targeting_type: string;
+            status: string;
+            bidding_strategy: string;
+            /** Format: date */
+            start_date: string | null;
+            /** Format: date */
+            end_date: string | null;
+            daily_budget: components["schemas"]["Money"] | null;
+            metrics: components["schemas"]["CampaignOverviewMetrics"];
+            metadata_matched: boolean;
+            partial_fields: string[];
+        };
+        CampaignOverviewMeta: {
+            source: string;
             currency_code: string;
-            source_batch_id: string | null;
+            timezone: string;
+            /** Format: date */
+            start_date: string | null;
+            /** Format: date */
+            end_date: string | null;
+            /** Format: date */
+            data_through_date: string | null;
+            total_cost_semantics: string;
+            attribution_semantics: string;
+            status_filter_semantics: string;
+        };
+        CampaignOverviewMetrics: {
+            impressions: number;
+            top_of_search_share: string | null;
+            spend: components["schemas"]["Money"];
+            sales: components["schemas"]["Money"];
+            clicks: number;
+            ctr: string | null;
+            total_cost: components["schemas"]["Money"];
+            orders: number;
+            cpc: components["schemas"]["Money"] | null;
+            acos: string | null;
+            cvr: string | null;
+        };
+        CampaignOverviewResponse: {
+            items: components["schemas"]["CampaignOverviewItem"][];
+            summary: components["schemas"]["CampaignOverviewMetrics"] | null;
+            dashboard: components["schemas"]["CampaignDashboard"];
+            pagination: components["schemas"]["CampaignPagination"];
+            meta: components["schemas"]["CampaignOverviewMeta"];
+        };
+        CampaignPagination: {
+            page: number;
+            page_size: number;
+            total: number;
+            total_pages: number;
+        };
+        CampaignRiskLevel: {
+            level: string;
+            count: number;
         };
         CampaignTargetAcos: {
             campaign_id: string;
             campaign_name: string;
             target_acos: string | null;
             effective_target_acos: string | null;
+        };
+        CampaignTrendPoint: {
+            /** Format: date */
+            date: string;
+            metrics: components["schemas"]["CampaignOverviewMetrics"];
         };
         ContextCapabilities: {
             permissionCodes: string[];
@@ -1667,6 +1748,10 @@ export interface components {
             email: string;
             membershipRole: string;
             isActive: boolean;
+        };
+        Money: {
+            amount: string;
+            currency_code: string;
         };
         Notification: {
             readonly id: number;
@@ -2503,9 +2588,54 @@ export interface operations {
             };
         };
     };
-    api_v1_advertising_tenants_profiles_campaigns_list: {
+    api_v1_advertising_tenants_profiles_campaigns_retrieve: {
         parameters: {
-            query?: never;
+            query?: {
+                enabled?: boolean;
+                endDate?: string;
+                includeSummary?: boolean;
+                /**
+                 * @description * `name` - name
+                 *     * `targetingType` - targetingType
+                 *     * `status` - status
+                 *     * `biddingStrategy` - biddingStrategy
+                 *     * `dailyBudget` - dailyBudget
+                 *     * `impressions` - impressions
+                 *     * `spend` - spend
+                 *     * `clicks` - clicks
+                 *     * `ctr` - ctr
+                 *     * `totalCost` - totalCost
+                 *     * `orders` - orders
+                 *     * `cpc` - cpc
+                 *     * `acos` - acos
+                 *     * `cvr` - cvr
+                 *     * `-name` - -name
+                 *     * `-targetingType` - -targetingType
+                 *     * `-status` - -status
+                 *     * `-biddingStrategy` - -biddingStrategy
+                 *     * `-dailyBudget` - -dailyBudget
+                 *     * `-impressions` - -impressions
+                 *     * `-spend` - -spend
+                 *     * `-clicks` - -clicks
+                 *     * `-ctr` - -ctr
+                 *     * `-totalCost` - -totalCost
+                 *     * `-orders` - -orders
+                 *     * `-cpc` - -cpc
+                 *     * `-acos` - -acos
+                 *     * `-cvr` - -cvr
+                 */
+                ordering?: "name" | "targetingType" | "status" | "biddingStrategy" | "dailyBudget" | "impressions" | "spend" | "clicks" | "ctr" | "totalCost" | "orders" | "cpc" | "acos" | "cvr" | "-name" | "-targetingType" | "-status" | "-biddingStrategy" | "-dailyBudget" | "-impressions" | "-spend" | "-clicks" | "-ctr" | "-totalCost" | "-orders" | "-cpc" | "-acos" | "-cvr";
+                page?: number;
+                pageSize?: number;
+                search?: string;
+                startDate?: string;
+                status?: string;
+                /**
+                 * @description * `AUTO` - AUTO
+                 *     * `MANUAL` - MANUAL
+                 */
+                targetingType?: "AUTO" | "MANUAL";
+            };
             header?: never;
             path: {
                 profile_id: string;
@@ -2520,7 +2650,74 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CampaignRow"][];
+                    "application/json": components["schemas"]["CampaignOverviewResponse"];
+                };
+            };
+        };
+    };
+    api_v1_advertising_tenants_profiles_campaigns_export_retrieve: {
+        parameters: {
+            query?: {
+                enabled?: boolean;
+                endDate?: string;
+                includeSummary?: boolean;
+                /**
+                 * @description * `name` - name
+                 *     * `targetingType` - targetingType
+                 *     * `status` - status
+                 *     * `biddingStrategy` - biddingStrategy
+                 *     * `dailyBudget` - dailyBudget
+                 *     * `impressions` - impressions
+                 *     * `spend` - spend
+                 *     * `clicks` - clicks
+                 *     * `ctr` - ctr
+                 *     * `totalCost` - totalCost
+                 *     * `orders` - orders
+                 *     * `cpc` - cpc
+                 *     * `acos` - acos
+                 *     * `cvr` - cvr
+                 *     * `-name` - -name
+                 *     * `-targetingType` - -targetingType
+                 *     * `-status` - -status
+                 *     * `-biddingStrategy` - -biddingStrategy
+                 *     * `-dailyBudget` - -dailyBudget
+                 *     * `-impressions` - -impressions
+                 *     * `-spend` - -spend
+                 *     * `-clicks` - -clicks
+                 *     * `-ctr` - -ctr
+                 *     * `-totalCost` - -totalCost
+                 *     * `-orders` - -orders
+                 *     * `-cpc` - -cpc
+                 *     * `-acos` - -acos
+                 *     * `-cvr` - -cvr
+                 */
+                ordering?: "name" | "targetingType" | "status" | "biddingStrategy" | "dailyBudget" | "impressions" | "spend" | "clicks" | "ctr" | "totalCost" | "orders" | "cpc" | "acos" | "cvr" | "-name" | "-targetingType" | "-status" | "-biddingStrategy" | "-dailyBudget" | "-impressions" | "-spend" | "-clicks" | "-ctr" | "-totalCost" | "-orders" | "-cpc" | "-acos" | "-cvr";
+                page?: number;
+                pageSize?: number;
+                search?: string;
+                startDate?: string;
+                status?: string;
+                /**
+                 * @description * `AUTO` - AUTO
+                 *     * `MANUAL` - MANUAL
+                 */
+                targetingType?: "AUTO" | "MANUAL";
+            };
+            header?: never;
+            path: {
+                profile_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
                 };
             };
         };

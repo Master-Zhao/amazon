@@ -520,7 +520,7 @@ def remote_campaign_metric_rows(
     if start and end and start > end:
         raise ValidationError({"end_date": ["Must be on or after start_date."]})
 
-    remote_scope = remote_scope_for_profile(scope.profile.external_profile_id)
+    remote_scope = remote_scope_for_profile(scope.profile)
     metrics = RemoteAdvertisingDataReader().campaign_metrics(
         merchant_id=remote_scope.merchant_id,
         merchant_code=remote_scope.merchant_code,

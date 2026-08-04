@@ -430,6 +430,10 @@ CampaignSection 展示的广告活动及指标必须来自远程数据库：
 - 数据库字段实际为 imperssion；
 - 应用层统一命名 impressions；
 - 不修改远程表字段。
+- 2026-08-04 对当前远程 Schema 的只读运行核验发现：`orders_7d`、`sales_7d`、
+  `sale_units_7d`、`other_sales_7d` 实际不存在；当前存在 `orders`、`order_1d`、
+  `sales`、`sales_1d`、`sales_units`、`sale_units_1d`。该结果与本节原“已确认字段”冲突，
+  以运行 Schema 为准记录冲突，不将现有字段静默宣称为 7 日归因。
 
 ### 7.4 Campaign 唯一范围键
 
@@ -570,7 +574,9 @@ API 向前端返回服务端生成的 campaignKey，不暴露远程商户映射�
 - SCM 与分析表状态冲突时的最终优先级；
 - campaign_daily_budget 的快照语义。
 
-订单、销售额和售出件数的归因窗口已按本次确认分别固定为 orders_7d、sales_7d、sale_units_7d，不再作为待确认事项。
+目标业务口径仍为 orders_7d、sales_7d、sale_units_7d；但 2026-08-04 运行 Schema
+核验确认这些列不存在。当前实现使用实际存在的 `orders`/`sales` 字段并显式返回
+`attributionSemantics=REMOTE_FIELDS_UNVERIFIED`；在数据负责人确认语义或提供正确字段前，不得宣称为 7 日归因。
 
 ---
 
@@ -1497,7 +1503,7 @@ information_schema 近似规模：
 | Campaign ID 稳定性 | 未确认 | 去重和详情跳转 | 高 |
 | Marketplace 远程隔离键 | 未确认 | 可能混合站点 | 高 |
 | top_of_search_is 口径 | 未确认 | 该列暂时显示 — | 高 |
-| 7 日归因字段实际可用性 | 公式已确认，仍需在当前远程表验证字段和值 | 订单、销售额、售出件数和衍生指标 | 高 |
+| 7 日归因字段实际可用性 | 2026-08-04 已验证为缺失；只有未确认归因语义的 `orders`/`sales` 及 1 日字段 | 订单、销售额、售出件数和衍生指标；当前 API 显式标记未验证 | 高 |
 | 远程 creation_date 时区 | 未确认 | 日期边界 | 高 |
 | SCM/分析状态优先级 | 建议 SCM 优先 | 启用和状态展示 | 中 |
 | 无指标 Campaign 是否显示 | 未确认 | 主集合选择 | 高 |
@@ -1576,4 +1582,21 @@ information_schema 近似规模：
 12. 远程错误不能伪装成暂无数据；
 13. Tenant、Store、Profile 权限隔离仍然保留；
 14. 创建、启停、预算和竞价修改本期不实现；
-15. 编码前必须确认默认 Profile、Campaign 键、Marketplace、时区、首页位置占比，并验证 orders_7d、sales_7d、sale_units_7d、other_sales_7d 在当前远程表中的实际可用性。
+15. 2026-08-04 已确认 SCM 元数据字段完整且实际远程聚合查询可用；`orders_7d`、`sales_7d`、`sale_units_7d`、`other_sales_7d` 实际缺失，当前订单/销售及衍生指标必须保持“远程字段语义未验证”标记；Marketplace 隔离键、时区和首页位置占比仍是高风险待确认项。
+
+---
+
+## 29. 2026-08-04 实施快照
+
+- 开发前 Git 快照：`bdb553c`，标签 `checkpoint-before-campaign-section-20260804`；
+- CampaignSection 已接入现有 AppLayout 下的 `/advertising/overview`；
+- 已按本方案移除 AppLayout 的旧横向业务导航，保留顶部栏、面包屑和左侧广告入口；
+- 页面显式携带筛选、排序和分页参数，不使用 HTML Mock 数据，不回退本地 `ads_campaign`；
+- 远程只读试查结果：W0765 最近 30 天全状态 156 个 Campaign；页面默认“已启用”范围 68 个，首页 15 条、Summary/30 天趋势/风险统计可用；该结果是 2026-08-04 运行验证记录，不是性能承诺；
+- 已实现 19 列宽表、横向滚动、工具栏、筛选标签、日期、服务端排序/分页/合计、状态页和只读 CSV 导出审计；
+- “创建广告活动”、行选择和启停开关保持禁用/只读；
+- 2026-08-04 已使用项目 Playwright 实际渲染桌面参考 `index.html` 并生成 1280px 整页截图，确认页面结构为搜索栏、8 个 KPI、表现概览、风险评估、筛选条和底部 CampaignSection；随后项目发起人明确授权扩展为完整页面。
+- 完整页面的 KPI、每日趋势、五档风险与 CampaignSection 使用同一远程只读筛选范围；没有引入 HTML Mock 数据。
+- 已增加 `ads_profile_remote_scope` 显式映射及 `sync_remote_account_context` 管理命令；W0765 的认证身份已绑定到远程 merchant code `W0765`，账号具体业务数据不写入代码。
+- 五档风险复用现有异常规则和 Profile→Tenant 目标 ACoS；缺少小时级预算快照的预算提前耗尽规则在 API 中显式列为不可用。
+- 2026-08-04 浏览器真实验收通过：`/advertising/overview` 返回 8 个 KPI、30 天趋势、风险计数和当前页 15 条远程 Campaign，无页面告警；截图为 `w0765-remote-dashboard.png`。

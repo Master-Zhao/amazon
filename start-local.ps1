@@ -13,7 +13,8 @@ param(
     [switch]$BackendOnly,
     [switch]$FrontendOnly,
     [switch]$NoCelery,
-    [switch]$NoRedis
+    [switch]$NoRedis,
+    [switch]$NoBrowser
 )
 
 $ErrorActionPreference = "Stop"
@@ -21,6 +22,7 @@ $ProjectRoot = $PSScriptRoot
 $backendDir = Join-Path $ProjectRoot "backend"
 $frontendDir = Join-Path $ProjectRoot "frontend"
 $venvDir = Join-Path $backendDir ".venv"
+$frontendUrl = "http://localhost:5173/advertising/overview"
 
 # 加载 .env
 $envFile = Join-Path $ProjectRoot ".env"
@@ -128,12 +130,22 @@ if (-not $BackendOnly) {
         pnpm dev --host 0.0.0.0
     } -ArgumentList $frontendDir
     $jobs += $frontendJob
-    Write-Host "  前端已启动: http://localhost:5173" -ForegroundColor Green
+    Write-Host "  广告总览已启动: $frontendUrl" -ForegroundColor Green
+
+    if (-not $NoBrowser) {
+        Start-Sleep -Seconds 2
+        try {
+            Start-Process -FilePath $frontendUrl
+        } catch {
+            Write-Host "  无法自动打开浏览器，请手动访问: $frontendUrl" -ForegroundColor Yellow
+        }
+    }
 }
 
 # ── 等待 ──
 Write-Host "`n全部服务已启动。按 Ctrl+C 停止所有服务。" -ForegroundColor White
-Write-Host "  前端:  http://localhost:5173" -ForegroundColor White
+Write-Host "  广告总览: $frontendUrl" -ForegroundColor White
+Write-Host "  账号工作台: http://localhost:5173/" -ForegroundColor White
 Write-Host "  后端:  http://localhost:8000" -ForegroundColor White
 Write-Host "  API文档: http://localhost:8000/api/docs/" -ForegroundColor White
 

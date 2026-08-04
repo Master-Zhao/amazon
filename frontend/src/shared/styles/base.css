@@ -212,39 +212,10 @@ button:disabled {
   color: #eaf0ec;
 }
 
-.sidebar-icon-btn.active {
+.sidebar-icon-btn.router-link-active {
   color: #fff;
   background: rgba(189, 92, 48, 0.22);
   border-left: 3px solid #bd5c30;
-}
-
-.module-nav {
-  display: flex;
-  gap: 0.35rem;
-  padding: 0.6rem 1.5rem;
-  overflow-x: auto;
-  border-bottom: 1px solid rgba(38, 63, 53, 0.12);
-  background: rgba(255, 255, 255, 0.58);
-}
-
-.module-nav a {
-  border-radius: 999px;
-  padding: 0.45rem 0.75rem;
-  color: #526159;
-  font-size: 0.82rem;
-  font-weight: 650;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.module-nav a:hover {
-  color: #263f35;
-  background: rgba(38, 63, 53, 0.08);
-}
-
-.module-nav a.router-link-active {
-  color: #fff;
-  background: #263f35;
 }
 
 .panel-content h2 {

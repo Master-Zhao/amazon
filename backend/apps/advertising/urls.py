@@ -1,12 +1,18 @@
 from django.urls import path
 
 from apps.advertising.views import (
+    CampaignExportView,
     CampaignListView,
     SearchTermListView,
     TargetingListView,
 )
 
 urlpatterns = [
+    path(
+        "tenants/<str:tenant_id>/profiles/<str:profile_id>/campaigns/export",
+        CampaignExportView.as_view(),
+        name="advertising-campaign-export",
+    ),
     path(
         "tenants/<str:tenant_id>/profiles/<str:profile_id>/campaigns",
         CampaignListView.as_view(),

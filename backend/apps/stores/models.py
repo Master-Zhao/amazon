@@ -103,3 +103,31 @@ class AdvertisingProfile(models.Model):
                 name="ads_profile_store_active_idx",
             )
         ]
+
+
+class AdvertisingProfileRemoteScope(models.Model):
+    profile = models.OneToOneField(
+        AdvertisingProfile,
+        on_delete=models.PROTECT,
+        related_name="remote_scope",
+    )
+    external_merchant_id = models.CharField(max_length=128)
+    merchant_code = models.CharField(max_length=128)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "ads_profile_remote_scope"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["external_merchant_id", "merchant_code"],
+                name="ads_profile_remote_scope_uniq",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["is_active", "merchant_code"],
+                name="ads_profile_remote_active_idx",
+            )
+        ]

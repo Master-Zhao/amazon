@@ -1,38 +1,190 @@
+import csv
+from io import StringIO
+
+from django.http import HttpResponse
 from drf_spectacular.utils import extend_schema
+from rest_framework import status
+from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.advertising.selectors import (
     campaign_rows,
+    campaign_overview_page,
     search_term_rows,
     targeting_rows,
 )
 from apps.advertising.serializers import (
+    CampaignListQuerySerializer,
+    CampaignOverviewResponseSerializer,
     CampaignRowSerializer,
     SearchTermRowSerializer,
     TargetingRowSerializer,
 )
+from apps.advertising.services import record_campaign_export
 from apps.core.responses import api_response
+
+
+class CampaignExportTooLarge(APIException):
+    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    default_detail = "导出结果超过 10,000 行，请缩小筛选范围"
+    default_code = "campaign_export_too_large"
+
+
+def _csv_safe(value: object) -> str:
+    rendered = "" if value is None else str(value)
+    if rendered.startswith(("=", "+", "-", "@")):
+        return f"'{rendered}"
+    return rendered
+
+
+def _money_amount(value: object) -> str:
+    return str(value.get("amount", "")) if isinstance(value, dict) else ""
 
 
 class CampaignListView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
-        summary="List normalized Sponsored Products Campaign entities",
-        responses={200: CampaignRowSerializer(many=True)},
+        summary="List read-only remote Sponsored Products Campaign performance",
+        parameters=[CampaignListQuerySerializer],
+        responses={200: CampaignOverviewResponseSerializer},
         tags=["advertising"],
     )
     def get(self, request, tenant_id, profile_id):
-        rows = campaign_rows(
+        overview_parameters = {
+            "startDate",
+            "endDate",
+            "enabled",
+            "status",
+            "targetingType",
+            "search",
+            "ordering",
+            "page",
+            "pageSize",
+            "includeSummary",
+        }
+        if not overview_parameters.intersection(request.query_params):
+            rows = campaign_rows(
+                user=request.user,
+                tenant_id=tenant_id,
+                profile_id=profile_id,
+            )
+            return api_response(
+                request,
+                data=CampaignRowSerializer(rows, many=True).data,
+            )
+        query = CampaignListQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        result = campaign_overview_page(
             user=request.user,
             tenant_id=tenant_id,
             profile_id=profile_id,
+            query=query.validated_data,
         )
         return api_response(
             request,
-            data=CampaignRowSerializer(rows, many=True).data,
+            data=CampaignOverviewResponseSerializer(result).data,
         )
+
+
+class CampaignExportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Export the filtered read-only remote Campaign list as CSV",
+        parameters=[CampaignListQuerySerializer],
+        responses={(200, "text/csv"): bytes},
+        tags=["advertising"],
+    )
+    def get(self, request, tenant_id, profile_id):
+        query = CampaignListQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        export_query = {
+            **query.validated_data,
+            "page": 1,
+            "page_size": 10_001,
+            "include_summary": False,
+        }
+        result = campaign_overview_page(
+            user=request.user,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+            query=export_query,
+        )
+        if result["pagination"]["total"] > 10_000:
+            raise CampaignExportTooLarge()
+
+        output = StringIO(newline="")
+        writer = csv.writer(output)
+        writer.writerow(
+            [
+                "广告活动名称",
+                "辅助代码",
+                "投放类型",
+                "状态",
+                "竞价方案",
+                "开始日期",
+                "结束日期",
+                "预算金额",
+                "币种",
+                "展示量",
+                "搜索结果首页位置",
+                "花费",
+                "点击量",
+                "CTR",
+                "总成本",
+                "购买量",
+                "CPC",
+                "ACoS",
+                "CVR",
+            ]
+        )
+        for item in result["items"]:
+            metrics = item["metrics"]
+            budget = item["daily_budget"]
+            writer.writerow(
+                [
+                    _csv_safe(item["name"]),
+                    _csv_safe(item["reference_code"]),
+                    item["targeting_type"],
+                    item["status"],
+                    item["bidding_strategy"],
+                    item["start_date"] or "",
+                    item["end_date"] or "",
+                    _money_amount(budget),
+                    budget.get("currency_code", "") if budget else result["meta"]["currency_code"],
+                    metrics["impressions"],
+                    metrics["top_of_search_share"] or "",
+                    _money_amount(metrics["spend"]),
+                    metrics["clicks"],
+                    metrics["ctr"] or "",
+                    _money_amount(metrics["total_cost"]),
+                    metrics["orders"],
+                    _money_amount(metrics["cpc"]),
+                    metrics["acos"] or "",
+                    metrics["cvr"] or "",
+                ]
+            )
+
+        record_campaign_export(
+            request=request,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+            row_count=len(result["items"]),
+        )
+        dates = result["meta"]
+        filename = (
+            f"campaigns-{dates['start_date'] or 'latest'}-"
+            f"{dates['end_date'] or 'latest'}.csv"
+        )
+        response = HttpResponse(
+            "\ufeff" + output.getvalue(),
+            content_type="text/csv; charset=utf-8",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        response["Cache-Control"] = "no-store"
+        return response
 
 
 class TargetingListView(APIView):

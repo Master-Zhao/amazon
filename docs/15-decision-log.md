@@ -208,6 +208,21 @@ Tenant、Store 或 Profile 数据权限。
 |---|---|---|---|
 | D-167 | 已确认 | 增加受保护的 `GET /api/v1/auth/remote-account`，根据当前用户的 `sys_external_identity` 映射对 `scm_remote.eb_merchant_admin` 执行固定参数化只读查询 | 只返回当前账号白名单字段；不查询密码哈希，不接受远程表名、用户 ID 或商户 ID 参数 |
 
+## 2.11 CampaignSection 远程字段核验与只读列表（2026-08-04）
+
+确认依据：项目发起人明确要求根据 `2026-08-amazon-ads-campaign-section-design-v2.md`
+实现参考 HTML 最下方 CampaignSection；实施前对当前配置的两个远程只读库执行了
+`INFORMATION_SCHEMA` 字段核验和不输出业务记录的聚合试查。
+
+| ID | 状态 | 决策 | 说明 |
+|---|---|---|---|
+| D-168 | 已确认（运行核验） | `scm_remote.eb_ad_campaign` 具备 CampaignSection 所需的名称、代码、类型、状态、日期、预算和竞价策略字段 | 2026-08-04 通过只读 `INFORMATION_SCHEMA.COLUMNS` 核验，所需字段无缺失 |
+| D-169 | 已确认（冲突记录） | 当前 `bi_analyze_ad_campaign` 不存在方案声称的 `orders_7d`/`sales_7d`/`sale_units_7d`/`other_sales_7d`；实际存在 `orders`/`sales`/`sales_units` 及 1 日字段 | 在数据负责人确认归因语义前，Campaign 列表使用现有 `orders`/`sales` 维持真实只读链路，API 强制返回 `attributionSemantics=REMOTE_FIELDS_UNVERIFIED`，不得宣称为 7 日归因 |
+| D-170 | 已确认 | 带 CampaignSection 查询参数的现有 advertising Campaign 接口返回 `items/summary/pagination/meta`；不带该组参数的旧调用暂保留本地标准化 Campaign 数组响应 | 避免破坏 Phase 3 报表导入后的既有主数据调用；新页面始终显式发送分页等参数，不回退本地数据 |
+| D-171 | 已确认（项目发起人授权） | `/advertising/overview` 从仅实现底部 CampaignSection 扩展为参考 HTML 的完整 Campaign 看板，同时保留现有顶部栏、面包屑与左侧栏 | KPI、趋势、风险和表格全部来自同一远程只读筛选范围，不使用 HTML Mock 数据 |
+| D-172 | 已确认 | 增加本地 `ads_profile_remote_scope`，把已认证账号对应的 AdvertisingProfile 显式绑定到远程 `merchantId/merchantCode` | 远程映射不再依赖把具体账号写死在环境变量；所有查询仍先经过 Tenant/Profile 权限校验并使用固定参数化 SQL |
+| D-173 | 已确认 | 五档风险展示复用当前系统异常规则：两个及以上 HIGH 命中为极高、一个 HIGH 为高、MEDIUM 为中、LOW 为低、无命中为极低 | 目标 ACoS 使用 Profile→Tenant；远程源缺少小时级预算快照，`BUDGET_EARLY_EXHAUSTION` 明示为未评估，不伪造结果 |
+
 ## 5. 优先确认顺序
 
 1. D-101 Store/Marketplace/Profile基数。

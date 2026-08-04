@@ -619,14 +619,131 @@ paths:
           description: ''
   /api/v1/advertising/tenants/{tenant_id}/profiles/{profile_id}/campaigns:
     get:
-      operationId: api_v1_advertising_tenants_profiles_campaigns_list
-      summary: List normalized Sponsored Products Campaign entities
+      operationId: api_v1_advertising_tenants_profiles_campaigns_retrieve
+      summary: List read-only remote Sponsored Products Campaign performance
       parameters:
+      - in: query
+        name: enabled
+        schema:
+          type: boolean
+          default: true
+      - in: query
+        name: endDate
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: includeSummary
+        schema:
+          type: boolean
+          default: true
+      - in: query
+        name: ordering
+        schema:
+          enum:
+          - name
+          - targetingType
+          - status
+          - biddingStrategy
+          - dailyBudget
+          - impressions
+          - spend
+          - clicks
+          - ctr
+          - totalCost
+          - orders
+          - cpc
+          - acos
+          - cvr
+          - -name
+          - -targetingType
+          - -status
+          - -biddingStrategy
+          - -dailyBudget
+          - -impressions
+          - -spend
+          - -clicks
+          - -ctr
+          - -totalCost
+          - -orders
+          - -cpc
+          - -acos
+          - -cvr
+          type: string
+          default: -spend
+          minLength: 1
+        description: |-
+          * `name` - name
+          * `targetingType` - targetingType
+          * `status` - status
+          * `biddingStrategy` - biddingStrategy
+          * `dailyBudget` - dailyBudget
+          * `impressions` - impressions
+          * `spend` - spend
+          * `clicks` - clicks
+          * `ctr` - ctr
+          * `totalCost` - totalCost
+          * `orders` - orders
+          * `cpc` - cpc
+          * `acos` - acos
+          * `cvr` - cvr
+          * `-name` - -name
+          * `-targetingType` - -targetingType
+          * `-status` - -status
+          * `-biddingStrategy` - -biddingStrategy
+          * `-dailyBudget` - -dailyBudget
+          * `-impressions` - -impressions
+          * `-spend` - -spend
+          * `-clicks` - -clicks
+          * `-ctr` - -ctr
+          * `-totalCost` - -totalCost
+          * `-orders` - -orders
+          * `-cpc` - -cpc
+          * `-acos` - -acos
+          * `-cvr` - -cvr
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 15
       - in: path
         name: profile_id
         schema:
           type: string
         required: true
+      - in: query
+        name: search
+        schema:
+          type: string
+          maxLength: 100
+      - in: query
+        name: startDate
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: status
+        schema:
+          type: string
+      - in: query
+        name: targetingType
+        schema:
+          enum:
+          - AUTO
+          - MANUAL
+          type: string
+          minLength: 1
+        description: |-
+          * `AUTO` - AUTO
+          * `MANUAL` - MANUAL
       - in: path
         name: tenant_id
         schema:
@@ -642,9 +759,152 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/CampaignRow'
+                $ref: '#/components/schemas/CampaignOverviewResponse'
+          description: ''
+  /api/v1/advertising/tenants/{tenant_id}/profiles/{profile_id}/campaigns/export:
+    get:
+      operationId: api_v1_advertising_tenants_profiles_campaigns_export_retrieve
+      summary: Export the filtered read-only remote Campaign list as CSV
+      parameters:
+      - in: query
+        name: enabled
+        schema:
+          type: boolean
+          default: true
+      - in: query
+        name: endDate
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: includeSummary
+        schema:
+          type: boolean
+          default: true
+      - in: query
+        name: ordering
+        schema:
+          enum:
+          - name
+          - targetingType
+          - status
+          - biddingStrategy
+          - dailyBudget
+          - impressions
+          - spend
+          - clicks
+          - ctr
+          - totalCost
+          - orders
+          - cpc
+          - acos
+          - cvr
+          - -name
+          - -targetingType
+          - -status
+          - -biddingStrategy
+          - -dailyBudget
+          - -impressions
+          - -spend
+          - -clicks
+          - -ctr
+          - -totalCost
+          - -orders
+          - -cpc
+          - -acos
+          - -cvr
+          type: string
+          default: -spend
+          minLength: 1
+        description: |-
+          * `name` - name
+          * `targetingType` - targetingType
+          * `status` - status
+          * `biddingStrategy` - biddingStrategy
+          * `dailyBudget` - dailyBudget
+          * `impressions` - impressions
+          * `spend` - spend
+          * `clicks` - clicks
+          * `ctr` - ctr
+          * `totalCost` - totalCost
+          * `orders` - orders
+          * `cpc` - cpc
+          * `acos` - acos
+          * `cvr` - cvr
+          * `-name` - -name
+          * `-targetingType` - -targetingType
+          * `-status` - -status
+          * `-biddingStrategy` - -biddingStrategy
+          * `-dailyBudget` - -dailyBudget
+          * `-impressions` - -impressions
+          * `-spend` - -spend
+          * `-clicks` - -clicks
+          * `-ctr` - -ctr
+          * `-totalCost` - -totalCost
+          * `-orders` - -orders
+          * `-cpc` - -cpc
+          * `-acos` - -acos
+          * `-cvr` - -cvr
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 15
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: search
+        schema:
+          type: string
+          maxLength: 100
+      - in: query
+        name: startDate
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: status
+        schema:
+          type: string
+      - in: query
+        name: targetingType
+        schema:
+          enum:
+          - AUTO
+          - MANUAL
+          type: string
+          minLength: 1
+        description: |-
+          * `AUTO` - AUTO
+          * `MANUAL` - MANUAL
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - advertising
+      security:
+      - bearerAuth: []
+      - xTokenAuth: []
+      responses:
+        '200':
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
           description: ''
   /api/v1/advertising/tenants/{tenant_id}/profiles/{profile_id}/search-terms:
     get:
@@ -2568,6 +2828,35 @@ components:
       - id
       - lastName
       - username
+    CampaignDashboard:
+      type: object
+      properties:
+        trend:
+          type: array
+          items:
+            $ref: '#/components/schemas/CampaignTrendPoint'
+        risk_levels:
+          type: array
+          items:
+            $ref: '#/components/schemas/CampaignRiskLevel'
+        evaluated_campaigns:
+          type: integer
+        target_acos:
+          type: string
+          nullable: true
+        unavailable_rule_codes:
+          type: array
+          items:
+            type: string
+        risk_semantics:
+          type: string
+      required:
+      - evaluated_campaigns
+      - risk_levels
+      - risk_semantics
+      - target_acos
+      - trend
+      - unavailable_rule_codes
     CampaignDetail:
       type: object
       properties:
@@ -2673,36 +2962,186 @@ components:
       - spend
       - state_snapshot
       - target_acos
-    CampaignRow:
+    CampaignOverviewItem:
       type: object
       properties:
-        id:
-          type: string
-        external_campaign_id:
+        campaign_key:
           type: string
         name:
           type: string
-        ad_product_type:
+        reference_code:
           type: string
-        state:
+        enabled:
+          type: boolean
+        targeting_type:
           type: string
-        daily_budget:
+        status:
           type: string
+        bidding_strategy:
+          type: string
+        start_date:
+          type: string
+          format: date
           nullable: true
+        end_date:
+          type: string
+          format: date
+          nullable: true
+        daily_budget:
+          allOf:
+          - $ref: '#/components/schemas/Money'
+          nullable: true
+        metrics:
+          $ref: '#/components/schemas/CampaignOverviewMetrics'
+        metadata_matched:
+          type: boolean
+        partial_fields:
+          type: array
+          items:
+            type: string
+      required:
+      - bidding_strategy
+      - campaign_key
+      - daily_budget
+      - enabled
+      - end_date
+      - metadata_matched
+      - metrics
+      - name
+      - partial_fields
+      - reference_code
+      - start_date
+      - status
+      - targeting_type
+    CampaignOverviewMeta:
+      type: object
+      properties:
+        source:
+          type: string
         currency_code:
           type: string
-        source_batch_id:
+        timezone:
+          type: string
+        start_date:
+          type: string
+          format: date
+          nullable: true
+        end_date:
+          type: string
+          format: date
+          nullable: true
+        data_through_date:
+          type: string
+          format: date
+          nullable: true
+        total_cost_semantics:
+          type: string
+        attribution_semantics:
+          type: string
+        status_filter_semantics:
+          type: string
+      required:
+      - attribution_semantics
+      - currency_code
+      - data_through_date
+      - end_date
+      - source
+      - start_date
+      - status_filter_semantics
+      - timezone
+      - total_cost_semantics
+    CampaignOverviewMetrics:
+      type: object
+      properties:
+        impressions:
+          type: integer
+        top_of_search_share:
+          type: string
+          nullable: true
+        spend:
+          $ref: '#/components/schemas/Money'
+        sales:
+          $ref: '#/components/schemas/Money'
+        clicks:
+          type: integer
+        ctr:
+          type: string
+          nullable: true
+        total_cost:
+          $ref: '#/components/schemas/Money'
+        orders:
+          type: integer
+        cpc:
+          allOf:
+          - $ref: '#/components/schemas/Money'
+          nullable: true
+        acos:
+          type: string
+          nullable: true
+        cvr:
           type: string
           nullable: true
       required:
-      - ad_product_type
-      - currency_code
-      - daily_budget
-      - external_campaign_id
-      - id
-      - name
-      - source_batch_id
-      - state
+      - acos
+      - clicks
+      - cpc
+      - ctr
+      - cvr
+      - impressions
+      - orders
+      - sales
+      - spend
+      - top_of_search_share
+      - total_cost
+    CampaignOverviewResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CampaignOverviewItem'
+        summary:
+          allOf:
+          - $ref: '#/components/schemas/CampaignOverviewMetrics'
+          nullable: true
+        dashboard:
+          $ref: '#/components/schemas/CampaignDashboard'
+        pagination:
+          $ref: '#/components/schemas/CampaignPagination'
+        meta:
+          $ref: '#/components/schemas/CampaignOverviewMeta'
+      required:
+      - dashboard
+      - items
+      - meta
+      - pagination
+      - summary
+    CampaignPagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total:
+          type: integer
+        total_pages:
+          type: integer
+      required:
+      - page
+      - page_size
+      - total
+      - total_pages
+    CampaignRiskLevel:
+      type: object
+      properties:
+        level:
+          type: string
+        count:
+          type: integer
+      required:
+      - count
+      - level
     CampaignTargetAcos:
       type: object
       properties:
@@ -2721,6 +3160,17 @@ components:
       - campaign_name
       - effective_target_acos
       - target_acos
+    CampaignTrendPoint:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        metrics:
+          $ref: '#/components/schemas/CampaignOverviewMetrics'
+      required:
+      - date
+      - metrics
     ContextCapabilities:
       type: object
       properties:
@@ -3219,6 +3669,16 @@ components:
       - isActive
       - membershipRole
       - userId
+    Money:
+      type: object
+      properties:
+        amount:
+          type: string
+        currency_code:
+          type: string
+      required:
+      - amount
+      - currency_code
     Notification:
       type: object
       properties:

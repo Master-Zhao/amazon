@@ -3,6 +3,7 @@
     [string]$Mode = "all",
     [switch]$Stop,
     [switch]$Status,
+    [switch]$NoBrowser,
     [switch]$Help
 )
 
@@ -10,6 +11,24 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = $PSScriptRoot
 $ComposeFile = Join-Path $ProjectRoot "compose.local.yml"
 $ComposeProject = "amazon-ads-local"
+$DockerFrontendUrl = "http://localhost:8080/advertising/overview"
+$HybridFrontendUrl = "http://localhost:5173/advertising/overview"
+
+function Open-FrontendPage {
+    param([Parameter(Mandatory = $true)][string]$Url)
+
+    if ($NoBrowser) {
+        Write-Host "[浏览器] 已按 -NoBrowser 跳过自动打开页面" -ForegroundColor DarkGray
+        return
+    }
+
+    try {
+        Write-Host "[浏览器] 正在打开广告总览: $Url" -ForegroundColor Cyan
+        Start-Process -FilePath $Url
+    } catch {
+        Write-Host "[警告] 无法自动打开浏览器，请手动访问: $Url" -ForegroundColor Yellow
+    }
+}
 
 function Show-Help {
     Write-Host @"
@@ -20,15 +39,17 @@ Amazon 广告智能优化系统 V1 - 启动脚本
   .\start.ps1 -Mode all    # 全容器模式（Docker 启动所有服务）
   .\start.ps1 -Mode docker # 同 all
   .\start.ps1 -Mode hybrid # 混合开发模式（Docker 仅 MySQL/Redis，本地运行 Django/Vue）
+  .\start.ps1 -NoBrowser   # 启动服务但不自动打开浏览器
   .\start.ps1 -Stop        # 停止所有服务
   .\start.ps1 -Status      # 查看服务状态
   .\start.ps1 -Help        # 显示帮助
 
 访问地址:
-  前端页面:    http://localhost:8080
+  广告总览:    http://localhost:8080/advertising/overview
+  账号工作台:  http://localhost:8080/
   后端 API:    http://localhost:8000
   API 文档:    http://localhost:8080/api/docs/
-  前端开发:    http://localhost:5173 (hybrid 模式)
+  前端开发:    http://localhost:5173/advertising/overview (hybrid 模式)
 "@
 }
 
@@ -87,11 +108,12 @@ function Start-AllDocker {
     docker compose -p $ComposeProject -f $ComposeFile up -d mysql redis
     Wait-For-Healthy -Services @("mysql", "redis")
 
-    Write-Host "[2/4] 执行数据库迁移..." -ForegroundColor Cyan
+    Write-Host "[2/4] 构建最新应用镜像并执行数据库迁移..." -ForegroundColor Cyan
+    docker compose -p $ComposeProject -f $ComposeFile build backend frontend
     docker compose -p $ComposeProject -f $ComposeFile --profile tools run --rm migrate
 
     Write-Host "[3/4] 启动后端、Celery、前端和 Nginx..." -ForegroundColor Cyan
-    docker compose -p $ComposeProject -f $ComposeFile up -d backend celery-worker celery-beat frontend nginx
+    docker compose -p $ComposeProject -f $ComposeFile up -d --force-recreate backend celery-worker celery-beat frontend nginx
     Wait-For-Healthy -Services @("backend", "frontend", "nginx") -TimeoutSeconds 180
 
     Write-Host "[4/4] 验证健康检查..." -ForegroundColor Cyan
@@ -102,13 +124,15 @@ function Start-AllDocker {
     Write-Host "========================================" -ForegroundColor Green
     Write-Host "  Amazon 广告智能优化系统 V1 已启动" -ForegroundColor Green
     Write-Host "========================================" -ForegroundColor Green
-    Write-Host "  前端页面:  http://localhost:8080" -ForegroundColor White
+    Write-Host "  广告总览:  $DockerFrontendUrl" -ForegroundColor White
+    Write-Host "  账号工作台: http://localhost:8080/" -ForegroundColor White
     Write-Host "  API 文档:  http://localhost:8080/api/docs/" -ForegroundColor White
     Write-Host "  健康检查:  live=$($live.code)  ready=$($ready.code)" -ForegroundColor White
     Write-Host "========================================" -ForegroundColor Green
     Write-Host ""
     Write-Host "停止服务: .\start.ps1 -Stop" -ForegroundColor DarkGray
     Write-Host "查看状态: .\start.ps1 -Status" -ForegroundColor DarkGray
+    Open-FrontendPage -Url $DockerFrontendUrl
 }
 
 function Start-Hybrid {
@@ -137,7 +161,8 @@ function Start-Hybrid {
     Write-Host "  混合开发模式已准备就绪" -ForegroundColor Green
     Write-Host "========================================" -ForegroundColor Green
     Write-Host "  后端:  http://localhost:8000" -ForegroundColor White
-    Write-Host "  前端:  http://localhost:5173" -ForegroundColor White
+    Write-Host "  广告总览:  $HybridFrontendUrl" -ForegroundColor White
+    Write-Host "  账号工作台: http://localhost:5173/" -ForegroundColor White
     Write-Host "========================================" -ForegroundColor Green
     Write-Host ""
 
@@ -152,6 +177,9 @@ function Start-Hybrid {
     Start-Process -FilePath "pnpm" -ArgumentList "--dir", "frontend", "dev" -WorkingDirectory $ProjectRoot -PassThru | ForEach-Object {
         Write-Host "  Vue PID: $($_.Id)" -ForegroundColor DarkGray
     }
+
+    Start-Sleep -Seconds 2
+    Open-FrontendPage -Url $HybridFrontendUrl
 
     Write-Host ""
     Write-Host "后端和前端已在后台启动，关闭此窗口不会停止服务" -ForegroundColor Yellow

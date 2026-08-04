@@ -2,6 +2,7 @@ import hashlib
 
 from django.db import transaction
 
+from apps.audit.services import append_audit_log
 from apps.advertising.models import (
     AdGroup,
     AdProductType,
@@ -11,6 +12,33 @@ from apps.advertising.models import (
     ProductTarget,
     SearchTerm,
 )
+from apps.permissions.models import ProfileAccessLevel
+from apps.permissions.services import require_profile_scope
+
+
+@transaction.atomic
+def record_campaign_export(
+    *, request, tenant_id, profile_id, row_count: int
+) -> None:
+    scope = require_profile_scope(
+        user=request.user,
+        tenant_id=tenant_id,
+        profile_id=profile_id,
+        permission_code="advertising.view",
+        minimum_level=ProfileAccessLevel.VIEW,
+    )
+    append_audit_log(
+        request=request,
+        tenant=scope.membership.tenant,
+        actor=request.user,
+        event="campaign.exported",
+        object_type="AdvertisingProfile",
+        object_id=scope.profile.pk,
+        metadata={
+            "row_count": row_count,
+            "source": "REMOTE_MYSQL",
+        },
+    )
 
 
 def _upsert_campaigns(*, batch, rows: list[dict[str, object]]) -> dict[str, Campaign]:
