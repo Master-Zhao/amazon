@@ -46,6 +46,34 @@ def test_deterministic_formulas_and_zero_denominator_reasons():
     }
 
 
+def test_campaign_design_two_day_example_sums_before_calculating_ratios():
+    daily_rows = (
+        {"impressions": 100, "clicks": 5, "spend": Decimal("10.00"), "orders": 1, "sales": Decimal("45.00")},
+        {"impressions": 200, "clicks": 10, "spend": Decimal("20.00"), "orders": 2, "sales": Decimal("90.00")},
+    )
+    totals = {
+        key: sum((row[key] for row in daily_rows), Decimal("0"))
+        if key in {"spend", "sales"}
+        else sum(int(row[key]) for row in daily_rows)
+        for key in daily_rows[0]
+    }
+
+    calculated = calculate_metrics(**totals)
+
+    assert totals == {
+        "impressions": 300,
+        "clicks": 15,
+        "spend": Decimal("30.00"),
+        "orders": 3,
+        "sales": Decimal("135.00"),
+    }
+    assert calculated["ctr"] == Decimal("0.05")
+    assert calculated["cpc"] == Decimal("2.00")
+    assert calculated["cvr"] == Decimal("0.20")
+    assert calculated["acos"].quantize(Decimal("0.0001")) == Decimal("0.2222")
+    assert calculated["roas"] == Decimal("4.50")
+
+
 def test_selector_formula_contract_returns_value_or_explicit_reason():
     formulas = metric_formulas(
         impressions=0,

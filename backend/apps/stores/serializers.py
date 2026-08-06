@@ -36,6 +36,7 @@ class ProfileOptionSerializer(serializers.Serializer):
     currencyCode = serializers.CharField()
     timezone = serializers.CharField()
     accessLevel = serializers.CharField()
+    remoteAdvertisingAvailable = serializers.BooleanField()
 
 
 class ContextCapabilitiesSerializer(serializers.Serializer):

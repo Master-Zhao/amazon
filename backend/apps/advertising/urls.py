@@ -1,6 +1,8 @@
 from django.urls import path
 
 from apps.advertising.views import (
+    CampaignDetailView,
+    CampaignEnabledUpdateView,
     CampaignExportView,
     CampaignListView,
     SearchTermListView,
@@ -12,6 +14,18 @@ urlpatterns = [
         "tenants/<str:tenant_id>/profiles/<str:profile_id>/campaigns/export",
         CampaignExportView.as_view(),
         name="advertising-campaign-export",
+    ),
+    path(
+        "tenants/<str:tenant_id>/profiles/<str:profile_id>/campaigns/"
+        "<str:campaign_key>/enabled",
+        CampaignEnabledUpdateView.as_view(),
+        name="advertising-campaign-enabled-update",
+    ),
+    path(
+        "tenants/<str:tenant_id>/profiles/<str:profile_id>/campaigns/"
+        "<str:campaign_key>",
+        CampaignDetailView.as_view(),
+        name="advertising-campaign-detail",
     ),
     path(
         "tenants/<str:tenant_id>/profiles/<str:profile_id>/campaigns",

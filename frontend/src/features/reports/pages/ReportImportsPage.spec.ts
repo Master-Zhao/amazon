@@ -65,6 +65,7 @@ describe('Campaign report imports page', () => {
           currencyCode: 'USD',
           timezone: 'America/Los_Angeles',
           accessLevel: 'MANAGE',
+          remoteAdvertisingAvailable: true,
         },
       ],
     })

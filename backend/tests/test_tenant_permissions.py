@@ -24,6 +24,7 @@ from apps.permissions.services import (
 )
 from apps.stores.models import (
     AdvertisingProfile,
+    AdvertisingProfileRemoteScope,
     AmazonStore,
     Marketplace,
     StoreMarketplace,
@@ -267,6 +268,28 @@ def test_context_api_returns_string_ids_and_camel_case():
     )
     assert profiles.json()["data"][0]["id"] == str(profile.pk)
     assert profiles.json()["data"][0]["accessLevel"] == "MANAGE"
+    assert profiles.json()["data"][0]["remoteAdvertisingAvailable"] is False
+
+
+def test_context_api_marks_profiles_with_remote_advertising_scope_available():
+    user, tenant, _, _, _, store_marketplace, profile = build_scope(
+        role=MembershipRole.OWNER
+    )
+    AdvertisingProfileRemoteScope.objects.create(
+        profile=profile,
+        external_merchant_id="122",
+        merchant_code="W0765",
+    )
+    client = APIClient()
+    client.force_authenticate(user)
+
+    profiles = client.get(
+        f"/api/v1/context/tenants/{tenant.pk}/store-marketplaces/"
+        f"{store_marketplace.pk}/profiles"
+    )
+
+    assert profiles.status_code == 200
+    assert profiles.json()["data"][0]["remoteAdvertisingAvailable"] is True
 
 
 def test_owner_can_manage_roles_and_grants_with_append_only_audit():

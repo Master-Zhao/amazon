@@ -3,8 +3,10 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import {
+  createCampaign,
   exportCampaignOverview,
   fetchCampaignOverview,
+  updateCampaignEnabled,
 } from '@/features/advertising/api/campaignApi'
 import type {
   CampaignListFilters,
@@ -43,9 +45,9 @@ const endDate = ref(queryText(route.query.endDate))
 const enabledMode = ref<'true' | 'false' | 'all'>(
   route.query.enabled === 'false'
     ? 'false'
-    : route.query.enabled === 'all'
-      ? 'all'
-      : 'true',
+    : route.query.enabled === 'true'
+      ? 'true'
+      : 'all',
 )
 const status = ref(queryText(route.query.status))
 const targetingType = ref<'' | 'AUTO' | 'MANUAL'>(
@@ -60,16 +62,61 @@ const result = ref<CampaignListResponse | null>(null)
 const loading = ref(false)
 const refreshing = ref(false)
 const filterOpen = ref(false)
+const dateOpen = ref(false)
+const dateCustomOpen = ref(false)
+const createOpen = ref(false)
+const metricFilters = ref(queryText(route.query.metricFilters))
+const filterEditor = ref<'status' | 'metric' | null>(null)
+const statusDraft = ref('')
+const metricDraftField = ref('impressions')
+const metricDraftOperator = ref<'gte' | 'lte' | 'eq' | 'between'>('gte')
+const metricDraftValue = ref('')
+const metricDraftValue2 = ref('')
 const dateError = ref('')
 const errorMessage = ref('')
 const errorStatus = ref<number | null>(null)
 const requestId = ref<string | null>(null)
 const exporting = ref(false)
+const creating = ref(false)
+const updatingCampaignKeys = ref<Set<string>>(new Set())
+const selectedCampaignKeys = ref<Set<string>>(new Set())
+const createDraft = ref({
+  name: '',
+  targetingType: 'MANUAL' as 'AUTO' | 'MANUAL',
+  dailyBudget: '10.00',
+  biddingStrategy: 'down_only' as 'up_and_down' | 'down_only' | 'fixed_bids',
+  startDate: '',
+  endDate: '',
+  enabled: true,
+})
 let requestSequence = 0
 let activeController: AbortController | null = null
 let searchTimer: number | null = null
 
+const metricMenuItems = [
+  { field: 'impressions', label: '展示量' },
+  { field: 'clicks', label: '点击量' },
+  { field: 'spend', label: '花费' },
+  { field: 'orders', label: '购买量' },
+  { field: 'cpc', label: '单次点击成本' },
+  { field: 'acos', label: '广告销售成本比' },
+  { field: 'ctr', label: '点击率' },
+  { field: 'cvr', label: '转化率' },
+] as const
+
+interface MetricFilterRule {
+  field: string
+  operator: 'gte' | 'lte' | 'eq' | 'between'
+  value: string
+  value2?: string
+}
+
 const rows = computed(() => result.value?.items ?? [])
+const selectedCount = computed(() => selectedCampaignKeys.value.size)
+const allVisibleSelected = computed(() =>
+  rows.value.length > 0 &&
+  rows.value.every((item) => selectedCampaignKeys.value.has(item.campaignKey)),
+)
 const summary = computed(() => result.value?.summary ?? null)
 const pagination = computed(() => result.value?.pagination ?? {
   page: page.value,
@@ -89,13 +136,13 @@ const activeChips = computed(() => {
   if (appliedSearch.value) {
     chips.push({ key: 'search', label: `搜索：${appliedSearch.value}` })
   }
-  if (enabledMode.value === 'false') {
-    chips.push({ key: 'enabled', label: '启用状态：未启用' })
-  } else if (enabledMode.value === 'all') {
-    chips.push({ key: 'enabled', label: '启用状态：全部' })
-  }
   if (status.value) {
-    chips.push({ key: 'status', label: `状态：${remoteStatusLabel(status.value)}` })
+    chips.push({ key: 'status', label: status.value === 'enabled' ? '进行中' : `状态：${remoteStatusLabel(status.value)}` })
+  }
+  if (enabledMode.value === 'true') {
+    chips.push({ key: 'enabled', label: '已启用' })
+  } else if (enabledMode.value === 'false') {
+    chips.push({ key: 'enabled', label: '启用状态：未启用' })
   }
   if (targetingType.value) {
     chips.push({
@@ -106,6 +153,12 @@ const activeChips = computed(() => {
   if (startDate.value && endDate.value) {
     chips.push({ key: 'date', label: `日期：${startDate.value} — ${endDate.value}` })
   }
+  decodeMetricFilters(metricFilters.value).forEach((rule) => {
+    chips.push({
+      key: `metric:${rule.field}`,
+      label: metricFilterChipLabel(encodeMetricFilter(rule)),
+    })
+  })
   return chips
 })
 
@@ -120,6 +173,7 @@ function filters(): CampaignListFilters {
     ...(status.value ? { status: status.value } : {}),
     ...(targetingType.value ? { targetingType: targetingType.value } : {}),
     ...(appliedSearch.value ? { search: appliedSearch.value } : {}),
+    ...(metricFilters.value ? { metricFilters: metricFilters.value } : {}),
     ordering: ordering.value,
     page: page.value,
     pageSize: pageSize.value,
@@ -137,6 +191,7 @@ async function syncUrl(): Promise<void> {
       ...(status.value ? { status: status.value } : {}),
       ...(targetingType.value ? { targetingType: targetingType.value } : {}),
       ...(appliedSearch.value ? { search: appliedSearch.value } : {}),
+      ...(metricFilters.value ? { metricFilters: metricFilters.value } : {}),
       ordering: ordering.value,
       page: String(page.value),
       pageSize: String(pageSize.value),
@@ -165,12 +220,16 @@ async function load(): Promise<void> {
       activeController.signal,
     )
     if (currentRequest !== requestSequence) return
+    if (shouldRelaxMetriclessStatusFilters(response)) {
+      enabledMode.value = 'all'
+      status.value = ''
+      page.value = 1
+      await syncUrl()
+      await load()
+      return
+    }
     result.value = response
     emit('loaded', response)
-    if (!startDate.value && !endDate.value) {
-      startDate.value = response.meta.startDate ?? ''
-      endDate.value = response.meta.endDate ?? ''
-    }
     if (page.value > response.pagination.totalPages && response.pagination.totalPages > 0) {
       page.value = response.pagination.totalPages
       await syncUrl()
@@ -189,6 +248,14 @@ async function load(): Promise<void> {
       refreshing.value = false
     }
   }
+}
+
+function shouldRelaxMetriclessStatusFilters(response: CampaignListResponse): boolean {
+  return (
+    response.items.length > 0 &&
+    response.items.every((item) => !item.hasMetrics) &&
+    (enabledMode.value !== 'all' || Boolean(status.value))
+  )
 }
 
 async function applyFilters(): Promise<void> {
@@ -214,17 +281,12 @@ function scheduleSearch(): void {
   }, 300)
 }
 
-function onStatusChange(): void {
-  if (status.value && status.value !== 'enabled') enabledMode.value = 'all'
-  void applyFilters()
-}
-
 function removeChip(key: string): void {
   if (key === 'search') {
     search.value = ''
     appliedSearch.value = ''
   } else if (key === 'enabled') {
-    enabledMode.value = 'true'
+    enabledMode.value = 'all'
   } else if (key === 'status') {
     status.value = ''
   } else if (key === 'targetingType') {
@@ -232,6 +294,12 @@ function removeChip(key: string): void {
   } else if (key === 'date') {
     startDate.value = ''
     endDate.value = ''
+  } else if (key.startsWith('metric:')) {
+    const field = key.slice('metric:'.length)
+    metricFilters.value = decodeMetricFilters(metricFilters.value)
+      .filter((rule) => rule.field !== field)
+      .map(encodeMetricFilter)
+      .join(';')
   }
   void applyFilters()
 }
@@ -239,11 +307,12 @@ function removeChip(key: string): void {
 function clearChips(): void {
   search.value = ''
   appliedSearch.value = ''
-  enabledMode.value = 'true'
+  enabledMode.value = 'all'
   status.value = ''
   targetingType.value = ''
   startDate.value = ''
   endDate.value = ''
+  metricFilters.value = ''
   void applyFilters()
 }
 
@@ -293,8 +362,160 @@ async function exportCampaigns(): Promise<void> {
   }
 }
 
-function number(value: number): string {
-  return new Intl.NumberFormat('zh-CN').format(value)
+function openCreateCampaign(): void {
+  createDraft.value = {
+    name: '',
+    targetingType: 'MANUAL',
+    dailyBudget: '10.00',
+    biddingStrategy: 'down_only',
+    startDate: result.value?.meta.dataThroughDate || isoDate(new Date()),
+    endDate: '',
+    enabled: true,
+  }
+  errorMessage.value = ''
+  errorStatus.value = null
+  requestId.value = null
+  createOpen.value = true
+}
+
+function closeCreateCampaign(): void {
+  if (!creating.value) createOpen.value = false
+}
+
+async function submitCreateCampaign(): Promise<void> {
+  if (!context.tenantId || !context.profileId || creating.value) return
+  if (!createDraft.value.name.trim()) {
+    errorMessage.value = '请输入广告活动名称'
+    return
+  }
+  if (!createDraft.value.startDate) {
+    errorMessage.value = '请选择开始日期'
+    return
+  }
+  if (createDraft.value.endDate && createDraft.value.startDate > createDraft.value.endDate) {
+    errorMessage.value = '结束日期不能早于开始日期'
+    return
+  }
+  creating.value = true
+  errorMessage.value = ''
+  errorStatus.value = null
+  requestId.value = null
+  try {
+    const parsedBudget = Number(createDraft.value.dailyBudget)
+    await createCampaign(
+      context.tenantId,
+      context.profileId,
+      {
+        name: createDraft.value.name.trim(),
+        targetingType: createDraft.value.targetingType,
+        dailyBudget: Number.isFinite(parsedBudget)
+          ? parsedBudget.toFixed(2)
+          : String(createDraft.value.dailyBudget),
+        biddingStrategy: createDraft.value.biddingStrategy,
+        startDate: createDraft.value.startDate,
+        ...(createDraft.value.endDate ? { endDate: createDraft.value.endDate } : {}),
+        enabled: createDraft.value.enabled,
+      },
+    )
+    createOpen.value = false
+    page.value = 1
+    await syncUrl()
+    await load()
+  } catch (error) {
+    const normalized = normalizeApiError(error)
+    errorMessage.value = normalized.message
+    errorStatus.value = normalized.status
+    requestId.value = normalized.requestId
+  } finally {
+    creating.value = false
+  }
+}
+
+function currentDateWindow(): Pick<CampaignListFilters, 'startDate' | 'endDate'> {
+  const start = startDate.value || result.value?.meta.startDate || undefined
+  const end = endDate.value || result.value?.meta.endDate || undefined
+  return start && end ? { startDate: start, endDate: end } : {}
+}
+
+function isCampaignUpdating(campaignKey: string): boolean {
+  return updatingCampaignKeys.value.has(campaignKey)
+}
+
+function replaceCampaignItem(campaignKey: string, item: CampaignOverviewItem): void {
+  if (!result.value) return
+  result.value = {
+    ...result.value,
+    items: result.value.items.map((current) =>
+      current.campaignKey === campaignKey ? item : current,
+    ),
+  }
+}
+
+function optimisticEnabledItem(
+  item: CampaignOverviewItem,
+  enabled: boolean,
+): CampaignOverviewItem {
+  return {
+    ...item,
+    enabled,
+    status: enabled ? 'DELIVERING' : 'PAUSED',
+  }
+}
+
+async function toggleCampaignEnabled(item: CampaignOverviewItem): Promise<void> {
+  if (!context.tenantId || !context.profileId) return
+  if (isCampaignUpdating(item.campaignKey)) return
+  const nextEnabled = !item.enabled
+  const previousItem = item
+  replaceCampaignItem(item.campaignKey, optimisticEnabledItem(item, nextEnabled))
+  updatingCampaignKeys.value = new Set([
+    ...updatingCampaignKeys.value,
+    item.campaignKey,
+  ])
+  errorMessage.value = ''
+  errorStatus.value = null
+  requestId.value = null
+  try {
+    const response = await updateCampaignEnabled(
+      context.tenantId,
+      context.profileId,
+      item.campaignKey,
+      nextEnabled,
+      currentDateWindow(),
+    )
+    replaceCampaignItem(item.campaignKey, response.item)
+    void load()
+  } catch (error) {
+    replaceCampaignItem(item.campaignKey, previousItem)
+    const normalized = normalizeApiError(error)
+    errorMessage.value = normalized.message
+    errorStatus.value = normalized.status
+    requestId.value = normalized.requestId
+  } finally {
+    const next = new Set(updatingCampaignKeys.value)
+    next.delete(item.campaignKey)
+    updatingCampaignKeys.value = next
+  }
+}
+
+function toggleRowSelection(campaignKey: string, checked: boolean): void {
+  const next = new Set(selectedCampaignKeys.value)
+  if (checked) next.add(campaignKey)
+  else next.delete(campaignKey)
+  selectedCampaignKeys.value = next
+}
+
+function toggleVisibleSelection(checked: boolean): void {
+  const next = new Set(selectedCampaignKeys.value)
+  for (const item of rows.value) {
+    if (checked) next.add(item.campaignKey)
+    else next.delete(item.campaignKey)
+  }
+  selectedCampaignKeys.value = next
+}
+
+function number(value: number | null): string {
+  return value === null ? '—' : new Intl.NumberFormat('zh-CN').format(value)
 }
 
 function money(value: MoneyValue | null): string {
@@ -347,6 +568,9 @@ function biddingLabel(value: string): string {
   const normalized = value.toUpperCase()
   return {
     FIXED_BIDS: '固定竞价',
+    FIXED: '固定竞价',
+    DOWN_ONLY: '动态竞价 - 只降低',
+    UP_AND_DOWN: '动态竞价 - 提高和降低',
     DYNAMIC_BIDS_DOWN_ONLY: '动态竞价 - 只降低',
     DYNAMIC_BIDS_UP_AND_DOWN: '动态竞价 - 提高和降低',
     LEGACY_FOR_SALES: '动态竞价',
@@ -362,12 +586,127 @@ function summaryCell(metric: CampaignMetrics | null, key: keyof CampaignMetrics)
   if (!metric) return '—'
   const value = metric[key]
   if (key === 'impressions' || key === 'clicks' || key === 'orders') {
-    return number(value as number)
+    return number(value as number | null)
   }
   if (key === 'spend' || key === 'totalCost' || key === 'cpc') {
     return money(value as MoneyValue | null)
   }
   return percent(value as string | null)
+}
+
+function metricLabel(field: string): string {
+  return metricMenuItems.find((item) => item.field === field)?.label ?? field
+}
+
+function decodeMetricFilters(value: string): MetricFilterRule[] {
+  if (!value) return []
+  return value.split(';').flatMap((encoded) => {
+    const [field, operator, first, second] = encoded.split(':')
+    if (!field || !['gte', 'lte', 'eq', 'between'].includes(operator) || !first) return []
+    return [{
+      field,
+      operator: operator as MetricFilterRule['operator'],
+      value: first,
+      ...(second ? { value2: second } : {}),
+    }]
+  })
+}
+
+function encodeMetricFilter(rule: MetricFilterRule): string {
+  return [rule.field, rule.operator, rule.value, rule.value2].filter(Boolean).join(':')
+}
+
+function isRatioMetric(field: string): boolean {
+  return ['acos', 'ctr', 'cvr'].includes(field)
+}
+
+function metricFilterDisplayValue(field: string, value: string): string {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return value
+  if (isRatioMetric(field)) return `${(numeric * 100).toFixed(2)}%`
+  return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 4 }).format(numeric)
+}
+
+function metricFilterChipLabel(value: string): string {
+  const [field, operator, first, second] = value.split(':')
+  const operatorLabel = { gte: '≥', lte: '≤', eq: '=', between: '介于' }[operator] ?? operator
+  const firstLabel = metricFilterDisplayValue(field, first)
+  const secondLabel = second ? metricFilterDisplayValue(field, second) : ''
+  return `${metricLabel(field)} ${operatorLabel} ${firstLabel}${secondLabel ? ` — ${secondLabel}` : ''}`
+}
+
+function openStatusFilter(): void {
+  statusDraft.value = status.value
+  filterOpen.value = false
+  filterEditor.value = 'status'
+}
+
+function openMetricFilter(field: string): void {
+  const existing = decodeMetricFilters(metricFilters.value).find((rule) => rule.field === field)
+  metricDraftField.value = field
+  metricDraftOperator.value = existing?.operator ?? 'gte'
+  metricDraftValue.value = existing?.value ?? ''
+  metricDraftValue2.value = existing?.value2 ?? ''
+  filterOpen.value = false
+  filterEditor.value = 'metric'
+}
+
+function closeFilterDialog(): void {
+  filterEditor.value = null
+}
+
+function applyStatusFilter(): void {
+  status.value = statusDraft.value
+  if (status.value && status.value !== 'enabled') enabledMode.value = 'all'
+  if (status.value === 'enabled') enabledMode.value = 'true'
+  if (!status.value) enabledMode.value = 'all'
+  closeFilterDialog()
+  void applyFilters()
+}
+
+function applyMetricFilter(): void {
+  if (!metricDraftValue.value) return
+  const nextRule: MetricFilterRule = {
+    field: metricDraftField.value,
+    operator: metricDraftOperator.value,
+    value: metricDraftValue.value,
+    ...(metricDraftOperator.value === 'between' && metricDraftValue2.value
+      ? { value2: metricDraftValue2.value }
+      : {}),
+  }
+  const existing = decodeMetricFilters(metricFilters.value)
+    .filter((rule) => rule.field !== metricDraftField.value)
+  metricFilters.value = [...existing, nextRule].map(encodeMetricFilter).join(';')
+  closeFilterDialog()
+  void applyFilters()
+}
+
+function toggleFilterMenu(): void {
+  filterOpen.value = !filterOpen.value
+  if (filterOpen.value) filterEditor.value = null
+}
+
+function handleKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && filterEditor.value) closeFilterDialog()
+}
+
+function isoDate(value: Date): string {
+  return value.toISOString().slice(0, 10)
+}
+
+function setDatePreset(days: number): void {
+  const end = new Date(`${result.value?.meta.dataThroughDate ?? isoDate(new Date())}T00:00:00`)
+  const start = new Date(end)
+  start.setDate(end.getDate() - days + 1)
+  startDate.value = isoDate(start)
+  endDate.value = isoDate(end)
+  dateOpen.value = false
+  dateCustomOpen.value = false
+  void applyFilters()
+}
+
+function showCustomDate(): void {
+  dateCustomOpen.value = true
 }
 
 watch(
@@ -389,11 +728,13 @@ watch(
 )
 
 onMounted(async () => {
+  window.addEventListener('keydown', handleKeydown)
   if (context.status === 'idle') await context.initialize()
   await load()
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeydown)
   activeController?.abort()
   if (searchTimer !== null) window.clearTimeout(searchTimer)
 })
@@ -408,13 +749,17 @@ onBeforeUnmount(() => {
       </span>
       <button class="campaign-clear-filters" type="button" @click="clearChips">删除所有</button>
     </div>
+    <div v-if="selectedCount" class="campaign-selection-bar" role="status">
+      已选择 {{ selectedCount }} 个广告活动
+      <button type="button" @click="selectedCampaignKeys = new Set()">取消选择</button>
+    </div>
 
     <div class="campaign-toolbar">
       <div class="campaign-toolbar-left">
         <button class="campaign-title-button" type="button" aria-label="广告活动视图">
           广告活动 <span aria-hidden="true">⌄</span>
         </button>
-        <button class="campaign-create-button" type="button" disabled title="当前为只读远程数据">
+        <button class="campaign-create-button" type="button" @click="openCreateCampaign">
           ＋ 创建广告活动
         </button>
         <label class="campaign-search">
@@ -429,18 +774,40 @@ onBeforeUnmount(() => {
           >
         </label>
         <button
-          class="campaign-ghost-button"
+          class="campaign-filter-trigger"
           :class="{ active: filterOpen }"
           type="button"
           aria-controls="campaign-filter-panel"
           :aria-expanded="filterOpen"
-          @click="filterOpen = !filterOpen"
+          @click="toggleFilterMenu"
         >
-          筛选
+          <span aria-hidden="true">⊟</span>
+          <span class="sr-only">筛选广告活动</span>
         </button>
+        <div v-if="filterOpen" id="campaign-filter-panel" class="campaign-filter-menu" role="menu">
+          <button type="button" role="menuitem" @click="openStatusFilter">状态 <span>›</span></button>
+          <button v-for="item in metricMenuItems" :key="item.field" type="button" role="menuitem" @click="openMetricFilter(item.field)">
+            {{ item.label }} <span>›</span>
+          </button>
+        </div>
       </div>
       <div class="campaign-toolbar-right">
-        <span class="campaign-date-label">{{ dateLabel }}</span>
+        <div class="campaign-date-control">
+          <button class="campaign-date-label" type="button" :aria-expanded="dateOpen" @click="dateOpen = !dateOpen">
+            <span aria-hidden="true">▦</span> {{ dateLabel }} <span aria-hidden="true">⌄</span>
+          </button>
+          <div v-if="dateOpen" class="campaign-date-menu">
+            <button type="button" @click="setDatePreset(7)">最近 7 天</button>
+            <button type="button" @click="setDatePreset(14)">最近 14 天</button>
+            <button type="button" @click="setDatePreset(30)">最近 30 天</button>
+            <button type="button" @click="showCustomDate">自定义日期</button>
+            <div v-if="dateCustomOpen" class="campaign-date-custom">
+              <label>开始日期<input v-model="startDate" type="date"></label>
+              <label>结束日期<input v-model="endDate" type="date"></label>
+              <button type="button" @click="dateOpen = false; applyFilters()">应用</button>
+            </div>
+          </div>
+        </div>
         <button
           class="campaign-ghost-button"
           type="button"
@@ -452,46 +819,147 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div v-if="filterOpen" id="campaign-filter-panel" class="campaign-filter-panel">
-      <label>
-        启用状态
-        <select v-model="enabledMode" @change="applyFilters">
-          <option value="true">已启用</option>
-          <option value="false">未启用</option>
-          <option value="all">全部</option>
-        </select>
-      </label>
-      <label>
-        状态
-        <select v-model="status" @change="onStatusChange">
-          <option value="">全部状态</option>
-          <option value="enabled">正在投放</option>
-          <option value="paused">已暂停</option>
-          <option value="archived">已归档</option>
-          <option value="ended">已结束</option>
-          <option value="applying">审核中</option>
-          <option value="refuse">已拒绝</option>
-          <option value="nothing">未知/未开始</option>
-        </select>
-      </label>
-      <label>
-        投放类型
-        <select v-model="targetingType" @change="applyFilters">
-          <option value="">全部类型</option>
-          <option value="AUTO">自动投放</option>
-          <option value="MANUAL">手动投放</option>
-        </select>
-      </label>
-      <label>
-        开始日期
-        <input v-model="startDate" type="date" @change="applyFilters">
-      </label>
-      <label>
-        结束日期
-        <input v-model="endDate" type="date" @change="applyFilters">
-      </label>
-      <p v-if="dateError" class="campaign-date-error" role="alert">{{ dateError }}</p>
+    <div
+      v-if="filterEditor"
+      class="campaign-filter-backdrop"
+      @click.self="closeFilterDialog"
+    >
+      <section
+        class="campaign-filter-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="campaign-filter-dialog-title"
+      >
+        <header>
+          <h2 id="campaign-filter-dialog-title">
+            {{ filterEditor === 'status' ? '状态' : metricLabel(metricDraftField) }} — 筛选条件
+          </h2>
+          <button type="button" aria-label="关闭筛选条件" @click="closeFilterDialog">×</button>
+        </header>
+
+        <div class="campaign-filter-dialog-body">
+          <template v-if="filterEditor === 'status'">
+            <label>
+              <span>状态</span>
+              <select v-model="statusDraft" aria-label="状态筛选">
+                <option value="">全部状态</option>
+                <option value="enabled">正在投放</option>
+                <option value="paused">已暂停</option>
+                <option value="archived">已归档</option>
+                <option value="ended">已结束</option>
+                <option value="applying">审核中</option>
+                <option value="refuse">已拒绝</option>
+                <option value="nothing">未知/未开始</option>
+              </select>
+            </label>
+          </template>
+          <template v-else>
+            <label>
+              <span>条件</span>
+              <select v-model="metricDraftOperator" aria-label="筛选条件">
+                <option value="gte">大于等于 (&gt;=)</option>
+                <option value="lte">小于等于 (&lt;=)</option>
+                <option value="eq">等于 (=)</option>
+                <option value="between">介于</option>
+              </select>
+            </label>
+            <label>
+              <span>值</span>
+              <input v-model="metricDraftValue" type="number" step="any" placeholder="请输入数值" aria-label="筛选数值">
+            </label>
+            <label v-if="metricDraftOperator === 'between'">
+              <span>结束值</span>
+              <input v-model="metricDraftValue2" type="number" step="any" placeholder="请输入结束数值" aria-label="筛选结束数值">
+            </label>
+            <p v-if="isRatioMetric(metricDraftField)" class="campaign-filter-hint">
+              比例按小数输入，例如 25% 输入 0.25；服务端会在汇总后按公式重新计算。
+            </p>
+          </template>
+        </div>
+
+        <footer>
+          <button class="campaign-dialog-cancel" type="button" @click="closeFilterDialog">取消</button>
+          <button
+            class="campaign-dialog-confirm"
+            type="button"
+            :disabled="filterEditor === 'metric' && (!metricDraftValue || (metricDraftOperator === 'between' && !metricDraftValue2))"
+            @click="filterEditor === 'status' ? applyStatusFilter() : applyMetricFilter()"
+          >
+            确定
+          </button>
+        </footer>
+      </section>
     </div>
+
+    <div
+      v-if="createOpen"
+      class="campaign-filter-backdrop"
+      @click.self="closeCreateCampaign"
+    >
+      <section
+        class="campaign-filter-dialog campaign-create-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="campaign-create-dialog-title"
+      >
+        <header>
+          <h2 id="campaign-create-dialog-title">创建广告活动</h2>
+          <button type="button" aria-label="关闭创建广告活动" @click="closeCreateCampaign">×</button>
+        </header>
+
+        <div class="campaign-filter-dialog-body campaign-create-body">
+          <label>
+            <span>广告活动名称</span>
+            <input v-model="createDraft.name" type="text" maxlength="255" aria-label="广告活动名称">
+          </label>
+          <label>
+            <span>投放类型</span>
+            <select v-model="createDraft.targetingType" aria-label="投放类型">
+              <option value="MANUAL">手动投放</option>
+              <option value="AUTO">自动投放</option>
+            </select>
+          </label>
+          <label>
+            <span>每日预算</span>
+            <input v-model="createDraft.dailyBudget" type="number" min="0.01" step="0.01" aria-label="每日预算">
+          </label>
+          <label>
+            <span>竞价策略</span>
+            <select v-model="createDraft.biddingStrategy" aria-label="竞价策略">
+              <option value="down_only">动态竞价 - 只降低</option>
+              <option value="up_and_down">动态竞价 - 提高和降低</option>
+              <option value="fixed_bids">固定竞价</option>
+            </select>
+          </label>
+          <label>
+            <span>开始日期</span>
+            <input v-model="createDraft.startDate" type="date" aria-label="创建开始日期">
+          </label>
+          <label>
+            <span>结束日期</span>
+            <input v-model="createDraft.endDate" type="date" aria-label="创建结束日期">
+          </label>
+          <label class="campaign-create-toggle">
+            <input v-model="createDraft.enabled" type="checkbox">
+            <span>创建后启用</span>
+          </label>
+        </div>
+
+        <footer>
+          <button class="campaign-dialog-cancel" type="button" :disabled="creating" @click="closeCreateCampaign">取消</button>
+          <button
+            class="campaign-dialog-confirm"
+            type="button"
+            :disabled="creating || !createDraft.name.trim() || !createDraft.startDate || Number(createDraft.dailyBudget) <= 0"
+            @click="submitCreateCampaign"
+          >
+            {{ creating ? '创建中…' : '创建' }}
+          </button>
+        </footer>
+      </section>
+    </div>
+
+    <p v-if="dateError" class="campaign-date-error" role="alert">{{ dateError }}</p>
 
     <div v-if="!context.isComplete" class="campaign-state campaign-context-state">
       <strong>请先选择广告数据范围</strong>
@@ -503,7 +971,14 @@ onBeforeUnmount(() => {
       <div v-if="refreshing" class="campaign-refresh-mask" role="status">正在刷新…</div>
       <div class="campaign-table" role="table" aria-label="广告活动表现">
         <div class="campaign-grid campaign-header" role="row">
-          <div role="columnheader"><input type="checkbox" disabled aria-label="选择全部广告活动"></div>
+          <div role="columnheader">
+            <input
+              type="checkbox"
+              aria-label="选择全部广告活动"
+              :checked="allVisibleSelected"
+              @change="toggleVisibleSelection(($event.target as HTMLInputElement).checked)"
+            >
+          </div>
           <div role="columnheader">启用</div>
           <button role="columnheader" type="button" @click="setOrdering('name')">广告活动名称 {{ sortIndicator('name') }}</button>
           <button role="columnheader" type="button" @click="setOrdering('targetingType')">投放类型 {{ sortIndicator('targetingType') }}</button>
@@ -543,12 +1018,43 @@ onBeforeUnmount(() => {
 
         <template v-else>
           <div v-for="item in rows" :key="item.campaignKey" class="campaign-grid campaign-row" role="row">
-            <div role="cell"><input type="checkbox" disabled :aria-label="`选择 ${item.name}`"></div>
             <div role="cell">
-              <span class="campaign-switch" :class="{ on: item.enabled }" role="switch" :aria-checked="item.enabled" aria-readonly="true"><i /></span>
+              <input
+                type="checkbox"
+                :checked="selectedCampaignKeys.has(item.campaignKey)"
+                :aria-label="`选择 ${item.name}`"
+                @change="toggleRowSelection(item.campaignKey, ($event.target as HTMLInputElement).checked)"
+              >
+            </div>
+            <div role="cell">
+              <button
+                class="campaign-switch"
+                :class="{ on: item.enabled, updating: isCampaignUpdating(item.campaignKey) }"
+                type="button"
+                role="switch"
+                :aria-checked="item.enabled"
+                :aria-disabled="isCampaignUpdating(item.campaignKey)"
+                :title="item.enabled ? '暂停广告活动' : '启用广告活动'"
+                :aria-label="`${item.name}：${item.enabled ? '暂停' : '启用'}`"
+                @pointerdown.prevent="toggleCampaignEnabled(item)"
+                @click="toggleCampaignEnabled(item)"
+              >
+                <i />
+              </button>
             </div>
             <div class="campaign-name-cell" role="cell">
-              <span><b aria-hidden="true">›</b>{{ item.name || '—' }}</span>
+              <RouterLink
+                :to="{
+                  name: 'advertising-campaign-detail',
+                  params: { campaignKey: item.campaignKey },
+                  query: {
+                    startDate: startDate || result?.meta.startDate,
+                    endDate: endDate || result?.meta.endDate,
+                  },
+                }"
+              >
+                <b aria-hidden="true">⌄</b>{{ item.name || '—' }}
+              </RouterLink>
               <small>{{ item.referenceCode || '—' }}</small>
             </div>
             <div role="cell">{{ targetingTypeLabel(item.targetingType) }}</div>
@@ -629,6 +1135,7 @@ onBeforeUnmount(() => {
 .campaign-toolbar-left,
 .campaign-toolbar-right,
 .campaign-filter-chips,
+.campaign-selection-bar,
 .campaign-filter-panel,
 .campaign-pagination {
   display: flex;
@@ -648,9 +1155,14 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
+.campaign-toolbar-left {
+  position: relative;
+}
+
 .campaign-title-button,
 .campaign-create-button,
 .campaign-ghost-button,
+.campaign-filter-trigger,
 .campaign-clear-filters,
 .campaign-pagination button,
 .campaign-error-state button {
@@ -690,6 +1202,61 @@ onBeforeUnmount(() => {
   background: #f4f5f6;
 }
 
+.campaign-filter-trigger {
+  width: 32px;
+  padding: 0;
+  border-color: #14233c;
+  color: #18365f;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.campaign-filter-trigger.active {
+  color: #fff;
+  background: #17345c;
+}
+
+.campaign-filter-menu,
+.campaign-date-menu {
+  position: absolute;
+  z-index: 12;
+  border: 1px solid #dfe3eb;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(22, 34, 56, 0.18);
+}
+
+.campaign-filter-menu {
+  top: 38px;
+  left: 251px;
+  width: 178px;
+  padding: 7px 0;
+}
+
+.campaign-filter-menu button {
+  width: 100%;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  padding: 0 17px;
+  color: #0d203d;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.campaign-filter-menu button:hover {
+  background: #f4f7fc;
+}
+
+.campaign-filter-menu button span {
+  color: #7390be;
+}
+
 .campaign-search {
   display: flex;
   width: 184px;
@@ -725,7 +1292,69 @@ onBeforeUnmount(() => {
   border-radius: 3px;
   padding: 0 10px;
   color: #4e555c;
+  background: #fff;
   white-space: nowrap;
+  font: inherit;
+  cursor: pointer;
+}
+
+.campaign-toolbar .campaign-date-label {
+  color: #17345c;
+  background: #fff;
+}
+
+.campaign-date-control {
+  position: relative;
+}
+
+.campaign-date-menu {
+  top: 38px;
+  right: 0;
+  width: 238px;
+  padding: 7px;
+}
+
+.campaign-date-menu > button {
+  width: 100%;
+  height: 34px;
+  border: 0;
+  border-radius: 3px;
+  padding: 0 10px;
+  color: #172945;
+  background: #fff;
+  font: inherit;
+  text-align: left;
+}
+
+.campaign-date-menu > button:hover {
+  background: #f3f6fb;
+}
+
+.campaign-date-custom {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid #e6eaf0;
+}
+
+.campaign-date-custom label {
+  display: grid;
+  gap: 4px;
+  color: #637089;
+}
+
+.campaign-date-custom input,
+.campaign-date-custom button {
+  height: 31px;
+  border: 1px solid #cbd3df;
+  border-radius: 3px;
+  padding: 0 7px;
+  font: inherit;
+}
+
+.campaign-date-custom button {
+  color: #fff;
+  background: #17345c;
 }
 
 .campaign-filter-chips {
@@ -737,16 +1366,156 @@ onBeforeUnmount(() => {
   background: #fafbfb;
 }
 
+.campaign-selection-bar {
+  min-height: 34px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 12px;
+  border-bottom: 1px solid #d5eadf;
+  color: #1f5137;
+  background: #f0faf5;
+  font-weight: 600;
+}
+
+.campaign-selection-bar button {
+  border: 1px solid #9dc9b2;
+  border-radius: 3px;
+  padding: 4px 8px;
+  color: #1f5137;
+  background: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.campaign-filter-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(20, 28, 43, 0.44);
+}
+
+.campaign-filter-dialog {
+  width: min(630px, calc(100vw - 48px));
+  overflow: hidden;
+  border-radius: 16px;
+  color: #111a2e;
+  background: #fff;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
+  font-size: 16px;
+}
+
+.campaign-filter-dialog header {
+  min-height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px 0 36px;
+  border-bottom: 1px solid #d9dee7;
+}
+
+.campaign-filter-dialog h2 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.25;
+}
+
+.campaign-filter-dialog header button {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  color: #91a0b7;
+  background: transparent;
+  font: inherit;
+  font-size: 42px;
+  font-weight: 200;
+  line-height: 38px;
+  cursor: pointer;
+}
+
+.campaign-filter-dialog-body {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+}
+
+.campaign-filter-dialog-body label {
+  display: grid;
+  gap: 8px;
+  color: #536078;
+}
+
+.campaign-filter-dialog-body select,
+.campaign-filter-dialog-body input {
+  width: 100%;
+  height: 50px;
+  border: 1px solid #d4dae4;
+  border-radius: 9px;
+  padding: 0 16px;
+  color: #111827;
+  background: #fff;
+  font: inherit;
+}
+
+.campaign-filter-dialog-body select:focus,
+.campaign-filter-dialog-body input:focus {
+  border-color: #496c9d;
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(48, 86, 139, 0.12);
+}
+
+.campaign-filter-hint {
+  margin: -4px 0 0;
+  color: #6b7587;
+  font-size: 13px;
+}
+
+.campaign-filter-dialog footer {
+  min-height: 82px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 0 36px;
+  border-top: 1px solid #d9dee7;
+}
+
+.campaign-filter-dialog footer button {
+  min-width: 86px;
+  height: 48px;
+  border: 1px solid #d5dae3;
+  border-radius: 9px;
+  padding: 0 20px;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.campaign-filter-dialog footer .campaign-dialog-confirm {
+  border-color: #111a2e;
+  color: #fff;
+  background: #111a2e;
+}
+
+.campaign-filter-dialog footer .campaign-dialog-confirm:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .campaign-chip {
   display: inline-flex;
   min-height: 26px;
   align-items: center;
   gap: 6px;
   border: 1px solid #cfd5d1;
-  border-radius: 14px;
-  padding: 2px 5px 2px 10px;
-  color: #38453f;
-  background: #fff;
+  border-radius: 3px;
+  padding: 2px 4px 2px 9px;
+  border-color: #b9d1f5;
+  color: #1260d7;
+  background: #e7f1ff;
 }
 
 .campaign-chip button {
@@ -799,6 +1568,7 @@ onBeforeUnmount(() => {
 .campaign-date-error {
   width: 100%;
   margin: 0;
+  padding: 8px 12px;
   color: #a22922;
 }
 
@@ -828,6 +1598,13 @@ onBeforeUnmount(() => {
   border-right: 1px solid #eceef0;
   padding: 0 9px;
   overflow: hidden;
+}
+
+.campaign-row > div:nth-child(2) {
+  position: relative;
+  z-index: 4;
+  justify-content: center;
+  overflow: visible;
 }
 
 .campaign-header {
@@ -878,7 +1655,7 @@ onBeforeUnmount(() => {
   gap: 3px;
 }
 
-.campaign-name-cell span,
+.campaign-name-cell a,
 .campaign-name-cell small {
   max-width: 100%;
   overflow: hidden;
@@ -886,9 +1663,10 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-.campaign-name-cell span {
-  color: #245d88;
+.campaign-name-cell a {
+  color: #1465f5;
   font-weight: 600;
+  text-decoration: none;
 }
 
 .campaign-name-cell b {
@@ -935,11 +1713,23 @@ onBeforeUnmount(() => {
 
 .campaign-switch {
   position: relative;
+  z-index: 5;
   display: inline-block;
   width: 34px;
   height: 18px;
   border-radius: 9px;
+  border: 0;
+  padding: 0;
   background: #bfc4c7;
+  opacity: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.campaign-switch.updating {
+  cursor: progress;
+  opacity: 0.72;
 }
 
 .campaign-switch i {
@@ -951,10 +1741,23 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
 }
 
 .campaign-switch.on {
-  background: #3f8b62;
+  background: #2671f5;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .campaign-switch.on i {

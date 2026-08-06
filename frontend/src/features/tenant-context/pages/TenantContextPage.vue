@@ -119,6 +119,7 @@ function goToDataCenter() {
             :value="profile.id"
           >
             {{ profile.name }} · {{ profile.accessLevel }}
+            {{ profile.remoteAdvertisingAvailable ? ' · 远程数据可用' : ' · 未配置远程数据' }}
           </option>
         </select>
       </label>

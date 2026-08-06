@@ -63,6 +63,7 @@ describe('tenant context store', () => {
         currencyCode: 'USD',
         timezone: 'America/Los_Angeles',
         accessLevel: 'MANAGE',
+        remoteAdvertisingAvailable: true,
       },
     ])
     mockedCapabilities.mockResolvedValue({
@@ -79,6 +80,61 @@ describe('tenant context store', () => {
     expect(store.storeMarketplaceId).toBe('sm-1')
     expect(store.profileId).toBe('profile-1')
     expect(store.permissionCodes).toContain('reports.upload')
+  })
+
+  it('prefers a remote advertising profile when profile options are ambiguous', async () => {
+    mockedTenants.mockResolvedValue([
+      {
+        id: 'tenant-1',
+        name: '演示空间',
+        tenantType: 'PERSONAL',
+        membershipRole: 'OWNER',
+      },
+    ])
+    mockedStores.mockResolvedValue([
+      { id: 'store-1', name: '演示店铺', externalStoreId: 'external-1' },
+    ])
+    mockedMarketplaces.mockResolvedValue([
+      {
+        storeMarketplaceId: 'sm-1',
+        marketplace: {
+          id: 'market-1',
+          code: 'US',
+          name: 'Amazon.com',
+          currencyCode: 'USD',
+          timezone: 'America/Los_Angeles',
+        },
+      },
+    ])
+    mockedProfiles.mockResolvedValue([
+      {
+        id: 'profile-local',
+        name: 'Local profile',
+        externalProfileId: 'local-profile',
+        currencyCode: 'USD',
+        timezone: 'America/Los_Angeles',
+        accessLevel: 'MANAGE',
+        remoteAdvertisingAvailable: false,
+      },
+      {
+        id: 'profile-remote',
+        name: 'Remote profile',
+        externalProfileId: 'remote-profile',
+        currencyCode: 'USD',
+        timezone: 'America/Los_Angeles',
+        accessLevel: 'MANAGE',
+        remoteAdvertisingAvailable: true,
+      },
+    ])
+    mockedCapabilities.mockResolvedValue({
+      permissionCodes: ['context.view', 'advertising.view'],
+      membershipRole: 'OWNER',
+    })
+    const store = useTenantContextStore()
+
+    await store.initialize()
+
+    expect(store.profileId).toBe('profile-remote')
   })
 
   it('does not guess when multiple tenants are available', async () => {

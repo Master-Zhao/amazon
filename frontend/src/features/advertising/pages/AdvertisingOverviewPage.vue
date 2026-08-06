@@ -14,8 +14,8 @@ const result = ref<CampaignListResponse | null>(null)
 const globalSearch = ref('')
 const displayMode = ref<'all' | 'chart' | 'none'>('all')
 
-function number(value: number): string {
-  return new Intl.NumberFormat('zh-CN').format(value)
+function number(value: number | null): string {
+  return value === null ? '—' : new Intl.NumberFormat('zh-CN').format(value)
 }
 
 function money(value: MoneyValue | null): string {
@@ -63,7 +63,7 @@ const riskLabels: Record<CampaignRiskLevel, string> = {
       <div>
         <h1>广告活动</h1>
         <p v-if="result?.meta.dataThroughDate">
-          远程数据库实时范围：{{ result.meta.startDate }} — {{ result.meta.endDate }}，数据更新至 {{ result.meta.dataThroughDate }}
+          历史报表 + 实时报表聚合范围：{{ result.meta.startDate }} — {{ result.meta.endDate }}，数据更新至 {{ result.meta.dataThroughDate }}
         </p>
         <p v-else>正在读取当前账号的远程广告数据</p>
       </div>

@@ -9,12 +9,21 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.advertising.selectors import (
+    campaign_detail_page,
     campaign_rows,
     campaign_overview_page,
+    create_remote_campaign,
     search_term_rows,
     targeting_rows,
+    update_campaign_enabled_state,
 )
 from apps.advertising.serializers import (
+    CampaignCreateResponseSerializer,
+    CampaignCreateSerializer,
+    CampaignDetailResponseSerializer,
+    CampaignDetailQuerySerializer,
+    CampaignEnabledUpdateResponseSerializer,
+    CampaignEnabledUpdateSerializer,
     CampaignListQuerySerializer,
     CampaignOverviewResponseSerializer,
     CampaignRowSerializer,
@@ -46,6 +55,7 @@ class CampaignListView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
+        operation_id="advertising_campaigns_list",
         summary="List read-only remote Sponsored Products Campaign performance",
         parameters=[CampaignListQuerySerializer],
         responses={200: CampaignOverviewResponseSerializer},
@@ -59,6 +69,7 @@ class CampaignListView(APIView):
             "status",
             "targetingType",
             "search",
+            "metricFilters",
             "ordering",
             "page",
             "pageSize",
@@ -87,11 +98,97 @@ class CampaignListView(APIView):
             data=CampaignOverviewResponseSerializer(result).data,
         )
 
+    @extend_schema(
+        operation_id="advertising_campaigns_create",
+        summary="Create one remote Campaign in SCM metadata",
+        request=CampaignCreateSerializer,
+        responses={201: CampaignCreateResponseSerializer},
+        tags=["advertising"],
+    )
+    def post(self, request, tenant_id, profile_id):
+        serializer = CampaignCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = create_remote_campaign(
+            request=request,
+            user=request.user,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+            name=serializer.validated_data["name"],
+            targeting_type=serializer.validated_data["targeting_type"],
+            daily_budget=serializer.validated_data["daily_budget"],
+            bidding_strategy=serializer.validated_data["bidding_strategy"],
+            start_date=serializer.validated_data["start_date"],
+            end_date=serializer.validated_data.get("end_date"),
+            enabled=serializer.validated_data.get("enabled", True),
+        )
+        return api_response(
+            request,
+            data=CampaignCreateResponseSerializer(result).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class CampaignDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        operation_id="advertising_campaigns_retrieve",
+        summary="Retrieve one remote Campaign with composite daily trend",
+        parameters=[CampaignDetailQuerySerializer],
+        responses={200: CampaignDetailResponseSerializer},
+        tags=["advertising"],
+    )
+    def get(self, request, tenant_id, profile_id, campaign_key):
+        query = CampaignDetailQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        result = campaign_detail_page(
+            user=request.user,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+            campaign_key=campaign_key,
+            start_date=query.validated_data.get("start_date"),
+            end_date=query.validated_data.get("end_date"),
+        )
+        return api_response(
+            request,
+            data=CampaignDetailResponseSerializer(result).data,
+        )
+
+
+class CampaignEnabledUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        operation_id="advertising_campaigns_update_enabled",
+        summary="Update one remote Campaign enabled state in SCM metadata",
+        request=CampaignEnabledUpdateSerializer,
+        responses={200: CampaignEnabledUpdateResponseSerializer},
+        tags=["advertising"],
+    )
+    def patch(self, request, tenant_id, profile_id, campaign_key):
+        serializer = CampaignEnabledUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = update_campaign_enabled_state(
+            request=request,
+            user=request.user,
+            tenant_id=tenant_id,
+            profile_id=profile_id,
+            campaign_key=campaign_key,
+            enabled=serializer.validated_data["enabled"],
+            start_date=serializer.validated_data.get("start_date"),
+            end_date=serializer.validated_data.get("end_date"),
+        )
+        return api_response(
+            request,
+            data=CampaignEnabledUpdateResponseSerializer(result).data,
+        )
+
 
 class CampaignExportView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
+        operation_id="advertising_campaigns_export",
         summary="Export the filtered read-only remote Campaign list as CSV",
         parameters=[CampaignListQuerySerializer],
         responses={(200, "text/csv"): bytes},

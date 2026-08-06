@@ -101,12 +101,21 @@ if REMOTE_MULTI_DATABASE_MODE:
 else:
     DATABASES = {"default": mysql_database_config()}
 
-if REMOTE_AD_DATABASES_ENABLED and not REMOTE_MULTI_DATABASE_MODE:
+if REMOTE_AD_DATABASES_ENABLED:
+    analysis_database_prefix = (
+        "ADS_ANALYSIS_REMOTE"
+        if env("ADS_ANALYSIS_REMOTE_DB_NAME")
+        else "SYSTEM"
+    )
     DATABASES.update(
         {
-            "scm_remote": remote_mysql_database_config("SCM_REMOTE"),
+            "scm_remote": (
+                DATABASES["scm_remote"]
+                if REMOTE_MULTI_DATABASE_MODE
+                else remote_mysql_database_config("SCM_REMOTE")
+            ),
             "ads_analysis_remote": remote_mysql_database_config(
-                "ADS_ANALYSIS_REMOTE"
+                analysis_database_prefix
             ),
         }
     )

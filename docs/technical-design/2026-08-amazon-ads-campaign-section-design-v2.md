@@ -1,23 +1,27 @@
-# Amazon 广告活动列表模块复刻与远程数据接入技术方案 V2
+# Amazon 广告活动列表模块复刻与远程三表聚合技术方案 V2（2026-08-04 修订）
 
-> 文档状态：评审稿  
+> 文档状态：已按真实库核验并完成本轮三表只读纵向链路（启停写入仍受 D-180 阻塞）
 > 编制日期：2026-08-03  
 > 适用项目：Amazon 广告智能优化系统 V1  
-> 目标模块：完整广告仪表盘页面最下方的广告活动列表区域  
+> 目标模块：完整广告仪表盘页面的广告活动列表、查询筛选、详情入口与启停意图
 > 参考页面：C:/Users/admin/Desktop/广告智能投放系统/广告智能投放系统/index.html  
-> 参考截图：codex-clipboard-991c53c5-8c00-4910-b90a-3afc9bf03f7b.png
+> 参考截图：codex-clipboard-d4976fee-6104-4d2c-9476-25096a62ead1.png、codex-clipboard-0e18fe0a-77aa-4f93-b0fb-00dbc5a2d132.png
 
 ---
 
 ## 1. 修订说明
 
-本方案根据最新范围要求重新编写，与上一版相比有三项关键修订：
+本方案根据最新数据库 DDL、参考 HTML 和两张目标截图再次修订。以下修订优先于本文后续仍保留的历史实施快照：
 
-1. 现有顶部栏保留；
-2. 现有左侧栏保留；
-3. “工作台 / 卖家空间 / 广告总览 / 数据中心”等横向目录导航不保留。
+1. Campaign 指标不再只读取 `bi_analyze_ad_campaign`，而是由历史表、实时表和 SCM 活动表三表组成；
+2. 日期选择器、活动搜索、截图同款指标筛选菜单、服务端聚合与全筛选合计均为必须实现项；
+3. 广告活动名称必须是可访问链接，并跳转到真实详情路由；
+4. “启用”开关的最终目标是可点击并真实启停，但当前远程数据库只读和 V1 禁止真实 Amazon 写入的约束仍然有效；未获得合规写通道授权前不得用前端内存或本地覆盖伪造成功；
+5. 现有顶部栏和左侧栏保留，“工作台 / 卖家空间 / 广告总览 / 数据中心”等横向目录导航不保留；
+6. HTML 只作为视觉和交互参考，数据、合计、筛选、详情和状态变化都必须经过后端。
+7. 9 个一级筛选项点击后统一打开参考截图二的居中模态框；多项指标规则允许并存，比例在 API 中继续使用小数、在界面中显示为百分比。
 
-本次开发责任仅覆盖参考 HTML 最下方的广告活动列表模块，不负责：
+本次修订重点覆盖参考 HTML 最下方的广告活动列表模块及其真实查询链路，不负责：
 
 - 顶部 KPI；
 - 表现概览图；
@@ -25,7 +29,16 @@
 - 风险详情弹窗；
 - 其他上层仪表盘模块。
 
-本方案为新增 V2 文档，不覆盖旧方案。后续开发应以本方案的页面范围为准；数据库、安全和权限边界仍以主规格及已确认决策为准。
+本文件继续沿用 V2 文件名，避免复制第二份主技术方案。后续开发以本次修订后的三表、聚合、筛选、详情和写操作边界为准；数据库、安全和权限边界仍以主规格及已确认决策为准。
+
+### 1.1 2026-08-04 真实库核验结论
+
+- 历史表覆盖 88 个业务日，实时表覆盖 50/51 个业务日，两表有 50 个重叠业务日；因此必须按原子粒度覆盖，不能按“整日选历史或实时”切换；
+- 历史候选粒度为 33,784 行/33,783 个唯一粒度；实时为 265,108 行/260,543 个唯一粒度。表内存在重复快照，已采用 `ROW_NUMBER()` 按更新时间和 id 稳定选最新；
+- 去掉来源后，历史 33,783 个粒度、实时 260,543 个粒度，交集 16,453 个；交集由实时覆盖，单边粒度继续保留；
+- 历史 `type` 全 NULL，实时 `type` 为 `SP-Auto`/`SP-Manual`，真实数据证明它不是 DDL 注释声称的 7d/14d/custom 统计窗口；
+- 正确连接为事实 `campaign_code -> SCM.code`：当前范围相交 5,908 个；`campaign_id` 相交为 0，不能作为主连接键；
+- 当前实现返回历史/实时水位、实时 as-of、字段映射和 `campaign-code-product-asin-realtime-v1` 去重版本，且不输出商户映射。
 
 ---
 
@@ -42,7 +55,7 @@
 │                  │                                                  │
 │                  ├──────────────────────────────────────────────────┤
 │                  │  CampaignSection                                 │
-│                  │  本任务负责：工具栏、表格、合计、分页、状态       │
+│                  │  工具栏、日期、搜索、筛选、表格、合计、分页、详情 │
 └──────────────────┴──────────────────────────────────────────────────┘
 ~~~
 
@@ -89,11 +102,13 @@
 
 - 在完整广告仪表盘底部实现 CampaignSection；
 - 视觉严格接近截图和 HTML；
-- 接入真实远程 Campaign 元数据与指标；
-- 支持搜索、筛选、日期、排序、分页和合计；
+- 接入真实远程 Campaign 元数据、历史指标与实时指标；
+- 支持搜索、截图同款分层筛选、日期快捷范围/自定义范围、排序、分页和全筛选合计；
+- 支持 Campaign 名称跳转到真实详情页；
+- 为 Campaign 启停提供真实写契约设计，但只有取得受控写 Provider 和权限授权后才启用开关；
 - 支持只读导出；
 - 处理加载、暂无数据、失败、无权限和局部缺失；
-- 不实现任何会改变广告状态的操作。
+- 不把前端内存切换、本地数据库覆盖或远程 SQL `UPDATE` 伪装成真实广告状态变化。
 
 ### 2.5 非目标
 
@@ -101,8 +116,8 @@
 - 不开发风险等级评估；
 - 不实现卖家空间页面；
 - 不修改顶部栏和左侧栏内容；
-- 不调用真实 Amazon Ads 写接口；
-- 不通过远程数据库 UPDATE 模拟广告操作；
+- 未经新的明确授权不调用真实 Amazon Ads 写接口；
+- 不通过远程数据库 `UPDATE` 模拟广告操作；
 - 不复制 HTML 中的 Mock 数据；
 - 不新增第二套登录、租户或 Profile 体系；
 - 不跨 Profile、Marketplace 或币种汇总。
@@ -138,7 +153,15 @@
 |---|---|---|
 | default | 认证、租户、Store、Profile、权限、审计 | 允许系统正常读写；不作为 Campaign 页面数据源 |
 | scm_remote | 远程 Campaign 当前元数据 | 只读 |
-| ads_analysis_remote | 远程 Campaign 指标 | 只读 |
+| ads_analysis_remote | 远程 Campaign 历史指标和实时指标 | 只读 |
+
+本模块使用的三张远程表：
+
+| 数据角色 | Alias / 表 | 作用 | 是否可直接相加 |
+|---|---|---|---|
+| 当前活动维表 | `scm_remote.eb_ad_campaign` | 名称、状态、投放类型、起止日期、预算、竞价策略 | 否；每个 Campaign 取当前记录 |
+| 历史事实表 | `ads_analysis_remote.bi_analyze_ad_campaign` | 已沉淀业务日的历史指标 | 只在完成原子粒度去重后参与聚合 |
+| 实时事实表 | `ads_analysis_remote.bi_analyze_ad_campaign_realtime` | 当日/近期滚动更新指标与最新投放字段 | 不得与同原子粒度历史快照重复相加 |
 
 ### 3.3 目标 HTML
 
@@ -146,7 +169,7 @@
 
 - Campaign 数据来自内嵌 JavaScript；
 - 日期变化重新生成演示数据；
-- Campaign 开关只修改内存；
+- Campaign 开关只修改内存，因此不能复制其数据实现；
 - 创建按钮仅弹出演示提示；
 - 分页是前端数组分页；
 - 搜索没有真实后端查询；
@@ -219,16 +242,21 @@
 
 ### 5.1 截图尺寸
 
-参考截图尺寸约为：
+本次用户提供的参考截图尺寸为：
 
-    1865 × 650
+    筛选菜单局部：631 × 675
+    CampaignSection 全宽：1643 × 685
 
-截图展示的是完整 Campaign 模块的主要可见区域。
+视觉验收以这两张截图和目标 HTML 同时为准：全宽截图负责工具栏、列、合计与横向密度；
+局部截图负责筛选图标、菜单锚点、菜单宽高、层级、阴影与行距。旧的 1865×650 记录只作
+历史对比，不再是唯一基线。
 
 ### 5.2 工具栏
 
 ~~~text
-广告活动 ▾  [+ 创建广告活动]  [🔍 查找广告活动]  [筛选]
+筛选条件  [进行中 ×] [已启用 ×] [删除所有]
+
+广告活动 ▾  [+ 创建广告活动]  [🔍 查找广告活动]  [⊟]
                                               [日期范围] [导出]
 ~~~
 
@@ -242,6 +270,12 @@
 - 主按钮深色背景；
 - 普通按钮白底、浅灰边框；
 - 搜索框宽度约 184px；
+- 搜索框 placeholder 固定为“查找广告活动”，300ms 防抖后执行服务端搜索；
+- `⊟` 图标按钮使用与截图一致的方形外观，点击后显示第一层筛选菜单；
+- 第一层菜单顺序固定为：状态、展示量、点击量、花费、购买量、单次点击成本、广告销售成本比、点击率、转化率；
+- 菜单从筛选图标下方左对齐展开，宽度约 178px，白底、浅阴影、约 40px 行高，右侧使用 `▸` 表示下一层；
+- 状态项进入状态多选；数值项进入运算符和值输入，运算符至少包含 `>=`、`<=`、`=`、`between`；
+- 日期按钮点击后提供最近 7 天、最近 14 天、最近 30 天和自定义起止日期；
 - 不增加与截图不一致的标题或说明。
 
 ### 5.3 表格
@@ -267,8 +301,8 @@
 | 顺序 | 页面列 | 是否首期实现 |
 |---:|---|---|
 | 1 | 行选择框 | 展示为禁用 |
-| 2 | 启用开关 | 只读展示 |
-| 3 | 广告活动名称 | 是 |
+| 2 | 启用开关 | 目标为真实可操作；写通道未授权时必须禁用并解释原因 |
+| 3 | 广告活动名称 | 是，使用 RouterLink 跳转真实详情 |
 | 4 | 投放类型 | 是 |
 | 5 | 状态 | 是 |
 | 6 | 竞价方案 | 是 |
@@ -288,11 +322,11 @@
 
 ### 5.5 筛选标签条
 
-HTML 中工具栏上方存在筛选标签条，但截图中未显示。
+HTML 和截图中工具栏上方均存在筛选标签条。
 
 最终处理：
 
-- 默认无有效筛选标签时隐藏；
+- 默认筛选为“进行中 + 已启用”，因此进入页面时显示两个标签；
 - 应用筛选后显示；
 - 单个标签可删除；
 - 支持“删除所有”；
@@ -324,19 +358,19 @@ HTML 中工具栏上方存在筛选标签条，但截图中未显示。
 
 | 功能 | 页面存在 | 数据来源 | 前端职责 | 后端职责 | 写入 | 分类 | 备注 |
 |---|---|---|---|---|---|---|---|
-| Campaign 列表 | 是 | 两个 remote alias | 展示 | 权限、查询、拼接 | 否 | A | 必须真实数据 |
+| Campaign 列表 | 是 | 两个 remote alias 内的三张表 | 展示 | 权限、去重、聚合、拼接 | 否 | A | 必须真实数据 |
 | 名称搜索 | 是 | name/code | 防抖、URL 状态 | 参数化 LIKE | 否 | A | 页码归 1 |
 | 状态筛选 | 是 | SCM state | 标签和菜单 | 枚举映射 | 否 | A | 白名单 |
 | 已启用筛选 | 是 | SCM state | 标签 | enabled 映射 | 否 | A | 默认可启用 |
-| 指标筛选 | HTML 有 | 聚合指标 | 规则输入 | HAVING 白名单 | 否 | F | 首期范围待确认 |
-| 日期范围 | 是 | 分析表日期 | 日期控件 | 范围校验 | 否 | A | Profile 时区 |
+| 指标筛选 | HTML/截图有 | 三表聚合指标 | 分层菜单、规则输入、标签 | 白名单 HAVING | 否 | A | 9 个一级项均需实现 |
+| 日期范围 | 是 | 历史/实时 `creation_date` | 快捷范围和自定义日期 | 范围校验 | 否 | A | Profile 时区 |
 | 排序 | 截图未突出 | 聚合或元数据 | 表头操作 | 白名单 ORDER BY | 否 | A | 不允许任意字段 |
 | 分页 | HTML 有 | 查询结果 | 页码操作 | 服务端分页 | 否 | A | 非前端 slice |
 | 合计 | 是 | 分析表聚合 | 合计行 | 全筛选范围聚合 | 否 | A | 非当前页合计 |
-| Campaign 详情跳转 | 名称有链接 | 详情 API | 路由跳转 | 重新授权 | 否 | F | 详情页不属本任务 |
+| Campaign 详情跳转 | 名称有链接 | 三表聚合详情 API | RouterLink 跳转 | 重新授权并查询 | 否 | A | 不使用 sessionStorage 携带权威数据 |
 | 导出 | 是 | 同列表查询 | 下载状态 | CSV 和审计 | 仅审计 | A | 不写远程库 |
 | 创建 Campaign | 是 | Amazon Ads API | 禁用按钮 | 不提供接口 | 否 | C+D | 当前 V1 禁止 |
-| 启用/暂停 | 开关存在 | Amazon Ads API | 只读开关 | 不提供接口 | 否 | B+C+D | 不伪造成功 |
+| 启用/暂停 | 开关存在 | 受控 CampaignStateProvider | 乐观交互、确认与回滚 | 权限、幂等、漂移、审计、Provider 调用 | 是 | D（业务要求已确认，写通道阻塞） | 未授权前 disabled，不伪造成功 |
 | 修改预算 | 未见编辑器 | Amazon Ads API | 只读文本 | 不提供接口 | 否 | G | 后续阶段 |
 | 修改竞价 | 未见编辑器 | Amazon Ads API | 只读文本 | 不提供接口 | 否 | G | 后续阶段 |
 | 批量选择 | 复选框存在 | 页面状态 | 禁用 | 无 | 否 | C | 无批量动作 |
@@ -393,59 +427,82 @@ CampaignSection 展示的广告活动及指标必须来自远程数据库：
 - 开始/结束日期；
 - 当前每日预算。
 
-### 7.3 广告分析指标
+### 7.3 历史广告分析事实
 
 表：
 
     ads_analysis_remote.bi_analyze_ad_campaign
 
-已确认字段：
+本次 DDL 确认的关键字段包括：`mer_id`、`mer_code`、`type`、`creation_date`、
+`campaign_id`、`campaign_code`、`product_id`、`asin`、`imperssion`、`click`、
+`spend`、`orders`、`sales`、`sales_units`、`top_of_search_is`、`create_time`，以及
+若干已计算比率字段。应用层把拼写错误的 `imperssion` 规范化为 `impressions`。
 
-- mer_id；
-- mer_code；
-- creation_date；
-- campaign_id；
-- campaign_code；
-- campaign_name；
-- campaign_type；
-- campaign_state；
-- campaign_bidding_strategy；
-- campaign_daily_budget；
-- imperssion；
-- click；
-- spend；
-- orders_7d；
-- sales_7d；
-- sale_units_7d；
-- other_sales_7d；
-- ctr；
-- cpc；
-- cvr；
-- acos；
-- roas；
-- top_of_search_is。
+不得再引用当前 Schema 不存在的 `orders_7d`、`sales_7d`、`sale_units_7d`、
+`other_sales_7d`。DDL 对 `type` 的 7d/14d/自定义注释与真实数据不符：历史表该字段
+全为 NULL，不能用作统计窗口，也不能作为去重粒度或筛选条件。
 
-注意：
+### 7.4 实时广告分析事实
 
-- 数据库字段实际为 imperssion；
-- 应用层统一命名 impressions；
-- 不修改远程表字段。
-- 2026-08-04 对当前远程 Schema 的只读运行核验发现：`orders_7d`、`sales_7d`、
-  `sale_units_7d`、`other_sales_7d` 实际不存在；当前存在 `orders`、`order_1d`、
-  `sales`、`sales_1d`、`sales_units`、`sale_units_1d`。该结果与本节原“已确认字段”冲突，
-  以运行 Schema 为准记录冲突，不将现有字段静默宣称为 7 日归因。
+表：
 
-### 7.4 Campaign 唯一范围键
+    ads_analysis_remote.bi_analyze_ad_campaign_realtime
 
-建议：
+本次 DDL 确认的关键字段包括：`mer_id`、`mer_code`、`type`、`creation_date`、
+`campaign_id`、`campaign_code`、`product_id`、`asin`、`impression`、`click`、
+`spend`、`orders`、`sales`、`campaign_state`、`serving_status`、`daily_budget`、
+`bidding_strategy`、`create_time`、`update_time`。应用层把 `impression` 规范化为
+`impressions`。
 
-    (mer_id, mer_code, campaign_id)
+实时表可能保存滚动快照，不得把同一原子粒度的多次快照相加。每个原子粒度只取
+`COALESCE(update_time, create_time)` 最新、再以 `id` 最大者稳定打破并列。
 
-campaign_id 缺失时受控回退：
+### 7.5 历史与实时的去重、覆盖和聚合
 
-    (mer_id, mer_code, campaign_code)
+三表查询必须按下列顺序执行：
 
-不允许按裸 campaign_id 跨商户查询。
+1. 服务端从已授权 Profile 得到固定 `mer_id + mer_code`，前端不得传入；
+2. 历史表和实时表分别映射为统一字段集；`type` 不作为统计窗口；
+3. 先在各表内部按原子粒度去重；
+4. 将两表规范化结果合并后，对相同原子粒度给予实时表更高优先级；
+5. 只对去重后的绝对值字段 `SUM`；
+6. 在 Campaign 聚合结果上重新计算 CTR、CPC、CVR、ACoS、ROAS；
+7. 最后批量读取 `eb_ad_campaign` 补充当前名称、状态、起止日期、预算和竞价策略；
+8. 表格、KPI、趋势、风险、合计、导出和详情必须复用同一个筛选对象与同一聚合服务。
+
+Campaign 集合必须取 SCM 当前活动键与历史/实时事实活动键的并集：
+
+- SCM 存在但选定日期无指标的 Campaign 仍显示，指标为 null/`—`，不能被事实表基集漏掉；
+- 事实存在但 SCM 未匹配的 Campaign 仍显示分析表名称/代码，并返回 `metadataMatched=false`；
+- 只有当前元数据筛选（如状态）依赖 SCM；指标筛选只在有指标的 Campaign 上成立；
+- Summary 仅汇总有事实值的记录，不能把“无事实”与“事实为 0”混为一类。
+
+候选原子粒度：
+
+    (mer_id, mer_code, business_date, campaign_key,
+     COALESCE(product_id, 0), COALESCE(asin, ''))
+
+该粒度已使用真实只读重复度查询核验；历史和实时仍分别存在表内重复，因此采用更新时间
+与 id 的稳定窗口排序选最新，不能用 `DISTINCT` 静默丢数据。
+
+覆盖规则：同一原子粒度同时出现在历史和实时时，保留实时记录；只存在于其中一表时
+保留该表记录。禁止 `historical UNION ALL realtime` 后直接聚合。
+
+服务端响应必须包含以下可观测元数据：
+
+- `source = REMOTE_MYSQL_COMPOSITE`；
+- `historyThroughDate`；
+- `realtimeThroughDate`；
+- `realtimeAsOf`；
+- `deduplicationVersion`；
+- `fieldMappings`（包含 `campaign_code->code`）；
+- `attributionSemantics = REMOTE_FIELDS_UNVERIFIED`，直到数据负责人确认 `orders/sales` 归因口径。
+
+### 7.6 Campaign 唯一范围键
+
+远程查询范围键固定包含 `(mer_id, mer_code)`；跨表 Campaign 连接键固定为
+`fact.campaign_code = scm.code`。只有事实 `campaign_code` 为空时，事实内部键才受控回退
+到 `campaign_id`，该回退键通常无法匹配 SCM，不得把裸 `campaign_id` 当作跨表连接键。
 
 API 向前端返回服务端生成的 campaignKey，不暴露远程商户映射逻辑。
 
@@ -471,15 +528,15 @@ API 向前端返回服务端生成的 campaignKey，不暴露远程商户映射�
 
 以下字段必须先在完整筛选范围内分别执行 SUM。不得先计算每日比率后再平均。
 
-| 业务字段 | 应用字段 | 远程数据来源字段 | 强制统计公式 | 说明 |
-|---|---|---|---|---|
-| 曝光 Impressions | impressions | imperssion/impressions 映射 | SUM(impressions) | 日期范围内所有曝光次数 |
-| 点击 Clicks | clicks | click/clicks 映射 | SUM(clicks) | 日期范围内所有点击次数 |
-| 花费 Spend | spend | spend | SUM(spend) | 日期范围内总花费 |
-| 订单 Orders | orders | orders_7d | SUM(orders_7d) | 7 日归因订单数 |
-| 销售额 Sales | sales | sales_7d | SUM(sales_7d) | 7 日归因销售额 |
-| 售出件数 Sale Units | saleUnits | sale_units_7d | SUM(sale_units_7d) | 7 日归因售出总件数 |
-| 其他销售额 OtherSales | otherSales | other_sales_7d | SUM(other_sales_7d) | 关键词模块中该词带来的其他 ASIN 销售额 |
+| 业务字段 | 应用字段 | 历史字段 | 实时字段 | 强制统计公式 | 说明 |
+|---|---|---|---|---|---|
+| 曝光 Impressions | impressions | `imperssion` | `impression` | SUM(impressions) | 日期范围内所有曝光次数 |
+| 点击 Clicks | clicks | `click` | `click` | SUM(clicks) | 日期范围内所有点击次数 |
+| 花费 Spend | spend | `spend` | `spend` | SUM(spend) | 日期范围内总花费 |
+| 订单 Orders | orders | `orders` | `orders` | SUM(orders) | 归因语义未确认，响应必须标记 |
+| 销售额 Sales | sales | `sales` | `sales` | SUM(sales) | 归因语义未确认，响应必须标记 |
+| 售出件数 Sale Units | saleUnits | `sales_units` | 无 | 仅历史来源且覆盖完整时 SUM | 不能用 0 冒充实时缺字段 |
+| 其他销售额 OtherSales | otherSales | 无 | 无 | 不计算 | 当前三表无法提供，返回 null |
 
 数据空值处理：
 
@@ -503,12 +560,12 @@ API 向前端返回服务端生成的 campaignKey，不暴露远程商户映射�
 | CPA 每次转化费用 | 总花费 ÷ 总订单 | 显示 — | 币种，两位小数 |
 | AOV 平均订单价值 | 总销售额 ÷ 总订单 | 显示 — | 币种，两位小数 |
 | ASP 平均售价 | 总销售额 ÷ 总售出件数 | 显示 — | 币种，两位小数 |
-| OtherSalesPercent 其他销售占比 | 总其他销售额 ÷（总销售额 + 总其他销售额）× 100% | 显示 0.00% | 两位小数 |
+| OtherSalesPercent 其他销售占比 | 当前三表缺少 otherSales，暂不计算 | 返回 null | 显示 — |
 
 本项目统一采用截图中建议的零分母规则：
 
 - CTR、CPC、CVR、ACoS、ROAS、CPA、AOV、ASP 的分母为 0 时返回 null，前端显示 —；
-- OtherSalesPercent 的分母为 0 时返回 0，并显示 0.00%；
+- OtherSalesPercent 在字段缺失期间返回 null，并显示 —；
 - API 内部比率建议返回十进制比例，例如 CTR 5.00% 返回 0.0500；
 - 百分号只在前端展示层添加；
 - 后端响应可同时提供 reason=ZERO_DENOMINATOR，便于解释空值。
@@ -527,7 +584,7 @@ API 向前端返回服务端生成的 campaignKey，不暴露远程商户映射�
 
 假设筛选范围内有两天数据：
 
-| 日期 | 曝光 | 点击 | 花费 | orders_7d | sales_7d |
+| 日期 | 曝光 | 点击 | 花费 | orders | sales |
 |---|---:|---:|---:|---:|---:|
 | 第一天 | 100 | 5 | 10.00 | 1 | 45.00 |
 | 第二天 | 200 | 10 | 20.00 | 2 | 90.00 |
@@ -574,9 +631,9 @@ API 向前端返回服务端生成的 campaignKey，不暴露远程商户映射�
 - SCM 与分析表状态冲突时的最终优先级；
 - campaign_daily_budget 的快照语义。
 
-目标业务口径仍为 orders_7d、sales_7d、sale_units_7d；但 2026-08-04 运行 Schema
-核验确认这些列不存在。当前实现使用实际存在的 `orders`/`sales` 字段并显式返回
-`attributionSemantics=REMOTE_FIELDS_UNVERIFIED`；在数据负责人确认语义或提供正确字段前，不得宣称为 7 日归因。
+当前三表共同可用口径为 `orders`、`sales`；历史表额外提供 `sales_units`。这些字段的
+归因窗口仍未由数据负责人确认，当前实现必须返回
+`attributionSemantics=REMOTE_FIELDS_UNVERIFIED`，不得宣称为 7 日归因。
 
 ---
 
@@ -656,15 +713,17 @@ flowchart LR
     V["DRF CampaignListView"]
     P["Permission Scope"]
     S["Campaign Selector"]
-    R["RemoteAdvertisingDataReader"]
+    R["RemoteCampaignAggregateReader"]
     SCM[("scm_remote")]
-    ANA[("ads_analysis_remote")]
+    HIS[("history: bi_analyze_ad_campaign")]
+    RT[("realtime: bi_analyze_ad_campaign_realtime")]
     SYS[("default")]
 
     B --> L --> C --> A --> V --> P --> S --> R
     P --> SYS
     R --> SCM
-    R --> ANA
+    R --> HIS
+    R --> RT
 ~~~
 
 调用链：
@@ -678,7 +737,7 @@ flowchart LR
     → Permission Service
     → Selector
     → Remote Reader
-    → 两个远程只读数据库
+     → 三张远程只读表
 
 ---
 
@@ -693,13 +752,14 @@ CampaignSection
 │   ├── CampaignTitle
 │   ├── DisabledCreateCampaignButton
 │   ├── CampaignSearchInput
-│   ├── CampaignFilterButton
+│   ├── CampaignFilterMenu
+│   ├── CampaignMetricRuleEditor
 │   ├── CampaignDateRangePicker
 │   └── CampaignExportButton
 ├── CampaignTable
 │   ├── CampaignTableHeader
 │   ├── CampaignTableSkeleton
-│   ├── CampaignTableRow
+│   ├── CampaignTableRow（名称 RouterLink + 启停控件）
 │   ├── CampaignSummaryRow
 │   ├── CampaignEmptyState
 │   └── CampaignErrorState
@@ -714,18 +774,21 @@ CampaignSection
       components/
         CampaignSection.vue
         CampaignFilterChips.vue
+        CampaignFilterMenu.vue
+        CampaignMetricRuleEditor.vue
         CampaignToolbar.vue
         CampaignDateRangePicker.vue
         CampaignTable.vue
         CampaignTableRow.vue
         CampaignSummaryRow.vue
         CampaignPagination.vue
+      pages/
+        AdvertisingOverviewPage.vue
+        CampaignDetailPage.vue
       composables/
         useCampaignList.ts
       types/
         campaign.ts
-      pages/
-        AdvertisingOverviewPage.vue
 
 按需创建，不提前生成空组件。
 
@@ -735,12 +798,13 @@ CampaignSection
 |---|---|
 | 登录用户 | Auth Store |
 | Tenant/Profile | 现有 Tenant Context Store |
-| 日期、搜索、筛选、排序、页码 | URL Query |
+| 日期、搜索、状态、指标规则、排序、页码 | URL Query |
 | 列表、合计 | 页面 composable |
 | Loading/Error/requestId | 页面 composable |
 | 导出中 | CampaignSection 局部状态 |
 | 行 Hover | CSS |
-| 行选择 | 本期禁用 |
+| 行选择 | 无批量动作时禁用 |
+| 启停提交中与错误 | Campaign 行局部状态；成功后重新拉取服务端状态 |
 | 远程 Merchant 范围 | 仅后端 |
 
 不建议创建保存服务器 Campaign 事实的长期 Pinia Store。
@@ -754,6 +818,8 @@ CampaignSection
       &endDate=2026-08-03
       &enabled=true
       &search=
+      &filter=impressions:gte:1000
+      &filter=acos:lte:0.30
       &ordering=-spend
       &page=1
       &pageSize=15
@@ -764,6 +830,8 @@ CampaignSection
 - 浏览器刷新后恢复状态；
 - 前进/后退恢复列表；
 - 不在 URL 中保存 mer_id、mer_code。
+- `filter` 可重复出现，但字段和运算符必须来自后端白名单；百分比在 API 中使用十进制比例。
+- Campaign 名称跳转到 `/campaigns/{campaignKey}`，详情页重新请求后端，不把列表行存入 sessionStorage 作为权威数据。
 
 ### 11.5 请求竞态
 
@@ -829,6 +897,7 @@ CampaignSection
 | status | enum list | 空 | 白名单 |
 | targetingType | enum | 空 | auto/manual |
 | search | string | 空 | trim，最长 100 |
+| metricFilters | string | 默认无指标规则 | `field:operator:value[:value2]`，多规则以 `;` 分隔，字段唯一且最多 9 条 |
 | ordering | string | -spend | 白名单 |
 | page | int | 1 | 最小 1 |
 | pageSize | int | 15 | 最大 100 |
@@ -865,29 +934,30 @@ flowchart TD
     B["Query Serializer"]
     C["require_profile_scope"]
     D["Profile→mer_id+mer_code"]
-    E["分析表按日期聚合"]
-    F["排序和分页"]
-    G["SCM 批量补充当前页元数据"]
-    H["确定性计算指标"]
-    I["全筛选范围 Summary"]
-    J["返回 items + summary + pagination + meta"]
+    E["历史/实时分别规范化和表内去重"]
+    F["实时优先覆盖同原子粒度历史"]
+    G["Campaign 聚合"]
+    H["SCM 全量候选键并集与当前元数据覆盖"]
+    I["状态/搜索/聚合指标白名单筛选"]
+    J["排序分页 + 确定性比率 + 全筛选 Summary"]
+    K["返回 items + summary + pagination + freshness meta"]
 
-    A --> B --> C --> D --> E --> F --> G --> H --> I --> J
+    A --> B --> C --> D --> E --> F --> G --> H --> I --> J --> K
 ~~~
 
 ### 12.5 数据拼接
 
 推荐：
 
-1. 使用 ads_analysis_remote 形成符合日期和筛选条件的 Campaign 聚合基集；
-2. 完成远程 count、排序和分页；
-3. 收集当前页 Campaign ID/code；
-4. 一次查询 scm_remote 补充元数据；
-5. 在 Python 中按范围键拼接；
-6. 计算 CTR、CPC、ACoS、CVR；
-7. 单独以完全相同筛选条件计算 Summary。
+1. 历史表和实时表分别在 `ads_analysis_remote` 内规范化并按候选原子粒度去重；
+2. 合并两表，实时记录覆盖同一原子粒度的历史记录；
+3. 按 Campaign 聚合绝对值并重新计算比率；
+4. 批量读取 SCM 候选键，与事实 Campaign 键取并集并补充当前元数据；
+5. 对合并结果应用状态/指标筛选，完成 count、排序和服务端分页；
+6. 单独以完全相同的三表合成和筛选条件计算 Summary；
+7. KPI、趋势、风险、导出和详情调用相同聚合服务，不各写一套 SQL。
 
-禁止对每一行单独查询 SCM，避免 N+1。
+禁止对每一行单独查询 SCM，避免 N+1；禁止历史与实时直接 `UNION ALL` 后求和。
 
 ---
 
@@ -900,6 +970,7 @@ flowchart TD
         &endDate=2026-08-03
         &enabled=true
         &search=
+        &metricFilters=impressions:gte:1000;acos:lte:0.30
         &ordering=-spend
         &page=1
         &pageSize=15
@@ -911,6 +982,13 @@ flowchart TD
 - advertising.view；
 - Profile access level 至少 VIEW；
 - Store/Profile 数据范围校验。
+
+详情读取：
+
+    GET /api/v1/advertising/tenants/{tenant_id}/profiles/{profile_id}/campaigns/{campaign_key}
+
+详情响应复用列表聚合口径，并额外返回按业务日趋势和当前 SCM 元数据。服务端必须在当前
+授权范围内解析 `campaignKey`；不能信任前端传入 `campaignId`、`mer_id` 或 `mer_code`。
 
 ### 13.2 成功响应示例
 
@@ -958,6 +1036,7 @@ flowchart TD
           "acos": "0.211550",
           "cvr": "0.086957"
         },
+        "hasMetrics": true,
         "metadataMatched": true,
         "partialFields": ["topOfSearchShare"]
       }
@@ -990,12 +1069,22 @@ flowchart TD
       "totalPages": 1
     },
     "meta": {
-      "source": "REMOTE_MYSQL",
+      "source": "REMOTE_MYSQL_COMPOSITE",
       "currencyCode": "USD",
       "timezone": "America/Los_Angeles",
       "startDate": "2026-07-04",
       "endDate": "2026-08-03",
       "dataThroughDate": "2026-08-03",
+      "historyThroughDate": "2026-08-03",
+      "realtimeThroughDate": "2026-08-03",
+      "realtimeAsOf": "2026-08-03T15:30:00+08:00",
+      "deduplicationVersion": "campaign-code-product-asin-realtime-v1",
+      "fieldMappings": {
+        "historicalImpressions": "imperssion",
+        "realtimeImpressions": "impression",
+        "campaignJoinKey": "campaign_code->code"
+      },
+      "attributionSemantics": "REMOTE_FIELDS_UNVERIFIED",
       "totalCostSemantics": "SPEND_ALIAS"
     }
   }
@@ -1021,7 +1110,7 @@ flowchart TD
       "totalPages": 0
     },
     "meta": {
-      "source": "REMOTE_MYSQL",
+      "source": "REMOTE_MYSQL_COMPOSITE",
       "currencyCode": "USD",
       "timezone": "America/Los_Angeles"
     }
@@ -1094,11 +1183,41 @@ flowchart TD
 
 状态冲突时 SCM 当前状态优先，具体规则需写入决策日志。
 
+截图中的筛选图标不是普通“展开表单”按钮，而是分层菜单。一级菜单固定为：
+
+1. 状态；
+2. 展示量；
+3. 点击量；
+4. 花费；
+5. 购买量；
+6. 单次点击成本；
+7. 广告销售成本比；
+8. 点击率；
+9. 转化率。
+
+数值规则映射：
+
+| 页面项 | API 字段 | 聚合阶段 |
+|---|---|---|
+| 展示量 | impressions | SUM 后 HAVING |
+| 点击量 | clicks | SUM 后 HAVING |
+| 花费 | spend | SUM 后 HAVING |
+| 购买量 | orders | SUM 后 HAVING |
+| 单次点击成本 | cpc | SUM 后重算，再 HAVING |
+| 广告销售成本比 | acos | SUM 后重算，再 HAVING |
+| 点击率 | ctr | SUM 后重算，再 HAVING |
+| 转化率 | cvr | SUM 后重算，再 HAVING |
+
+筛选标签必须显示可读规则，例如“展示量 ≥ 1,000”“ACoS 10%—30%”；删除标签后
+重新请求服务端并回到第 1 页。所有规则同时应用于列表、合计、KPI、趋势、风险和导出。
+
 ### 14.3 日期
 
 - 日期首尾均包含；
+- 日期按钮可点击，弹层包含最近 7 天、最近 14 天、最近 30 天以及自定义起止日期；
+- 自定义日期仅在点击“应用”且校验通过后请求；
 - 页面显示 Profile 业务日期；
-- 默认范围以最新可用数据日为终点；
+- 默认范围以历史表和实时表的最大可用业务日为终点；
 - 浏览器日期不直接决定数据时区；
 - 远程 creation_date 时区未确认前禁止自动按 UTC 转换。
 
@@ -1140,10 +1259,10 @@ flowchart TD
 
 其中：
 
-    totalOrders    = SUM(orders_7d)
-    totalSales     = SUM(sales_7d)
-    totalSaleUnits = SUM(sale_units_7d)
-    totalOtherSales = SUM(other_sales_7d)
+    totalOrders    = SUM(deduplicated.orders)
+    totalSales     = SUM(deduplicated.sales)
+    totalSaleUnits = SUM(deduplicated.history.sales_units)  # 仅覆盖完整时
+    totalOtherSales = null  # 当前三表无此字段
 
 其他衍生指标：
 
@@ -1151,8 +1270,7 @@ flowchart TD
     totalCpa = totalSpend / totalOrders
     totalAov = totalSales / totalOrders
     totalAsp = totalSales / totalSaleUnits
-    totalOtherSalesPercent =
-        totalOtherSales / (totalSales + totalOtherSales)
+    totalOtherSalesPercent = null
 
 不能对每行百分比做算术平均。
 
@@ -1190,29 +1308,59 @@ flowchart TD
 
 ---
 
-## 17. 写操作边界
+## 17. 写操作边界与 Campaign 启停
 
-本期创建按钮、开关和复选框只用于复刻视觉：
+产品目标已经调整为“启用开关可点击并能真实开启/关闭 Campaign”。这是一项真实写操作，
+不能通过修改 Vue 内存、写本地 shadow 状态或更新远程数据库来伪造。
 
-| 控件 | 本期行为 |
+当前约束存在明确冲突：
+
+- D-154 要求 `scm_remote` 与 `ads_analysis_remote` 只读；
+- 主规格禁止 V1 真实调用 Amazon Ads API 或自动修改广告；
+- 当前仓库没有已授权、可验证的 Campaign 状态写 Provider。
+
+因此当前实现状态必须是：开关展示远程真实状态，但 `disabled`，并通过 tooltip 说明
+“尚未配置广告状态写通道”。只有项目发起人单独批准写通道、凭据管理、权限、幂等、
+审计和回滚方案后，才能启用以下契约：
+
+    POST /api/v1/advertising/tenants/{tenant_id}/profiles/{profile_id}/campaigns/{campaign_key}/state
+
+~~~json
+{
+  "targetState": "ENABLED",
+  "expectedCurrentState": "PAUSED",
+  "idempotencyKey": "uuid"
+}
+~~~
+
+后端处理顺序固定为：认证 → TenantMembership → `advertising.operate` → Profile 至少
+`OPERATE` → Campaign 归属 → 当前状态漂移检查 → 幂等检查 → 受控
+`CampaignStateProvider` → ExecutionRecord/AuditLog 同事务记录 → 重新读取远程状态。
+
+前端行为：点击后弹出确认；行开关进入提交中；成功后重新请求服务端；Provider 未确认或
+超时则恢复原状态并显示 requestId；不得只凭 HTTP 202/前端局部值显示最终成功。
+
+其他控件：
+
+| 控件 | 当前行为 |
 |---|---|
 | 创建广告活动 | disabled |
-| 启用开关 | 只读，显示状态 |
-| 行复选框 | disabled |
+| 启用开关 | 写通道未授权前 disabled；授权后按上述契约真实执行 |
+| 行复选框 | 无批量动作时 disabled |
 | 修改预算 | 不提供 |
 | 修改竞价 | 不提供 |
 | 批量操作 | 不提供 |
 
-禁止：
+始终禁止：
 
 - 点击后显示伪成功；
 - 修改本地状态假装远程成功；
-- UPDATE scm_remote；
-- UPDATE ads_analysis_remote；
+- `UPDATE scm_remote`；
+- `UPDATE ads_analysis_remote`；
 - 调用未确认的 Amazon Ads API；
 - 在浏览器直接修改远程数据库。
 
-未来写操作必须单独立项：
+授权后的写操作架构：
 
 ~~~mermaid
 flowchart LR
@@ -1248,6 +1396,9 @@ flowchart LR
 | 分页越界 | 自动回最后页一次或显示受控错误 |
 | 导出中 | 导出按钮 Loading |
 | 导出失败 | 错误提示和 requestId |
+| 实时数据较旧 | 显示数据截至时间，不冒充实时 |
+| 启停写通道未配置 | 开关禁用并给出原因 |
+| 启停提交失败 | 回滚开关、保留原状态、显示 requestId |
 
 ---
 
@@ -1260,13 +1411,14 @@ information_schema 近似规模：
 | 表 | 近似行数 |
 |---|---:|
 | scm_remote.eb_ad_campaign | 约 4.1 万 |
-| ads_analysis_remote.bi_analyze_ad_campaign | 约 25.6 万 |
+| ads_analysis_remote.bi_analyze_ad_campaign | 约 25.6 万（旧记录，需重新核验） |
+| ads_analysis_remote.bi_analyze_ad_campaign_realtime | DDL AUTO_INCREMENT 已达约 1.7 亿量级，实际行数需 `information_schema`/DBA 核验 |
 
 这是元数据估算，不是性能承诺。
 
 ### 19.2 SQL
 
-当前远程 Reader 使用 DATE(creation_date) 过滤，可能影响索引使用。
+当前远程 Reader 只查历史表且使用 `DATE(creation_date)` 过滤，既漏掉实时表，也可能影响索引使用。
 
 建议：
 
@@ -1279,7 +1431,8 @@ information_schema 近似规模：
 
 建议 DBA 基于 EXPLAIN 评估：
 
-    (mer_id, mer_code, creation_date, campaign_id)
+    history:  (mer_id, mer_code, creation_date, campaign_code, product_id, asin)
+    realtime: (mer_id, mer_code, creation_date, campaign_code, product_id, asin, update_time)
 
 本项目不能在远程只读库自行创建索引。
 
@@ -1294,6 +1447,9 @@ information_schema 近似规模：
 - 不把全部结果拉到前端分页；
 - 导出限制行数；
 - 行详情延迟加载。
+- 必须分别对历史去重、实时去重、合并覆盖、聚合筛选、summary 和详情执行 `EXPLAIN`；
+- 实时表不得先全量拉到 Python 再去重；窗口函数/分组必须在远程数据库完成；
+- 若现有索引不足，只能提交 DBA 索引建议，应用不得自行修改远程表。
 
 ### 19.5 缓存
 
@@ -1351,6 +1507,9 @@ information_schema 近似规模：
 - 删除单个筛选；
 - 删除全部筛选；
 - 日期快捷范围；
+- 自定义日期应用与校验；
+- 截图同款 9 项分层筛选菜单；
+- 指标运算符和值编辑；
 - 日期非法；
 - 排序；
 - 分页；
@@ -1363,7 +1522,8 @@ information_schema 近似规模：
 - 局部缺失；
 - 导出中和失败；
 - 创建按钮 disabled；
-- 开关只读；
+- 名称 RouterLink 与详情刷新；
+- 开关未授权禁用、授权后提交/回滚状态；
 - 横向目录导航已移除；
 - 顶部栏和左侧栏未回归。
 
@@ -1381,9 +1541,15 @@ information_schema 近似规模：
 - Profile→mer_id+mer_code；
 - 固定 remote alias；
 - 参数化 SQL；
+- 历史表字段映射 `imperssion -> impressions`；
+- 实时表字段映射 `impression -> impressions`；
+- 历史/实时表内去重；
+- 同原子粒度实时覆盖历史；
+- 不同 `type` 不混算；
+- 禁止直接 `UNION ALL + SUM`；
 - SCM 批量查询；
 - 聚合公式；
-- orders_7d、sales_7d、sale_units_7d、other_sales_7d 字段映射；
+- `orders`、`sales` 和仅历史 `sales_units` 字段映射；
 - 先 SUM 后计算比率；
 - 强制计算示例结果；
 - 禁止每日比率平均；
@@ -1396,6 +1562,9 @@ information_schema 近似规模：
 - CSV 注入；
 - 查询次数；
 - 远程只读约束。
+- 详情接口重新授权；
+- 启停接口在 Feature Flag 关闭时不可用；
+- 若写通道获批：权限、幂等、漂移、Provider 失败、审计和回读测试。
 
 ### 21.3 契约
 
@@ -1411,9 +1580,9 @@ information_schema 近似规模：
 
 ## 22. 视觉验收
 
-参考截图视口：
+主要参考截图视口：
 
-    1865 × 650
+    1643 × 685
 
 | 项目 | 验收要求 |
 |---|---|
@@ -1424,6 +1593,11 @@ information_schema 近似规模：
 | 名称列 | 名称和辅助代码两行 |
 | 状态标签 | 颜色、尺寸和圆角接近截图 |
 | 开关 | 约 34×18px |
+| 搜索框 | placeholder、宽度、图标和边框与截图一致 |
+| 筛选按钮 | 方形图标按钮，不显示大号“筛选”文字按钮 |
+| 筛选菜单 | 9 项顺序、约 178px 宽、锚点、阴影和行距与 631×675 局部截图一致 |
+| 日期选择 | 工具栏右侧按钮可打开 7/14/30 天和自定义范围 |
+| 名称链接 | 蓝色、两行布局、点击进入真实详情 |
 | 横向滚动 | 最右 ACoS/CVR 可访问 |
 | 合计 | 与所有筛选结果一致 |
 | 数字对齐 | 数字和金额右对齐 |
@@ -1432,10 +1606,11 @@ information_schema 近似规模：
 | 外壳回归 | 顶部栏和左侧栏不变 |
 | 导航移除 | 横向目录不再占用页面空间 |
 
-建议截图回归视口：
+必须截图回归的视口/裁剪：
 
-- 1865×650；
-- 1659×747；
+- 1643×685（本次主参考）；
+- 631×675（筛选菜单局部）；
+- 1865×650（旧参考回归）；
 - 1440×900。
 
 ---
@@ -1459,6 +1634,10 @@ information_schema 近似规模：
 | 远程异常 | 模拟连接失败 | GET | 503，不显示暂无数据 |
 | 部分缺失 | SCM 不匹配 | GET | 缺失字段 — |
 | 写控件 | 点击创建/开关 | 不发写请求 | 保持禁用 |
+| 名称跳转 | 点击活动名称 | GET campaign detail | 进入真实详情，不依赖列表缓存 |
+| 指标筛选 | 点击 `⊟` 并选择指标规则 | GET campaigns + repeated filter | 列表、合计和标签同步更新 |
+| 启停（未授权） | 点击/聚焦开关 | 不发请求 | 明确提示写通道未配置 |
+| 启停（获批后） | 确认目标状态 | POST campaign state | 成功回读；失败回滚并显示 requestId |
 
 ---
 
@@ -1467,17 +1646,17 @@ information_schema 近似规模：
 | 编号 | 任务 | 涉及文件 | 前置依赖 | 产出 | 复杂度 |
 |---|---|---|---|---|---|
 | C2-01 | 确认 Campaign 键 | 决策日志 | 数据负责人 | 唯一键规则 | M |
-| C2-02 | 确认指标口径 | 决策日志 | 脱敏样例 | 指标字典 | M |
+| C2-02 | 核验三表粒度、`type`、时间和重复度 | 决策日志/只读 SQL 证据 | 远程库 | 指标与去重字典 | XL |
 | C2-03 | 移除横向目录导航 | AppLayout.vue、样式、测试 | 产品确认 | 新主框架 | S |
 | C2-04 | 定义列表 OpenAPI | schema、Serializer | C2-01/02 | API 契约 | M |
-| C2-05 | 扩展远程 Repository | remote_databases.py | SQL 评审 | 分页查询 | XL |
+| C2-05 | 扩展三表聚合 Reader | remote_databases.py | C2-02/SQL 评审 | 历史+实时去重覆盖查询 | XL |
 | C2-06 | 权限与 Profile Scope | permission service、selector | 远程映射 | 安全范围 | M |
 | C2-07 | 列表 Selector | advertising selectors | C2-05/06 | items | L |
 | C2-08 | Summary 聚合 | selector/repository | 指标口径 | summary | L |
 | C2-09 | 扩展 Campaign View | views/serializers | C2-04/07 | GET API | M |
 | C2-10 | CampaignSection 容器 | Vue 页面和组件 | 页面集成点 | 模块框架 | M |
-| C2-11 | 工具栏 | CampaignToolbar | API 参数 | 工具栏 | M |
-| C2-12 | 筛选标签 | CampaignFilterChips | URL 状态 | 筛选 UI | M |
+| C2-11 | 截图同款工具栏 | CampaignToolbar | API 参数 | 搜索、图标筛选、日期、导出 | M |
+| C2-12 | 分层筛选与标签 | FilterMenu/RuleEditor/Chips | URL 状态 | 9 项筛选 UI | L |
 | C2-13 | 日期选择器 | DateRangePicker | 时区口径 | 日期 UI | M |
 | C2-14 | 19 列表格 | CampaignTable | 响应契约 | 宽表 | L |
 | C2-15 | 合计和分页 | Summary/Pagination | API | 完整底部 | M |
@@ -1490,6 +1669,8 @@ information_schema 近似规模：
 | C2-22 | 外壳回归 | AppLayout tests | C2-03 | 顶部/侧栏不变 | M |
 | C2-23 | 性能验证 | EXPLAIN 文档 | 查询完成 | 查询基线 | L |
 | C2-24 | 文档同步 | 模块文档、决策日志 | 全部完成 | 最终文档 | M |
+| C2-25 | Campaign 详情链路 | detail API/route/page | C2-05/06 | 名称可点击跳转 | L |
+| C2-26 | Campaign 启停链路 | Provider/Service/API/UI | 单独写授权 | 真实启停与审计 | XL/阻塞 |
 
 复杂度仅使用 S/M/L/XL，不代表具体人天。
 
@@ -1500,17 +1681,22 @@ information_schema 近似规模：
 | 事项 | 当前状态 | 影响 | 阻塞级别 |
 |---|---|---|---|
 | W0765 默认 Profile | 运行记录未验证 | 无 Profile 时无法加载真实数据 | 高 |
-| Campaign ID 稳定性 | 未确认 | 去重和详情跳转 | 高 |
+| Campaign 连接键 | 已确认使用 `campaign_code -> SCM.code`；签名 campaignKey 绑定 Profile 远程范围 | 去重和详情跳转 | 已控制 |
 | Marketplace 远程隔离键 | 未确认 | 可能混合站点 | 高 |
 | top_of_search_is 口径 | 未确认 | 该列暂时显示 — | 高 |
 | 7 日归因字段实际可用性 | 2026-08-04 已验证为缺失；只有未确认归因语义的 `orders`/`sales` 及 1 日字段 | 订单、销售额、售出件数和衍生指标；当前 API 显式标记未验证 | 高 |
+| 历史/实时原子粒度 | 已用真实重复度查询确认并通过窗口函数处理表内重复 | 错误粒度会重复或漏算 | 已控制；真实样例语义仍需持续验证 |
+| `type` 字段 | 已确认不是统计窗口；历史 NULL、实时为 SP-Auto/SP-Manual | 错误按窗口过滤会漏数 | 已纠正 |
+| 实时快照完整性与更新频率 | 未确认 | 最新日可能不完整或重复 | 高 |
+| 历史/实时日期重叠 | 已核验存在 50 个重叠业务日，并实现同粒度实时覆盖 | 直接相加会重复计数 | 已控制 |
 | 远程 creation_date 时区 | 未确认 | 日期边界 | 高 |
-| SCM/分析状态优先级 | 建议 SCM 优先 | 启用和状态展示 | 中 |
-| 无指标 Campaign 是否显示 | 未确认 | 主集合选择 | 高 |
+| SCM/分析状态优先级 | 已确认 SCM 当前状态优先，事实状态回退 | 启用和状态展示 | 已控制 |
+| 无指标 Campaign 是否显示 | 已确认显示，指标为 null/`—`，返回 `hasMetrics=false` | 主集合选择 | 已控制 |
 | 导出独立权限 | 当前未定义 | 是否新增 migration | 中 |
 | 导出上限 | 建议 10,000 | 超限处理 | 中 |
 | 横向导航移除后的旧页面入口 | 未确认 | 旧功能可发现性 | 中 |
 | 远程复合索引 | 未发现 | 搜索和日期查询性能 | 中 |
+| Campaign 启停写 Provider | 当前无授权且与只读/V1 边界冲突 | 开关不能真实可用 | 阻塞 |
 
 ---
 
@@ -1549,18 +1735,19 @@ information_schema 近似规模：
 
 ## 27. 实施顺序
 
-1. 先确认 Campaign 键、Marketplace 隔离、时区和指标口径；
-2. 扩展现有 Campaign API；
-3. 完成远程分页、合计和权限测试；
+1. 先只读核验三表的 Campaign 键、原子粒度、`type`、日期重叠、快照频率、Marketplace 隔离和时区；
+2. 扩展现有 Campaign API 为历史+实时去重覆盖的统一聚合；
+3. 完成远程分页、指标筛选、合计和权限测试；
 4. 生成 OpenAPI TypeScript 类型；
-5. 创建 CampaignSection；
-6. 完成工具栏、表格、合计、分页；
+5. 创建/修正 CampaignSection；
+6. 完成截图同款工具栏、分层筛选、日期、表格、合计、分页；
 7. 接入 Loading、暂无数据和错误状态；
-8. 接入只读导出；
+8. 接入 Campaign 详情跳转与只读导出；
 9. 移除横向目录导航；
 10. 运行前端、后端、OpenAPI 和视觉回归；
 11. 确认顶部栏、左侧栏无回归；
-12. 更新决策日志和模块文档。
+12. 更新决策日志和模块文档；
+13. Campaign 启停作为独立门禁：只有写 Provider 获得明确授权后实施并验证，否则保持禁用。
 
 不得先使用静态数组把页面做成“看起来完成”，再延后数据接入。首个实现必须是可测试的远程只读纵向链路。
 
@@ -1571,22 +1758,26 @@ information_schema 近似规模：
 1. 顶部栏保留；
 2. 左侧栏保留；
 3. 工作台、卖家空间、广告总览等横向目录导航整体移除；
-4. 本任务只负责 HTML 最底部的 CampaignSection；
-5. CampaignSection 包括工具栏、筛选、19 列表格、合计、分页和导出；
-6. 初始无筛选标签时直接显示工具栏；
+4. 本任务聚焦 HTML 最底部的 CampaignSection，并包含其详情入口；
+5. CampaignSection 包括截图同款工具栏、日期、搜索、9 项分层筛选、19 列表格、合计、分页和导出；
+6. 初始显示“进行中”和“已启用”筛选标签；
 7. 表格采用高密度宽表和横向滚动；
-8. Campaign 元数据来自 scm_remote；
-9. Campaign 指标来自 ads_analysis_remote；
+8. Campaign 当前元数据来自 `scm_remote.eb_ad_campaign`；
+9. Campaign 指标由 `bi_analyze_ad_campaign` 历史事实和 `bi_analyze_ad_campaign_realtime` 实时事实去重覆盖后聚合；
 10. 不使用 HTML Mock 数据或本地静态数组；
 11. 无远程数据时显示“暂无数据”；
 12. 远程错误不能伪装成暂无数据；
 13. Tenant、Store、Profile 权限隔离仍然保留；
-14. 创建、启停、预算和竞价修改本期不实现；
-15. 2026-08-04 已确认 SCM 元数据字段完整且实际远程聚合查询可用；`orders_7d`、`sales_7d`、`sale_units_7d`、`other_sales_7d` 实际缺失，当前订单/销售及衍生指标必须保持“远程字段语义未验证”标记；Marketplace 隔离键、时区和首页位置占比仍是高风险待确认项。
+14. Campaign 名称必须跳转到真实详情页；
+15. Campaign 启停是已提出的真实业务目标，但在只读远程库和 V1 禁止真实 Amazon 写入的现状下处于阻塞；未授权前必须禁用，不能伪造；
+16. `orders_7d`、`sales_7d`、`sale_units_7d`、`other_sales_7d` 在当前 Schema 中不存在；当前订单/销售及衍生指标必须保持“远程字段语义未验证”标记；Marketplace 隔离键、时区和首页位置占比仍是待确认项，原子粒度与 `type` 假设已由真实只读核验纠正。
 
 ---
 
 ## 29. 2026-08-04 实施快照
+
+> 修订注：本节仅记录本轮实现前的历史快照。该快照时点仍只查询
+> `bi_analyze_ad_campaign`；本轮完成状态以第 30 节和实际 OpenAPI 契约为准。
 
 - 开发前 Git 快照：`bdb553c`，标签 `checkpoint-before-campaign-section-20260804`；
 - CampaignSection 已接入现有 AppLayout 下的 `/advertising/overview`；
@@ -1600,3 +1791,29 @@ information_schema 近似规模：
 - 已增加 `ads_profile_remote_scope` 显式映射及 `sync_remote_account_context` 管理命令；W0765 的认证身份已绑定到远程 merchant code `W0765`，账号具体业务数据不写入代码。
 - 五档风险复用现有异常规则和 Profile→Tenant 目标 ACoS；缺少小时级预算快照的预算提前耗尽规则在 API 中显式列为不可用。
 - 2026-08-04 浏览器真实验收通过：`/advertising/overview` 返回 8 个 KPI、30 天趋势、风险计数和当前页 15 条远程 Campaign，无页面告警；截图为 `w0765-remote-dashboard.png`。
+
+## 30. 本轮实现状态（2026-08-04）
+
+| 项目 | 当前代码 | 本次目标 | 状态 |
+|---|---|---|---|
+| 数据源 | 历史 + 实时 + SCM 三表复合 Reader | 历史 + 实时 + SCM 三表 | 已实现并真实只读试查 |
+| 历史/实时去重 | 表内窗口去重 + 同粒度实时覆盖历史 | 表内最新快照 + 实时覆盖同原子粒度历史 | 已实现并有算法测试 |
+| `type` 语义 | 真实数据证明不是统计窗口 | 不按窗口筛选，投放类型受控规范化 | 已纠正 |
+| 日期 | 截图同款按钮、7/14/30 天、自定义应用 | 同左 | 已实现 |
+| 搜索 | 已有，300ms 服务端搜索 | 保留并匹配截图 | 已有功能，视觉待修 |
+| 指标筛选 | 9 项分层菜单 + 聚合后白名单规则 + chips | 同左 | 已实现 |
+| 活动名称 | RouterLink 到签名 campaignKey 的真实详情 API | 同左 | 已实现 |
+| 启停 | `aria-readonly` 展示 | 真实 Provider 写入；未授权前禁用并解释 | 阻塞 |
+| 视觉 | 高密度 19 列表格、蓝色筛选 chips、弹出菜单、日期按钮已对齐参考 | 三视口截图回归 | 浏览器视觉复核待本轮执行 |
+
+启停仍是唯一明确功能阻塞：远程连接保持只读，且主规格禁止 V1 直接调用真实 Amazon Ads API；在 D-180 所列 Provider、权限、幂等、漂移、审计和回读机制获批前，前端开关保持禁用并说明原因。
+
+## 31. 2026-08-05 复核与交互修订
+
+- 通过全容器模式重新构建并启动 MySQL、Redis、Django、Celery、Vue 和 Nginx；live/ready 健康检查均返回 `SUCCESS`，数据库无待执行迁移；
+- W0765 已授权 Profile 的远程三表 Reader 在当前最近可用 30 天返回 172 个已启用 Campaign，第一页 15 条；历史水位为 2025-12-28，实时水位为 2026-07-17。本条是当次只读运行证据，不是固定数据量或性能承诺；
+- 同一范围通过 TenantMembership/Profile 权限 Selector 和 DRF Campaign API 复核：HTTP 200、`code=SUCCESS`、`source=REMOTE_MYSQL_COMPOSITE`、15 个当前页 items、172 个总数，未回退本地 `ads_campaign`；
+- 9 个一级筛选项改为统一模态框编辑；已有指标规则可重新编辑，多指标规则以 `;` 分隔并存，比例值显示为百分比但按小数契约发送；
+- 强制两日计算示例已固化为后端测试：先得到 300 impressions、15 clicks、30.00 spend、3 orders、135.00 sales，再计算 CTR 5%、CPC 2.00、CVR 20%、ACoS 22.22%、ROAS 4.50；
+- 本轮浏览器控制会话初始化失败，因此没有把单元测试或 API 证据描述为新的浏览器视觉回归；截图级视觉验收仍需在可用浏览器控制会话中补跑；
+- 创建 Campaign 和真实启停仍受 D-180 阻塞，未启用本地假状态、远程 SQL 写入或未授权 Amazon Ads 调用。

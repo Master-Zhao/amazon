@@ -32,6 +32,7 @@ export interface ProfileOption {
   currencyCode: string
   timezone: string
   accessLevel: 'VIEW' | 'OPERATE' | 'APPROVE' | 'EXECUTE' | 'MANAGE'
+  remoteAdvertisingAvailable: boolean
 }
 
 export interface ContextCapabilities {

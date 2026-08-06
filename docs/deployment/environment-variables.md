@@ -33,12 +33,16 @@
 | `SYSTEM_DB_NAME` / `SYSTEM_DB_USER` / `SYSTEM_DB_PASSWORD` | 是 | `DATABASES["default"]`，承载用户、Tenant、Token、Session 与审计 | Password 是 |
 | `SCM_DB_HOST` / `SCM_DB_PORT` | 是 | 既有 SCM 外部业务库地址 | 否 |
 | `SCM_DB_NAME` / `SCM_DB_USER` / `SCM_DB_PASSWORD` | 是 | `DATABASES["scm_remote"]`，只读外部业务数据 | Password 是 |
+| `REMOTE_AD_DATABASES_ENABLED` | 否 | 默认 `true`；启用广告活动总览所需的远程只读广告数据别名 | 否 |
+| `ADS_ANALYSIS_REMOTE_DB_HOST` / `ADS_ANALYSIS_REMOTE_DB_PORT` | 否 | 广告分析库地址；未配置时复用 `SYSTEM_DB_*` 作为只读 `ads_analysis_remote` 别名 | 否 |
+| `ADS_ANALYSIS_REMOTE_DB_NAME` / `ADS_ANALYSIS_REMOTE_DB_USER` / `ADS_ANALYSIS_REMOTE_DB_PASSWORD` | 否 | `DATABASES["ads_analysis_remote"]`，读取 `bi_analyze_ad_campaign*` | Password 是 |
+| `REMOTE_AD_PROFILE_MERCHANT_MAP` | 否 | Profile 外部 ID 到 `merchantId/merchantCode` 的受控映射；本地表映射优先 | 否 |
 | `DB_CONN_MAX_AGE` | 否 | 两个连接共享的持久连接秒数，默认 `60` | 否 |
 | `REMOTE_SCM_AUTH_ENABLED` | 否 | 默认 `false`；启用 `eb_merchant_admin` 只读认证，要求已配置 `scm_remote` | 否 |
 
-`scm_remote` 使用连接级只读事务、数据库路由拒绝迁移，并禁止与项目模型建立
-跨数据库关系。部署时仍必须使用仅有 `SELECT` 权限的 SCM 数据库账号；应用层边界
-不能替代数据库最小权限。
+`scm_remote` 与 `ads_analysis_remote` 使用连接级只读事务、数据库路由拒绝迁移，
+并禁止与项目模型建立跨数据库关系。部署时仍必须使用仅有 `SELECT` 权限的远程
+数据库账号；应用层边界不能替代数据库最小权限。
 
 远程账号认证只读取账号 ID、商户 ID、账号、bcrypt 哈希和启停/删除状态。密码哈希
 不持久化到项目库；首次认证成功后，项目系统库创建本地身份映射。部署前必须先对

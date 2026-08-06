@@ -1,5 +1,8 @@
-import hashlib
 from decimal import Decimal
+
+from apps.audit.services import append_audit_log
+from django.core import signing
+from rest_framework.exceptions import NotFound
 
 from apps.advertising.models import Campaign, Keyword, ProductTarget, SearchTerm
 from apps.analytics.models import AnomalyRuleCode, AnomalyRuleVersion
@@ -41,21 +44,52 @@ def _normalized_status(value: str) -> str:
 
 def _normalized_targeting_type(value: str) -> str:
     normalized = value.strip().upper()
-    if normalized in {"AUTO", "AUTOMATIC"}:
+    if normalized in {"AUTO", "AUTOMATIC"} or "AUTO" in normalized:
         return "AUTO"
-    if normalized in {"MANUAL", "MANUAL_TARGETING"}:
+    if normalized in {"MANUAL", "MANUAL_TARGETING"} or "MANUAL" in normalized:
         return "MANUAL"
     return "UNKNOWN"
 
 
 def _campaign_key(merchant_id: int, merchant_code: str, value: str) -> str:
-    digest = hashlib.sha256(
-        f"{merchant_id}:{merchant_code}:{value}".encode("utf-8")
-    ).hexdigest()
-    return f"cmp_{digest[:24]}"
+    encoded = signing.dumps(
+        str(value),
+        salt=f"campaign-key:{merchant_id}:{merchant_code}",
+        compress=True,
+    )
+    return f"cmp_{encoded}"
+
+
+def _raw_campaign_key(merchant_id: int, merchant_code: str, value: str) -> str:
+    if not value.startswith("cmp_"):
+        raise NotFound("广告活动不存在")
+    try:
+        decoded = signing.loads(
+            value.removeprefix("cmp_"),
+            salt=f"campaign-key:{merchant_id}:{merchant_code}",
+        )
+    except signing.BadSignature as exc:
+        raise NotFound("广告活动不存在") from exc
+    if not isinstance(decoded, str) or not decoded:
+        raise NotFound("广告活动不存在")
+    return decoded
 
 
 def _metric_payload(*, metric, currency_code: str) -> dict[str, object]:
+    if not getattr(metric, "has_metrics", True):
+        return {
+            "impressions": None,
+            "top_of_search_share": None,
+            "spend": None,
+            "sales": None,
+            "clicks": None,
+            "ctr": None,
+            "total_cost": None,
+            "orders": None,
+            "cpc": None,
+            "acos": None,
+            "cvr": None,
+        }
     formulas = metric_formulas(
         impressions=metric.impressions,
         clicks=metric.clicks,
@@ -65,7 +99,9 @@ def _metric_payload(*, metric, currency_code: str) -> dict[str, object]:
     )
     return {
         "impressions": metric.impressions,
-        "top_of_search_share": None,
+        "top_of_search_share": _decimal_string(
+            getattr(metric, "top_of_search_share", None)
+        ),
         "spend": _money(metric.spend, currency_code),
         "sales": _money(metric.sales, currency_code),
         "clicks": metric.clicks,
@@ -188,6 +224,58 @@ def _dashboard_payload(*, result, scope, currency_code: str) -> dict[str, object
     }
 
 
+def _overview_item_payload(
+    *, metric, remote_scope, currency_code: str
+) -> dict[str, object]:
+    partial_fields = ["topOfSearchShare", "ordersAttributionWindow"]
+    if metric.start_date is None:
+        partial_fields.append("startDate")
+    if not metric.has_metrics:
+        partial_fields.extend(
+            [
+                "impressions",
+                "spend",
+                "sales",
+                "clicks",
+                "ctr",
+                "totalCost",
+                "orders",
+                "cpc",
+                "acos",
+                "cvr",
+            ]
+        )
+    if not metric.scm_matched:
+        partial_fields.extend(
+            [
+                "referenceCode",
+                "targetingType",
+                "biddingStrategy",
+                "endDate",
+            ]
+        )
+    return {
+        "campaign_key": _campaign_key(
+            remote_scope.merchant_id,
+            remote_scope.merchant_code,
+            metric.campaign_key,
+        ),
+        "name": metric.campaign_name,
+        "reference_code": metric.reference_code,
+        "enabled": metric.state.strip().lower() == "enabled",
+        "targeting_type": _normalized_targeting_type(metric.targeting_type),
+        "status": _normalized_status(metric.state),
+        "bidding_strategy": metric.bidding_strategy.strip().upper(),
+        "start_date": metric.start_date,
+        "end_date": metric.end_date,
+        "daily_budget": _money(metric.daily_budget, currency_code),
+        "metrics": _metric_payload(metric=metric, currency_code=currency_code),
+        "metadata_matched": metric.scm_matched,
+        "has_metrics": metric.has_metrics,
+        "partial_fields": sorted(set(partial_fields)),
+    }
+
+
 def campaign_overview_page(
     *, user, tenant_id, profile_id, query: dict[str, object]
 ) -> dict[str, object]:
@@ -208,50 +296,23 @@ def campaign_overview_page(
         statuses=query.get("statuses", ()),
         targeting_type=query.get("targeting_type"),
         search=query.get("search", ""),
+        metric_filters=query.get("metric_filters", ()),
         ordering=query.get("ordering", "-spend"),
         page=query.get("page", 1),
         page_size=query.get("page_size", 15),
         include_summary=query.get("include_summary", True),
+        require_metrics=bool(query.get("start_date") and query.get("end_date"))
+        or bool(query.get("metric_filters")),
     )
     currency_code = scope.profile.currency_code
-    items = []
-    for metric in result.items:
-        partial_fields = ["topOfSearchShare", "ordersAttributionWindow"]
-        if metric.start_date is None:
-            partial_fields.append("startDate")
-        if not metric.scm_matched:
-            partial_fields.extend(
-                [
-                    "referenceCode",
-                    "targetingType",
-                    "biddingStrategy",
-                    "endDate",
-                ]
-            )
-        items.append(
-            {
-                "campaign_key": _campaign_key(
-                    remote_scope.merchant_id,
-                    remote_scope.merchant_code,
-                    metric.campaign_key,
-                ),
-                "name": metric.campaign_name,
-                "reference_code": metric.reference_code,
-                "enabled": metric.state.strip().lower() == "enabled",
-                "targeting_type": _normalized_targeting_type(metric.targeting_type),
-                "status": _normalized_status(metric.state),
-                "bidding_strategy": metric.bidding_strategy.strip().upper(),
-                "start_date": metric.start_date,
-                "end_date": metric.end_date,
-                "daily_budget": _money(metric.daily_budget, currency_code),
-                "metrics": _metric_payload(
-                    metric=metric,
-                    currency_code=currency_code,
-                ),
-                "metadata_matched": metric.scm_matched,
-                "partial_fields": sorted(set(partial_fields)),
-            }
+    items = [
+        _overview_item_payload(
+            metric=metric,
+            remote_scope=remote_scope,
+            currency_code=currency_code,
         )
+        for metric in result.items
+    ]
 
     summary = None
     if result.summary is not None:
@@ -279,16 +340,245 @@ def campaign_overview_page(
             "total_pages": total_pages,
         },
         "meta": {
-            "source": "REMOTE_MYSQL",
+            "source": "REMOTE_MYSQL_COMPOSITE",
             "currency_code": currency_code,
             "timezone": scope.profile.timezone,
             "start_date": result.start_date,
             "end_date": result.end_date,
             "data_through_date": result.data_through_date,
+            "history_through_date": result.history_through_date,
+            "realtime_through_date": result.realtime_through_date,
+            "realtime_as_of": result.realtime_as_of,
+            "deduplication_version": result.deduplication_version,
+            "field_mappings": result.field_mappings or {},
             "total_cost_semantics": "SPEND_ALIAS",
             "attribution_semantics": "REMOTE_FIELDS_UNVERIFIED",
-            "status_filter_semantics": "ANALYSIS_FILTER_SCM_DISPLAY",
+            "status_filter_semantics": "SCM_CURRENT_STATE_WITH_FACT_FALLBACK",
         },
+    }
+
+
+def campaign_detail_page(
+    *,
+    user,
+    tenant_id,
+    profile_id,
+    campaign_key: str,
+    start_date=None,
+    end_date=None,
+) -> dict[str, object]:
+    scope = require_profile_scope(
+        user=user,
+        tenant_id=tenant_id,
+        profile_id=profile_id,
+        permission_code="advertising.view",
+        minimum_level=ProfileAccessLevel.VIEW,
+    )
+    remote_scope = remote_scope_for_profile(scope.profile)
+    raw_key = _raw_campaign_key(
+        remote_scope.merchant_id,
+        remote_scope.merchant_code,
+        campaign_key,
+    )
+    result = RemoteAdvertisingDataReader().campaign_detail(
+        merchant_id=remote_scope.merchant_id,
+        merchant_code=remote_scope.merchant_code,
+        campaign_key=raw_key,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    if not result.items:
+        raise NotFound("广告活动不存在")
+    currency_code = scope.profile.currency_code
+    return {
+        "item": _overview_item_payload(
+            metric=result.items[0],
+            remote_scope=remote_scope,
+            currency_code=currency_code,
+        ),
+        "trend": [
+            {
+                "date": item.report_date,
+                "metrics": _metric_payload(metric=item, currency_code=currency_code),
+            }
+            for item in result.trend
+        ],
+        "meta": {
+            "source": "REMOTE_MYSQL_COMPOSITE",
+            "currency_code": currency_code,
+            "timezone": scope.profile.timezone,
+            "start_date": result.start_date,
+            "end_date": result.end_date,
+            "data_through_date": result.data_through_date,
+            "history_through_date": result.history_through_date,
+            "realtime_through_date": result.realtime_through_date,
+            "realtime_as_of": result.realtime_as_of,
+            "deduplication_version": result.deduplication_version,
+            "field_mappings": result.field_mappings or {},
+            "total_cost_semantics": "SPEND_ALIAS",
+            "attribution_semantics": "REMOTE_FIELDS_UNVERIFIED",
+            "status_filter_semantics": "SCM_CURRENT_STATE_WITH_FACT_FALLBACK",
+        },
+    }
+
+
+def update_campaign_enabled_state(
+    *,
+    request,
+    user,
+    tenant_id,
+    profile_id,
+    campaign_key: str,
+    enabled: bool,
+    start_date=None,
+    end_date=None,
+) -> dict[str, object]:
+    scope = require_profile_scope(
+        user=user,
+        tenant_id=tenant_id,
+        profile_id=profile_id,
+        permission_code="advertising.view",
+        minimum_level=ProfileAccessLevel.OPERATE,
+    )
+    remote_scope = remote_scope_for_profile(scope.profile)
+    raw_campaign_key = _raw_campaign_key(
+        remote_scope.merchant_id,
+        remote_scope.merchant_code,
+        campaign_key,
+    )
+    reader = RemoteAdvertisingDataReader()
+    current = reader.campaign_detail(
+        merchant_id=remote_scope.merchant_id,
+        merchant_code=remote_scope.merchant_code,
+        campaign_key=raw_campaign_key,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    if not current.items:
+        raise NotFound("广告活动不存在")
+    current_item = current.items[0]
+    updated = reader.update_campaign_enabled(
+        merchant_id=remote_scope.merchant_id,
+        merchant_code=remote_scope.merchant_code,
+        campaign_key=raw_campaign_key,
+        enabled=enabled,
+        campaign_name=current_item.campaign_name,
+        targeting_type=current_item.targeting_type,
+        daily_budget=current_item.daily_budget,
+        bidding_strategy=current_item.bidding_strategy,
+        start_date=current_item.start_date,
+        end_date=current_item.end_date,
+        actor_id=getattr(user, "pk", None),
+        actor_name=getattr(user, "email", "") or getattr(user, "username", ""),
+    )
+    if not updated:
+        raise NotFound("广告活动不存在")
+    append_audit_log(
+        request=request,
+        tenant=scope.membership.tenant,
+        actor=user,
+        event="campaign.enabled_updated",
+        object_type="RemoteCampaign",
+        object_id=raw_campaign_key,
+        after_data={"enabled": enabled},
+        metadata={
+            "source": "REMOTE_MYSQL_SCM",
+            "merchant_id": remote_scope.merchant_id,
+            "merchant_code": remote_scope.merchant_code,
+        },
+    )
+
+    result = reader.campaign_detail(
+        merchant_id=remote_scope.merchant_id,
+        merchant_code=remote_scope.merchant_code,
+        campaign_key=raw_campaign_key,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    if not result.items:
+        raise NotFound("广告活动不存在")
+    return {
+        "item": _overview_item_payload(
+            metric=result.items[0],
+            remote_scope=remote_scope,
+            currency_code=scope.profile.currency_code,
+        )
+    }
+
+
+def create_remote_campaign(
+    *,
+    request,
+    user,
+    tenant_id,
+    profile_id,
+    name: str,
+    targeting_type: str,
+    daily_budget: Decimal,
+    bidding_strategy: str,
+    start_date,
+    end_date=None,
+    enabled: bool = True,
+) -> dict[str, object]:
+    scope = require_profile_scope(
+        user=user,
+        tenant_id=tenant_id,
+        profile_id=profile_id,
+        permission_code="advertising.view",
+        minimum_level=ProfileAccessLevel.OPERATE,
+    )
+    remote_scope = remote_scope_for_profile(scope.profile)
+    reader = RemoteAdvertisingDataReader()
+    raw_campaign_key = reader.create_campaign(
+        merchant_id=remote_scope.merchant_id,
+        merchant_code=remote_scope.merchant_code,
+        name=name,
+        targeting_type=targeting_type,
+        daily_budget=daily_budget,
+        bidding_strategy=bidding_strategy,
+        start_date=start_date,
+        end_date=end_date,
+        enabled=enabled,
+        actor_id=getattr(user, "pk", None),
+        actor_name=getattr(user, "email", "") or getattr(user, "username", ""),
+    )
+    append_audit_log(
+        request=request,
+        tenant=scope.membership.tenant,
+        actor=user,
+        event="campaign.created",
+        object_type="RemoteCampaign",
+        object_id=raw_campaign_key,
+        after_data={
+            "name": name,
+            "targeting_type": targeting_type,
+            "daily_budget": str(daily_budget),
+            "bidding_strategy": bidding_strategy,
+            "start_date": str(start_date),
+            "end_date": str(end_date) if end_date else None,
+            "enabled": enabled,
+        },
+        metadata={
+            "source": "REMOTE_MYSQL_SCM",
+            "merchant_id": remote_scope.merchant_id,
+            "merchant_code": remote_scope.merchant_code,
+        },
+    )
+    result = reader.campaign_detail(
+        merchant_id=remote_scope.merchant_id,
+        merchant_code=remote_scope.merchant_code,
+        campaign_key=raw_campaign_key,
+        start_date=start_date,
+        end_date=end_date or start_date,
+    )
+    if not result.items:
+        raise NotFound("广告活动创建后未能读取")
+    return {
+        "item": _overview_item_payload(
+            metric=result.items[0],
+            remote_scope=remote_scope,
+            currency_code=scope.profile.currency_code,
+        )
     }
 
 

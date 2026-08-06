@@ -86,6 +86,21 @@ export const routes: RouteRecordRaw[] = [
     },
   },
   {
+    path: '/advertising/campaigns/:campaignKey',
+    name: 'advertising-campaign-detail',
+    component: () =>
+      import('@/features/advertising/pages/CampaignDetailPage.vue'),
+    meta: {
+      title: '广告活动详情',
+      requiresAuth: true,
+      directoryPath: [
+        { label: '首页', route: '/' },
+        { label: 'advertising', route: '/advertising' },
+        { label: 'campaign', route: '/advertising' },
+      ],
+    },
+  },
+  {
     path: '/reports',
     name: 'reports-index',
     redirect: { name: 'report-imports' },

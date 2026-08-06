@@ -65,6 +65,26 @@ function chooseId<T extends { id: string }>(
   return options.length === 1 ? options[0].id : null
 }
 
+function chooseProfileId(
+  options: ProfileOption[],
+  preferred: string | null,
+): string | null {
+  const remoteProfiles = options.filter((item) => item.remoteAdvertisingAvailable)
+  const preferredProfile = preferred
+    ? options.find((item) => item.id === preferred)
+    : undefined
+  if (preferredProfile?.remoteAdvertisingAvailable) {
+    return preferredProfile.id
+  }
+  if (remoteProfiles.length === 1) {
+    return remoteProfiles[0].id
+  }
+  if (preferredProfile) {
+    return preferredProfile.id
+  }
+  return options.length === 1 ? options[0].id : null
+}
+
 export const useTenantContextStore = defineStore('tenant-context', {
   state: (): TenantContextState => ({
     ...storedContext(),
@@ -211,7 +231,7 @@ export const useTenantContextStore = defineStore('tenant-context', {
         this.tenantId,
         storeMarketplaceId,
       )
-      this.profileId = chooseId(this.profiles, preferred.profileId ?? null)
+      this.profileId = chooseProfileId(this.profiles, preferred.profileId ?? null)
       this.persist()
     },
     selectProfile(profileId: string | null) {

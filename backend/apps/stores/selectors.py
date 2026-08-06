@@ -1,3 +1,5 @@
+from django.conf import settings
+
 from apps.permissions.models import ProfileAccessLevel
 from apps.permissions.services import (
     accessible_profiles,
@@ -5,8 +7,18 @@ from apps.permissions.services import (
     feature_permission_codes,
     require_membership,
 )
-from apps.stores.models import StoreMarketplace
+from apps.stores.models import AdvertisingProfileRemoteScope, StoreMarketplace
 from apps.tenants.selectors import memberships_for_user
+
+
+def _remote_advertising_available(profile) -> bool:
+    return (
+        AdvertisingProfileRemoteScope.objects.filter(
+            profile=profile,
+            is_active=True,
+        ).exists()
+        or profile.external_profile_id in settings.REMOTE_AD_PROFILE_MERCHANT_MAP
+    )
 
 
 def tenant_options(user) -> list[dict]:
@@ -76,6 +88,9 @@ def profile_options(*, user, tenant_id, store_marketplace_id) -> list[dict]:
                 "currency_code": profile.currency_code,
                 "timezone": profile.timezone,
                 "access_level": ProfileAccessLevel(level).label,
+                "remote_advertising_available": _remote_advertising_available(
+                    profile
+                ),
             }
         )
     return options

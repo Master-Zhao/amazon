@@ -55,6 +55,7 @@ describe('Campaign metrics page', () => {
           currencyCode: 'USD',
           timezone: 'America/Los_Angeles',
           accessLevel: 'MANAGE',
+          remoteAdvertisingAvailable: true,
         },
       ],
     })

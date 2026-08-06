@@ -264,6 +264,64 @@ def test_remote_multi_database_mode_uses_system_default_and_read_only_scm():
     assert "scm-password-must-not-be-printed" not in combined_output
 
 
+def test_remote_multi_database_mode_can_enable_read_only_ad_analysis_alias():
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "REMOTE_MULTI_DATABASE_MODE": "true",
+            "SYSTEM_DB_NAME": "system_and_analysis_database",
+            "SYSTEM_DB_USER": "system_test_user",
+            "SYSTEM_DB_PASSWORD": "system-password-must-not-be-printed",
+            "SYSTEM_DB_HOST": "system-db.example.invalid",
+            "SYSTEM_DB_PORT": "3306",
+            "SCM_DB_NAME": "scm_test_database",
+            "SCM_DB_USER": "scm_read_only_user",
+            "SCM_DB_PASSWORD": "scm-password-must-not-be-printed",
+            "SCM_DB_HOST": "scm-db.example.invalid",
+            "SCM_DB_PORT": "3306",
+            "REMOTE_AD_DATABASES_ENABLED": "true",
+        }
+    )
+    for name in (
+        "ADS_ANALYSIS_REMOTE_DB_NAME",
+        "ADS_ANALYSIS_REMOTE_DB_USER",
+        "ADS_ANALYSIS_REMOTE_DB_PASSWORD",
+        "ADS_ANALYSIS_REMOTE_DB_HOST",
+        "ADS_ANALYSIS_REMOTE_DB_PORT",
+    ):
+        environment[name] = ""
+    script = (
+        "import json, config.settings.local as s; "
+        "print(json.dumps({"
+        "'aliases': sorted(s.DATABASES), "
+        "'analysisName': s.DATABASES['ads_analysis_remote']['NAME'], "
+        "'analysisHost': s.DATABASES['ads_analysis_remote']['HOST'], "
+        "'analysisInit': s.DATABASES['ads_analysis_remote']['OPTIONS']['init_command']"
+        "}))"
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=BACKEND_DIR,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == {
+        "aliases": ["ads_analysis_remote", "default", "scm_remote"],
+        "analysisName": "system_and_analysis_database",
+        "analysisHost": "system-db.example.invalid",
+        "analysisInit": "SET SESSION TRANSACTION READ ONLY",
+    }
+    combined_output = result.stdout + result.stderr
+    assert "system-password-must-not-be-printed" not in combined_output
+    assert "scm-password-must-not-be-printed" not in combined_output
+
+
 def test_prod_settings_reject_insecure_refresh_cookie():
     result = run_settings_import(
         "config.settings.prod",

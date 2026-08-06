@@ -9,6 +9,7 @@ describe('router foundation', () => {
       'advertising-index',
       'advertising-overview',
       'advertising-create',
+      'advertising-campaign-detail',
       'reports-index',
       'report-imports',
       'campaign-metrics',

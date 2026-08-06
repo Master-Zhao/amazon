@@ -4,14 +4,14 @@ export interface MoneyValue {
 }
 
 export interface CampaignMetrics {
-  impressions: number
+  impressions: number | null
   topOfSearchShare: string | null
-  spend: MoneyValue
-  sales: MoneyValue
-  clicks: number
+  spend: MoneyValue | null
+  sales: MoneyValue | null
+  clicks: number | null
   ctr: string | null
-  totalCost: MoneyValue
-  orders: number
+  totalCost: MoneyValue | null
+  orders: number | null
   cpc: MoneyValue | null
   acos: string | null
   cvr: string | null
@@ -37,6 +37,7 @@ export interface CampaignOverviewItem {
   dailyBudget: MoneyValue | null
   metrics: CampaignMetrics
   metadataMatched: boolean
+  hasMetrics: boolean
   partialFields: string[]
 }
 
@@ -48,15 +49,20 @@ export interface CampaignPagination {
 }
 
 export interface CampaignOverviewMeta {
-  source: 'REMOTE_MYSQL'
+  source: 'REMOTE_MYSQL_COMPOSITE'
   currencyCode: string
   timezone: string
   startDate: string | null
   endDate: string | null
   dataThroughDate: string | null
+  historyThroughDate: string | null
+  realtimeThroughDate: string | null
+  realtimeAsOf: string | null
+  deduplicationVersion: string
+  fieldMappings: Record<string, string>
   totalCostSemantics: 'SPEND_ALIAS'
   attributionSemantics: 'REMOTE_FIELDS_UNVERIFIED'
-  statusFilterSemantics: 'ANALYSIS_FILTER_SCM_DISPLAY'
+  statusFilterSemantics: 'SCM_CURRENT_STATE_WITH_FACT_FALLBACK'
 }
 
 export interface CampaignListResponse {
@@ -90,8 +96,33 @@ export interface CampaignListFilters {
   status?: string
   targetingType?: 'AUTO' | 'MANUAL'
   search?: string
+  metricFilters?: string
   ordering?: string
   page: number
   pageSize: number
   includeSummary?: boolean
+}
+
+export interface CampaignDetailResponse {
+  item: CampaignOverviewItem
+  trend: CampaignTrendPoint[]
+  meta: CampaignOverviewMeta
+}
+
+export interface CampaignEnabledUpdateResponse {
+  item: CampaignOverviewItem
+}
+
+export interface CampaignCreatePayload {
+  name: string
+  targetingType: 'AUTO' | 'MANUAL'
+  dailyBudget: string
+  biddingStrategy: 'up_and_down' | 'down_only' | 'fixed_bids'
+  startDate: string
+  endDate?: string | null
+  enabled: boolean
+}
+
+export interface CampaignCreateResponse {
+  item: CampaignOverviewItem
 }

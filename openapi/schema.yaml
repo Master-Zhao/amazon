@@ -619,14 +619,14 @@ paths:
           description: ''
   /api/v1/advertising/tenants/{tenant_id}/profiles/{profile_id}/campaigns:
     get:
-      operationId: api_v1_advertising_tenants_profiles_campaigns_retrieve
+      operationId: advertising_campaigns_list
       summary: List read-only remote Sponsored Products Campaign performance
       parameters:
       - in: query
         name: enabled
         schema:
           type: boolean
-          default: true
+          nullable: true
       - in: query
         name: endDate
         schema:
@@ -638,6 +638,11 @@ paths:
           type: boolean
           default: true
       - in: query
+        name: metricFilters
+        schema:
+          type: string
+          maxLength: 1000
+      - in: query
         name: ordering
         schema:
           enum:
@@ -645,6 +650,8 @@ paths:
           - targetingType
           - status
           - biddingStrategy
+          - startDate
+          - endDate
           - dailyBudget
           - impressions
           - spend
@@ -659,6 +666,8 @@ paths:
           - -targetingType
           - -status
           - -biddingStrategy
+          - -startDate
+          - -endDate
           - -dailyBudget
           - -impressions
           - -spend
@@ -677,6 +686,8 @@ paths:
           * `targetingType` - targetingType
           * `status` - status
           * `biddingStrategy` - biddingStrategy
+          * `startDate` - startDate
+          * `endDate` - endDate
           * `dailyBudget` - dailyBudget
           * `impressions` - impressions
           * `spend` - spend
@@ -691,6 +702,8 @@ paths:
           * `-targetingType` - -targetingType
           * `-status` - -status
           * `-biddingStrategy` - -biddingStrategy
+          * `-startDate` - -startDate
+          * `-endDate` - -endDate
           * `-dailyBudget` - -dailyBudget
           * `-impressions` - -impressions
           * `-spend` - -spend
@@ -761,16 +774,139 @@ paths:
               schema:
                 $ref: '#/components/schemas/CampaignOverviewResponse'
           description: ''
+    post:
+      operationId: advertising_campaigns_create
+      summary: Create one remote Campaign in SCM metadata
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - advertising
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CampaignCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CampaignCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CampaignCreateRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      - xTokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignCreateResponse'
+          description: ''
+  /api/v1/advertising/tenants/{tenant_id}/profiles/{profile_id}/campaigns/{campaign_key}:
+    get:
+      operationId: advertising_campaigns_retrieve
+      summary: Retrieve one remote Campaign with composite daily trend
+      parameters:
+      - in: path
+        name: campaign_key
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: endDate
+        schema:
+          type: string
+          format: date
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: startDate
+        schema:
+          type: string
+          format: date
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - advertising
+      security:
+      - bearerAuth: []
+      - xTokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignDetailResponse'
+          description: ''
+  /api/v1/advertising/tenants/{tenant_id}/profiles/{profile_id}/campaigns/{campaign_key}/enabled:
+    patch:
+      operationId: advertising_campaigns_update_enabled
+      summary: Update one remote Campaign enabled state in SCM metadata
+      parameters:
+      - in: path
+        name: campaign_key
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: profile_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: tenant_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - advertising
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCampaignEnabledUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCampaignEnabledUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCampaignEnabledUpdateRequest'
+      security:
+      - bearerAuth: []
+      - xTokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignEnabledUpdateResponse'
+          description: ''
   /api/v1/advertising/tenants/{tenant_id}/profiles/{profile_id}/campaigns/export:
     get:
-      operationId: api_v1_advertising_tenants_profiles_campaigns_export_retrieve
+      operationId: advertising_campaigns_export
       summary: Export the filtered read-only remote Campaign list as CSV
       parameters:
       - in: query
         name: enabled
         schema:
           type: boolean
-          default: true
+          nullable: true
       - in: query
         name: endDate
         schema:
@@ -782,6 +918,11 @@ paths:
           type: boolean
           default: true
       - in: query
+        name: metricFilters
+        schema:
+          type: string
+          maxLength: 1000
+      - in: query
         name: ordering
         schema:
           enum:
@@ -789,6 +930,8 @@ paths:
           - targetingType
           - status
           - biddingStrategy
+          - startDate
+          - endDate
           - dailyBudget
           - impressions
           - spend
@@ -803,6 +946,8 @@ paths:
           - -targetingType
           - -status
           - -biddingStrategy
+          - -startDate
+          - -endDate
           - -dailyBudget
           - -impressions
           - -spend
@@ -821,6 +966,8 @@ paths:
           * `targetingType` - targetingType
           * `status` - status
           * `biddingStrategy` - biddingStrategy
+          * `startDate` - startDate
+          * `endDate` - endDate
           * `dailyBudget` - dailyBudget
           * `impressions` - impressions
           * `spend` - spend
@@ -835,6 +982,8 @@ paths:
           * `-targetingType` - -targetingType
           * `-status` - -status
           * `-biddingStrategy` - -biddingStrategy
+          * `-startDate` - -startDate
+          * `-endDate` - -endDate
           * `-dailyBudget` - -dailyBudget
           * `-impressions` - -impressions
           * `-spend` - -spend
@@ -2436,7 +2585,7 @@ components:
           nullable: true
         current_version_number:
           type: integer
-          maximum: 4294967295
+          maximum: 9223372036854775807
           minimum: 0
           format: int64
         current_version:
@@ -2496,7 +2645,7 @@ components:
           readOnly: true
         version_number:
           type: integer
-          maximum: 4294967295
+          maximum: 9223372036854775807
           minimum: 0
           format: int64
         action_payload: {}
@@ -2828,6 +2977,55 @@ components:
       - id
       - lastName
       - username
+    BiddingStrategyEnum:
+      enum:
+      - up_and_down
+      - down_only
+      - fixed_bids
+      type: string
+      description: |-
+        * `up_and_down` - up_and_down
+        * `down_only` - down_only
+        * `fixed_bids` - fixed_bids
+    CampaignCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        targeting_type:
+          $ref: '#/components/schemas/TargetingTypeEnum'
+        daily_budget:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        bidding_strategy:
+          allOf:
+          - $ref: '#/components/schemas/BiddingStrategyEnum'
+          default: up_and_down
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+          nullable: true
+        enabled:
+          type: boolean
+          default: true
+      required:
+      - daily_budget
+      - name
+      - start_date
+      - targeting_type
+    CampaignCreateResponse:
+      type: object
+      properties:
+        item:
+          $ref: '#/components/schemas/CampaignOverviewItem'
+      required:
+      - item
     CampaignDashboard:
       type: object
       properties:
@@ -2882,6 +3080,28 @@ components:
       - metrics
       - state
       - target_acos
+    CampaignDetailResponse:
+      type: object
+      properties:
+        item:
+          $ref: '#/components/schemas/CampaignOverviewItem'
+        trend:
+          type: array
+          items:
+            $ref: '#/components/schemas/CampaignTrendPoint'
+        meta:
+          $ref: '#/components/schemas/CampaignOverviewMeta'
+      required:
+      - item
+      - meta
+      - trend
+    CampaignEnabledUpdateResponse:
+      type: object
+      properties:
+        item:
+          $ref: '#/components/schemas/CampaignOverviewItem'
+      required:
+      - item
     CampaignMetricRow:
       type: object
       properties:
@@ -2995,6 +3215,8 @@ components:
           $ref: '#/components/schemas/CampaignOverviewMetrics'
         metadata_matched:
           type: boolean
+        has_metrics:
+          type: boolean
         partial_fields:
           type: array
           items:
@@ -3005,6 +3227,7 @@ components:
       - daily_budget
       - enabled
       - end_date
+      - has_metrics
       - metadata_matched
       - metrics
       - name
@@ -3034,6 +3257,24 @@ components:
           type: string
           format: date
           nullable: true
+        history_through_date:
+          type: string
+          format: date
+          nullable: true
+        realtime_through_date:
+          type: string
+          format: date
+          nullable: true
+        realtime_as_of:
+          type: string
+          format: date-time
+          nullable: true
+        deduplication_version:
+          type: string
+        field_mappings:
+          type: object
+          additionalProperties:
+            type: string
         total_cost_semantics:
           type: string
         attribution_semantics:
@@ -3044,7 +3285,12 @@ components:
       - attribution_semantics
       - currency_code
       - data_through_date
+      - deduplication_version
       - end_date
+      - field_mappings
+      - history_through_date
+      - realtime_as_of
+      - realtime_through_date
       - source
       - start_date
       - status_filter_semantics
@@ -3055,22 +3301,31 @@ components:
       properties:
         impressions:
           type: integer
+          nullable: true
         top_of_search_share:
           type: string
           nullable: true
         spend:
-          $ref: '#/components/schemas/Money'
+          allOf:
+          - $ref: '#/components/schemas/Money'
+          nullable: true
         sales:
-          $ref: '#/components/schemas/Money'
+          allOf:
+          - $ref: '#/components/schemas/Money'
+          nullable: true
         clicks:
           type: integer
+          nullable: true
         ctr:
           type: string
           nullable: true
         total_cost:
-          $ref: '#/components/schemas/Money'
+          allOf:
+          - $ref: '#/components/schemas/Money'
+          nullable: true
         orders:
           type: integer
+          nullable: true
         cpc:
           allOf:
           - $ref: '#/components/schemas/Money'
@@ -3456,7 +3711,7 @@ components:
           readOnly: true
         row_number:
           type: integer
-          maximum: 4294967295
+          maximum: 9223372036854775807
           minimum: 0
           format: int64
         error_code:
@@ -3494,17 +3749,17 @@ components:
           maxLength: 128
         total_rows:
           type: integer
-          maximum: 4294967295
+          maximum: 9223372036854775807
           minimum: 0
           format: int64
         success_rows:
           type: integer
-          maximum: 4294967295
+          maximum: 9223372036854775807
           minimum: 0
           format: int64
         error_rows:
           type: integer
-          maximum: 4294967295
+          maximum: 9223372036854775807
           minimum: 0
           format: int64
         error_code:
@@ -3737,6 +3992,17 @@ components:
         * `SUCCESS` - Success (legacy)
         * `FAILED` - Failed
         * `SKIPPED` - Skipped
+    PatchedCampaignEnabledUpdateRequest:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
     PermissionOption:
       type: object
       properties:
@@ -3878,12 +4144,15 @@ components:
           type: string
         accessLevel:
           type: string
+        remoteAdvertisingAvailable:
+          type: boolean
       required:
       - accessLevel
       - currencyCode
       - externalProfileId
       - id
       - name
+      - remoteAdvertisingAvailable
       - timezone
     Recommendation:
       type: object
@@ -3904,7 +4173,7 @@ components:
           readOnly: true
         current_revision_number:
           type: integer
-          maximum: 4294967295
+          maximum: 9223372036854775807
           minimum: 0
           format: int64
         current_revision:
@@ -3931,7 +4200,7 @@ components:
           readOnly: true
         revision_number:
           type: integer
-          maximum: 4294967295
+          maximum: 9223372036854775807
           minimum: 0
           format: int64
         schema_version:
@@ -4462,6 +4731,14 @@ components:
       - state
       - target_text
       - target_type
+    TargetingTypeEnum:
+      enum:
+      - AUTO
+      - MANUAL
+      type: string
+      description: |-
+        * `AUTO` - AUTO
+        * `MANUAL` - MANUAL
     TeamOption:
       type: object
       properties:

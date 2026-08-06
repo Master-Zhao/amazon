@@ -223,6 +223,26 @@ Tenant、Store 或 Profile 数据权限。
 | D-172 | 已确认 | 增加本地 `ads_profile_remote_scope`，把已认证账号对应的 AdvertisingProfile 显式绑定到远程 `merchantId/merchantCode` | 远程映射不再依赖把具体账号写死在环境变量；所有查询仍先经过 Tenant/Profile 权限校验并使用固定参数化 SQL |
 | D-173 | 已确认 | 五档风险展示复用当前系统异常规则：两个及以上 HIGH 命中为极高、一个 HIGH 为高、MEDIUM 为中、LOW 为低、无命中为极低 | 目标 ACoS 使用 Profile→Tenant；远程源缺少小时级预算快照，`BUDGET_EARLY_EXHAUSTION` 明示为未评估，不伪造结果 |
 
+## 2.12 CampaignSection 三表聚合与交互修订（2026-08-04）
+
+确认依据：项目发起人提供 `bi_analyze_ad_campaign`、
+`bi_analyze_ad_campaign_realtime`、`eb_ad_campaign` 的 DDL，并明确要求历史报表、
+实时报表和活动表共同组成远程数据源；同时要求日期筛选、聚合查询、截图同款筛选菜单、
+活动搜索、名称跳转和启停开关。
+
+| ID | 状态 | 决策 | 说明 |
+|---|---|---|---|
+| D-174 | 已确认 | Campaign 查询使用三表：`eb_ad_campaign` 为当前元数据，`bi_analyze_ad_campaign` 为历史事实，`bi_analyze_ad_campaign_realtime` 为实时事实；Campaign 集合取 SCM 当前键与两类事实键并集 | SCM-only Campaign 保留并显示无指标，fact-only Campaign 保留并标记元数据未匹配；三表均保持服务端固定参数化读取，前端不接触数据库 |
+| D-175 | 已确认（真实库已核验） | 历史与实时不得直接 `UNION ALL + SUM`；原子粒度固定为 `business_date + campaign_code（空时回退 campaign_id）+ COALESCE(product_id,0) + COALESCE(asin,'')`。各表按更新时间/id 取最新，再由实时记录覆盖同原子粒度历史记录，最后按 Campaign 聚合 | 只读重复度核验：历史 33,784 行/33,783 粒度，实时 265,108 行/260,543 粒度；表内重复必须通过窗口函数消解，不用 `DISTINCT` 静默丢数据 |
+| D-176 | 已确认 | 历史 `imperssion` 与实时 `impression` 统一映射为 `impressions`；共同绝对值为 clicks/spend/orders/sales，所有比率在合计后确定性重算 | 当前三表不存在 `orders_7d`/`sales_7d`/`other_sales_7d`；归因语义继续标为 `REMOTE_FIELDS_UNVERIFIED` |
+| D-177 | 已确认（纠正 DDL 注释假设） | 真实只读分布显示历史表 `type` 全部为 NULL，实时表为 `SP-Auto`/`SP-Manual`，它不是 7d/14d/custom 统计窗口，禁止再按“统计窗口”过滤或返回 `selectedSourceType` | 投放类型优先取 SCM `type`，事实回退取实时 `campaign_targeting_type/campaign_type/type`；比率仍在绝对值聚合后重算 |
+| D-178 | 已确认 | CampaignSection 必须复刻截图的日期按钮、搜索框、筛选 chips 和 9 项分层筛选菜单；指标规则在聚合后使用白名单 HAVING | 列表、KPI、趋势、风险、合计、导出和详情复用同一筛选对象 |
+| D-179 | 已确认 | Campaign 名称使用 RouterLink 跳转到真实详情路由，详情 API 重新执行 Tenant/Profile 授权和三表聚合 | 不使用 HTML 的 sessionStorage 行数据作为详情权威来源 |
+| D-180 | 待确认 | 产品要求开关可真实启用/暂停 Campaign，但当前只有远程 SELECT 授权且主规格禁止 V1 真实 Amazon Ads 写入 | 这是明确的边界冲突；在批准受控 `CampaignStateProvider`、凭据、权限、幂等、漂移、审计和回读机制前，开关必须禁用并解释原因；禁止内存假切换、本地 shadow 覆盖或远程 SQL UPDATE |
+| D-181 | 已确认 | 日期范围默认以历史和实时两表最大可用业务日为终点，并支持最近 7/14/30 天和自定义范围 | `creation_date` 时区仍需真实核验；响应必须返回历史/实时水位和实时 as-of 时间 |
+| D-182 | 已确认（真实库已核验） | 三表连接键固定为事实 `campaign_code -> eb_ad_campaign.code`，`campaign_id` 不作为跨表主连接键 | 当前范围 SCM code 与事实 campaign_code 相交 5,908 个，而 campaign_id 相交为 0；SCM-only 1,032 个、fact-only 81 个，故主集合必须取并集并分别表达 `hasMetrics`/`metadataMatched` |
+| D-183 | 已确认（2026-08-05 产品交互澄清） | CampaignSection 的 9 个一级筛选项点击后统一打开居中的“指标/状态 — 筛选条件”模态框；指标规则可并存，字段唯一，比例按 API 小数契约提交并在页面显示为百分比 | 模态框提供取消、确定、关闭与 Escape；规则仍由后端白名单校验并在绝对值汇总、比率重算后应用 |
+
 ## 5. 优先确认顺序
 
 1. D-101 Store/Marketplace/Profile基数。
