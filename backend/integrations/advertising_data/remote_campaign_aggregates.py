@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -23,6 +24,8 @@ from .remote_databases import (
     RemoteCampaignOverviewTotals,
     RemoteCampaignRiskMetric,
 )
+
+logger = logging.getLogger(__name__)
 
 HISTORY_TABLE = "bi_analyze_ad_campaign"
 REALTIME_TABLE = "bi_analyze_ad_campaign_realtime"
@@ -250,8 +253,13 @@ class RemoteCampaignAggregateReader:
         )
         if watermarks.latest_date is None:
             return []
-        effective_start = start_date or watermarks.latest_date
-        effective_end = end_date or watermarks.latest_date
+        effective_start, effective_end = self._overview_dates(
+            start_date=start_date,
+            end_date=end_date,
+            latest=watermarks.latest_date,
+        )
+        if effective_start is None or effective_end is None:
+            return []
         fact_rows = self._fact_campaign_rows(
             merchant_id=merchant_id,
             merchant_code=merchant_code,
@@ -264,6 +272,13 @@ class RemoteCampaignAggregateReader:
             merchant_code=merchant_code,
         )
         merged = self._merge_campaigns(fact_rows=fact_rows, scm_rows=scm_rows)
+        eligible = [item for item in merged if item.has_metrics]
+        if len(eligible) > settings.REMOTE_AD_MAX_ROWS:
+            logger.warning(
+                "Remote campaign metrics truncated: %d campaigns exceed limit %d",
+                len(eligible),
+                settings.REMOTE_AD_MAX_ROWS,
+            )
         return [
             RemoteCampaignMetric(
                 report_date=effective_end,
@@ -278,8 +293,7 @@ class RemoteCampaignAggregateReader:
                 state=item.state,
                 scm_matched=item.scm_matched,
             )
-            for item in merged[: settings.REMOTE_AD_MAX_ROWS]
-            if item.has_metrics
+            for item in eligible[: settings.REMOTE_AD_MAX_ROWS]
         ]
 
     def update_campaign_enabled(

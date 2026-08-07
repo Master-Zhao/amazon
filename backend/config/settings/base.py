@@ -96,7 +96,7 @@ REMOTE_SCM_AUTH_ENABLED = env_bool("REMOTE_SCM_AUTH_ENABLED", False)
 if REMOTE_MULTI_DATABASE_MODE:
     DATABASES = {
         "default": mysql_database_config("SYSTEM_DB"),
-        "scm_remote": remote_mysql_database_config("SCM"),
+        "scm_remote": remote_mysql_database_config("SCM", read_only=False),
     }
 else:
     DATABASES = {"default": mysql_database_config()}
@@ -112,10 +112,11 @@ if REMOTE_AD_DATABASES_ENABLED:
             "scm_remote": (
                 DATABASES["scm_remote"]
                 if REMOTE_MULTI_DATABASE_MODE
-                else remote_mysql_database_config("SCM_REMOTE")
+                else remote_mysql_database_config("SCM_REMOTE", read_only=False)
             ),
             "ads_analysis_remote": remote_mysql_database_config(
-                analysis_database_prefix
+                analysis_database_prefix,
+                read_only=True,
             ),
         }
     )

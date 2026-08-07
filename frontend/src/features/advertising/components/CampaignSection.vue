@@ -76,6 +76,7 @@ const dateError = ref('')
 const errorMessage = ref('')
 const errorStatus = ref<number | null>(null)
 const requestId = ref<string | null>(null)
+const errorTitle = ref('广告活动加载失败')
 const exporting = ref(false)
 const creating = ref(false)
 const updatingCampaignKeys = ref<Set<string>>(new Set())
@@ -163,9 +164,11 @@ const activeChips = computed(() => {
 })
 
 function filters(): CampaignListFilters {
+  const effectiveStart = startDate.value || result.value?.meta.startDate
+  const effectiveEnd = endDate.value || result.value?.meta.endDate
   return {
-    ...(startDate.value && endDate.value
-      ? { startDate: startDate.value, endDate: endDate.value }
+    ...(effectiveStart && effectiveEnd
+      ? { startDate: effectiveStart, endDate: effectiveEnd }
       : {}),
     ...(enabledMode.value === 'all'
       ? {}
@@ -199,7 +202,7 @@ async function syncUrl(): Promise<void> {
   })
 }
 
-async function load(): Promise<void> {
+async function load(silent = false): Promise<void> {
   if (!context.tenantId || !context.profileId) {
     result.value = null
     return
@@ -209,9 +212,11 @@ async function load(): Promise<void> {
   activeController = new AbortController()
   if (result.value === null) loading.value = true
   else refreshing.value = true
-  errorMessage.value = ''
-  errorStatus.value = null
-  requestId.value = null
+  if (!silent) {
+    errorMessage.value = ''
+    errorStatus.value = null
+    requestId.value = null
+  }
   try {
     const response = await fetchCampaignOverview(
       context.tenantId,
@@ -225,7 +230,7 @@ async function load(): Promise<void> {
       status.value = ''
       page.value = 1
       await syncUrl()
-      await load()
+      await load(silent)
       return
     }
     result.value = response
@@ -233,11 +238,13 @@ async function load(): Promise<void> {
     if (page.value > response.pagination.totalPages && response.pagination.totalPages > 0) {
       page.value = response.pagination.totalPages
       await syncUrl()
-      await load()
+      await load(silent)
     }
   } catch (error) {
     if (activeController?.signal.aborted || currentRequest !== requestSequence) return
+    if (silent) return
     const normalized = normalizeApiError(error)
+    errorTitle.value = '广告活动加载失败'
     errorMessage.value = normalized.message
     errorStatus.value = normalized.status
     requestId.value = normalized.requestId
@@ -354,6 +361,7 @@ async function exportCampaigns(): Promise<void> {
     URL.revokeObjectURL(url)
   } catch (error) {
     const normalized = normalizeApiError(error)
+    errorTitle.value = '广告活动导出失败'
     errorMessage.value = normalized.message
     errorStatus.value = normalized.status
     requestId.value = normalized.requestId
@@ -385,14 +393,17 @@ function closeCreateCampaign(): void {
 async function submitCreateCampaign(): Promise<void> {
   if (!context.tenantId || !context.profileId || creating.value) return
   if (!createDraft.value.name.trim()) {
+    errorTitle.value = '广告活动创建失败'
     errorMessage.value = '请输入广告活动名称'
     return
   }
   if (!createDraft.value.startDate) {
+    errorTitle.value = '广告活动创建失败'
     errorMessage.value = '请选择开始日期'
     return
   }
   if (createDraft.value.endDate && createDraft.value.startDate > createDraft.value.endDate) {
+    errorTitle.value = '广告活动创建失败'
     errorMessage.value = '结束日期不能早于开始日期'
     return
   }
@@ -423,6 +434,7 @@ async function submitCreateCampaign(): Promise<void> {
     await load()
   } catch (error) {
     const normalized = normalizeApiError(error)
+    errorTitle.value = '广告活动创建失败'
     errorMessage.value = normalized.message
     errorStatus.value = normalized.status
     requestId.value = normalized.requestId
@@ -484,10 +496,19 @@ async function toggleCampaignEnabled(item: CampaignOverviewItem): Promise<void> 
       currentDateWindow(),
     )
     replaceCampaignItem(item.campaignKey, response.item)
-    void load()
+    void load(true)
   } catch (error) {
-    replaceCampaignItem(item.campaignKey, previousItem)
     const normalized = normalizeApiError(error)
+    if (normalized.status === 503) {
+      replaceCampaignItem(item.campaignKey, previousItem)
+      errorTitle.value = '广告活动启停失败'
+      errorMessage.value = '远程广告数据库暂不可用，请稍后重试'
+      errorStatus.value = 503
+      requestId.value = normalized.requestId
+      return
+    }
+    replaceCampaignItem(item.campaignKey, previousItem)
+    errorTitle.value = '广告活动启停失败'
     errorMessage.value = normalized.message
     errorStatus.value = normalized.status
     requestId.value = normalized.requestId
@@ -532,8 +553,8 @@ function money(value: MoneyValue | null): string {
   }
 }
 
-function percent(value: string | null): string {
-  return value === null ? '—' : `${(Number(value) * 100).toFixed(2)}%`
+function percent(value: string | null, fractionDigits = 2): string {
+  return value === null ? '—' : `${(Number(value) * 100).toFixed(fractionDigits)}%`
 }
 
 function targetingTypeLabel(value: string): string {
@@ -878,7 +899,7 @@ onBeforeUnmount(() => {
         </div>
 
         <footer>
-          <button class="campaign-dialog-cancel" type="button" @click="closeFilterDialog">取消</button>
+          <button class="campaign-dialog-cancel" type="button" @click="closeFilterDialog"><span style="color: #111a2e; font-size: 16px; font-family: Arial, 'Microsoft YaHei', sans-serif; line-height: 1.4;">取消</span></button>
           <button
             class="campaign-dialog-confirm"
             type="button"
@@ -946,7 +967,7 @@ onBeforeUnmount(() => {
         </div>
 
         <footer>
-          <button class="campaign-dialog-cancel" type="button" :disabled="creating" @click="closeCreateCampaign">取消</button>
+          <button class="campaign-dialog-cancel" type="button" :disabled="creating" @click="closeCreateCampaign"><span style="color: #111a2e; font-size: 16px; font-family: Arial, 'Microsoft YaHei', sans-serif; line-height: 1.4;">取消</span></button>
           <button
             class="campaign-dialog-confirm"
             type="button"
@@ -1006,7 +1027,7 @@ onBeforeUnmount(() => {
         </template>
 
         <div v-else-if="errorMessage" class="campaign-state campaign-error-state" role="alert">
-          <strong>{{ errorStatus === 403 ? '没有查看此数据的权限' : '广告活动加载失败' }}</strong>
+          <strong>{{ errorStatus === 403 ? '没有查看此数据的权限' : errorTitle }}</strong>
           <span>{{ errorMessage }}</span>
           <small v-if="requestId">requestId：{{ requestId }}</small>
           <button type="button" @click="load">重试</button>
@@ -1036,7 +1057,6 @@ onBeforeUnmount(() => {
                 :aria-disabled="isCampaignUpdating(item.campaignKey)"
                 :title="item.enabled ? '暂停广告活动' : '启用广告活动'"
                 :aria-label="`${item.name}：${item.enabled ? '暂停' : '启用'}`"
-                @pointerdown.prevent="toggleCampaignEnabled(item)"
                 @click="toggleCampaignEnabled(item)"
               >
                 <i />
@@ -1055,7 +1075,7 @@ onBeforeUnmount(() => {
               >
                 <b aria-hidden="true">⌄</b>{{ item.name || '—' }}
               </RouterLink>
-              <small>{{ item.referenceCode || '—' }}</small>
+              <small>{{ item.campaignCode || '—' }}</small>
             </div>
             <div role="cell">{{ targetingTypeLabel(item.targetingType) }}</div>
             <div role="cell"><span class="campaign-status" :class="item.status.toLowerCase()">{{ statusLabel(item.status) }}</span></div>
@@ -1064,7 +1084,7 @@ onBeforeUnmount(() => {
             <div role="cell">{{ dateValue(item.endDate, '无结束日期') }}</div>
             <div class="numeric" role="cell">{{ money(item.dailyBudget) }}</div>
             <div class="numeric" role="cell">{{ number(item.metrics.impressions) }}</div>
-            <div class="numeric" role="cell">{{ percent(item.metrics.topOfSearchShare) }}</div>
+            <div class="numeric" role="cell">{{ percent(item.metrics.topOfSearchShare, 0) }}</div>
             <div class="numeric" role="cell">{{ money(item.metrics.spend) }}</div>
             <div class="numeric" role="cell">{{ number(item.metrics.clicks) }}</div>
             <div class="numeric" role="cell">{{ percent(item.metrics.ctr) }}</div>
@@ -1489,8 +1509,11 @@ onBeforeUnmount(() => {
   border: 1px solid #d5dae3;
   border-radius: 9px;
   padding: 0 20px;
+  color: #111a2e !important;
   background: #fff;
-  font: inherit;
+  font-size: 16px !important;
+  font-family: Arial, "Microsoft YaHei", sans-serif !important;
+  line-height: 1.4 !important;
   cursor: pointer;
 }
 
@@ -1725,6 +1748,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
   pointer-events: auto;
   touch-action: manipulation;
+  user-select: none;
 }
 
 .campaign-switch.updating {

@@ -1553,7 +1553,7 @@ export interface components {
         CampaignOverviewItem: {
             campaign_key: string;
             name: string;
-            reference_code: string;
+            campaign_code: string;
             enabled: boolean;
             targeting_type: string;
             status: string;

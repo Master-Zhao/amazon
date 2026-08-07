@@ -13,21 +13,24 @@
 
 原草案（`c:\Users\admin\Downloads\广告活动与定向策略模块技术方案.md`）假设数据源为四张 BI 分析表、API 路径为 `/api/v1/ads/campaigns/{campaignId}/...`、URL 使用明文 `campaignId`。本仓库实际架构与此不同，本次修订对齐如下：
 
-| 维度 | 原草案 V1.0 | 本仓库实际 | 本方案处理 |
+| 维度 | 原草案 V1.0 | 本仓库实际（数据库核验） | 本方案处理 |
 |---|---|---|---|
-| 数据源 | 四张 BI 分析表 | Campaign 三表聚合（SCM 维表 + 历史事实表 + 实时事实表）；定向策略使用本地 `TargetingDailyMetric` | 改为三表聚合 + 本地事实表 |
+| 数据源 | 四张 BI 分析表 | Campaign/广告组/定向策略**各**三表聚合（SCM 维表 + 历史事实表 + 实时事实表），共 9 张远程表 | 改为三层级三表聚合 |
 | API 前缀 | `/api/v1/ads/campaigns/{campaignId}/...` | `/api/v1/advertising/tenants/{tenantId}/profiles/{profileId}/campaigns/{campaign_key}` | 对齐现有路由 |
 | URL 参数 | 明文 `campaignId`、`adGroupId` | 签名编码 `campaign_key`（`cmp_` 前缀，`django.core.signing`） | 使用 `campaign_key` |
 | 前端路由 | `/ads/campaigns/:campaignId` | `/advertising/campaigns/:campaignKey` | 对齐现有路由 |
 | 权限 | 未提及 | `require_profile_scope` + `advertising.view` + `ProfileAccessLevel` | 必须校验 |
 | 写操作 | 独立操作服务 | 远程数据库只读，启停写入受 D-180 阻塞，已通过 SCM 元数据写入但受约束 | 明确边界 |
-| 自动投放 | 紧密/宽泛/同类/关联 | `MatchType` 仅 BROAD/PHRASE/EXACT；AUTO 由 Campaign `targeting_type` 区分 | 按模型实际 |
+| 自动投放 | 紧密/宽泛/同类/关联（4 种） | 实际 6 种 `targeting_match`：Close Match/Loose Match/Substitutes/Complements/Purchases/Views | 按 `targeting_match` 分行展示 |
+| `targeting_type` | 未细分 | 实际值：`auto`/`manual-keyword`/`manual-PAT`/`manual-SD` | 按实际枚举 |
+| 广告组关联键 | `adGroupId` | `group_id` 全为 NULL，用 `group_code`/`group_name` | 用 `group_code` |
+| 建议竞价 | 未提及 | `current_bid`/`suggested_bid`/`suggested_bid_min`/`suggested_bid_max` 存在 | 展示建议竞价范围 |
 
 ---
 
 ## 1. 方案结论
 
-本次开发在已完成的三表聚合 Campaign 列表与详情基础上，完成“广告活动 → 广告组”的真实下钻；随后复刻广告组详情页中的“定向策略”模块，并在现有自动投放基础上扩展手动投放。Campaign 维度数据由远程三表聚合只读提供，定向策略数据由本地 `TargetingDailyMetric` 事实表提供。竞价和启停不能直接写入分析表，需要独立操作服务，且受 D-180 决策阻塞约束。
+本次开发在已完成的三表聚合 Campaign 列表与详情基础上，完成"广告活动 → 广告组"的真实下钻；随后实现广告组详情页，**该页面只做定向策略模块（不做广告商品 Tab、否定关键词 Tab 等其他内容）**，并在现有自动投放基础上扩展手动投放。Campaign、广告组、定向策略三个维度的数据**均由远程三表聚合只读提供**（SCM 维表 + 历史事实表 + 实时事实表）。竞价和启停不能直接写入分析表，需要独立操作服务，且受 D-180 决策阻塞约束。
 
 ## 2. 核心链路
 
@@ -258,6 +261,87 @@
 
 **前置条件已满足：** 远程 `bi_analyze_ad_targeting` 和 `bi_analyze_ad_targeting_realtime` 表已存在且有数据；`group_code` 可作为广告组关联键（`group_id` 全为 NULL 不可用）。
 
+### 3.5 SCM 维表写操作用途（默认竞价、商品、定向实体）
+
+**数据库核验结论（2026-08-06）：** SCM 库的 `eb_ad_group`、`eb_ad_targeting`、`eb_ad_negative_targeting`、`eb_ad_product` 四张维表承担**当前元数据读取和写操作落库**职责，与远程分析库的只读事实表配合使用。
+
+#### 3.5.1 `eb_ad_group`（广告组维表，55,071 行）
+
+| 字段 | 类型 | 实际值/用途 |
+|---|---|---|
+| `campaign_code` | VARCHAR(255) | Campaign 连接键 |
+| `ad_group_id` | BIGINT | Amazon AdGroup ID |
+| `type` | ENUM('keyword','product','auto') | 广告组类型（**决定默认竞价和定向方式**） |
+| `name` | VARCHAR(255) | 广告组名称 |
+| `bid` | DECIMAL(10,2) | **默认竞价**（页面展示和修改） |
+| `state` | ENUM('paused','enabled') | 启停状态 |
+| `status` | VARCHAR(255) | 软删标记（`3`=有效） |
+
+**用途：**
+- 广告组列表/详情页展示**默认竞价**（`bid` 字段）和状态（`state`）
+- 修改默认竞价 → `UPDATE eb_ad_group SET bid=%s, update_time=NOW() WHERE ...`
+- 启停广告组 → `UPDATE eb_ad_group SET state=%s, update_time=NOW() WHERE ...`
+- 新建广告组 → `INSERT INTO eb_ad_group (mer_id, campaign_code, ad_group_id, type, name, bid, state, ...)`
+
+#### 3.5.2 `eb_ad_targeting`（定向维表，406,210 行）
+
+| 字段 | 类型 | 实际值/用途 |
+|---|---|---|
+| `campaign_code` | VARCHAR(255) | Campaign 连接键 |
+| `group_id` | BIGINT | 广告组 ID（SCM 库有值，与分析库不同） |
+| `type` | VARCHAR(45) | **实际值：`manual`/`auto`/`keyword`/`product`** |
+| `target_id` | VARCHAR(45) | Amazon Target ID |
+| `targeting` | VARCHAR(255) | 定向表达式（关键词文本或 `Asin="B08T877M36"`） |
+| `match` | VARCHAR(255) | **匹配类型，实际值：`phrase`/`exact`/`broad`/`Close Match`/`Loose Match`/`Substitutes`/`Complements`/`Product`/`Category`/`Product-Expanded`** |
+| `bid` | DECIMAL(10,2) | **关键词/目标竞价**（页面展示和修改） |
+| `state` | VARCHAR(255) | **实际值：`enabled`/`paused`** |
+| `status` | VARCHAR(255) | 软删标记 |
+
+**用途：**
+- 定向策略页面展示每个关键词/商品目标的**当前竞价**（`bid`）和状态（`state`）
+- 修改关键词竞价 → `UPDATE eb_ad_targeting SET bid=%s, update_time=NOW() WHERE campaign_code=%s AND target_id=%s`
+- 启停关键词/目标 → `UPDATE eb_ad_targeting SET state=%s, update_time=NOW() WHERE ...`
+- 添加关键词 → `INSERT INTO eb_ad_targeting (mer_id, campaign_code, group_id, type, target_id, targeting, match, bid, state, ...)`
+- 添加商品目标 → 同上，`type='product'`，`targeting='Asin="xxx"'`
+
+#### 3.5.3 `eb_ad_negative_targeting`（否定定向维表，1,384,050 行）
+
+| 字段 | 类型 | 实际值/用途 |
+|---|---|---|
+| `type` | ENUM('campaign','adgroup') | **否定级别：Campaign 级或 AdGroup 级** |
+| `targeting` | VARCHAR(255) | 否定表达式（如 `gold charm neckalce`） |
+| `match` | VARCHAR(255) | 匹配类型（如 `Negative Exact`） |
+| `state` | VARCHAR(190) | 状态 |
+| `target_id` | BIGINT | Amazon Target ID |
+
+**用途：** 添加/删除 Negative Keyword，区分 Campaign 级和 AdGroup 级。
+
+#### 3.5.4 `eb_ad_product`（广告商品维表，72,713 行）
+
+| 字段 | 类型 | 用途 |
+|---|---|---|
+| `asin` | VARCHAR(45) | ASIN |
+| `win` | VARCHAR(45) | WIN |
+| `fnsku` | VARCHAR(64) | FNSKU |
+| `sku_id` | BIGINT | SKU ID |
+| `state` | VARCHAR(45) | 状态 |
+| `adid` | VARCHAR(45) | 广告 ID |
+
+**用途：** `eb_ad` 表存储广告商品（Ad）数据，含 ASIN、SKU、状态。本次广告组详情页只做定向策略，不展示广告商品列表，此表供后续扩展使用。
+
+#### 3.5.5 SCM 表与分析表的配合关系
+
+```text
+页面展示数据流：
+  SCM 维表（eb_ad_group/eb_ad_targeting）  →  当前竞价、状态、默认竞价（可写）
+  分析事实表（bi_analyze_ad_group/targeting）  →  历史指标、趋势（只读）
+  合并展示  →  竞价 + 状态 + 指标
+
+写操作数据流：
+  页面修改竞价/启停  →  Service  →  UPDATE SCM 维表  →  审计日志
+  （分析事实表永远只读，不通过 UPDATE 模拟状态变化）
+```
+
 ## 4. 自动与手动投放
 
 **数据库核验结论（2026-08-06）：** 远程 `bi_analyze_ad_targeting.targeting_type` 实际值为 `auto`/`manual-keyword`/`manual-PAT`/`manual-SD`；`targeting_match` 实际值覆盖关键词、商品目标和自动投放 6 种匹配方式。
@@ -323,8 +407,7 @@
 ### 7.2 待新增路由
 
 - `/advertising/campaigns/:campaignKey/ad-groups` → 广告组列表页
-- `/advertising/campaigns/:campaignKey/ad-groups/:adGroupKey` → 广告组详情页（默认 tab: targeting）
-- `/advertising/campaigns/:campaignKey/ad-groups/:adGroupKey?tab=targeting` → 定向策略 tab
+- `/advertising/campaigns/:campaignKey/ad-groups/:adGroupKey` → 广告组详情页（即定向策略页，无多 Tab）
 
 URL 使用签名编码的 `campaign_key`（`cmp_` 前缀）和 `ad_group_key`（待定义，建议 `grp_` 前缀）；`sessionStorage` 只能做缓存，不能作为权威来源。路由守卫仅控制体验，后端校验不可替代。
 
@@ -564,6 +647,416 @@ URL 使用签名编码的 `campaign_key`（`cmp_` 前缀）和 `ad_group_key`（
 
 响应：`Keyword` 和 `ProductTarget` 实体列表，含 `bid`/`state`/`match_type`/`expression`。
 
+## 8A. 页面功能与交互实现
+
+### 8A.1 广告活动列表页（已实现，`CampaignSection.vue`）
+
+参照现有 `CampaignSection.vue`（1,884 行）的交互模式，作为广告组和定向策略页面的实现基准。
+
+| 功能 | 实现方式 | 涉及 API/表 |
+|---|---|---|
+| 创建广告活动 | 弹窗表单（名称/投放类型/预算/竞价策略/起止日期/启用开关）→ `createCampaign` | `POST .../campaigns` → `eb_ad_campaign` INSERT |
+| 启停开关 | 乐观更新 + `toggleCampaignEnabled` → `updateCampaignEnabled` | `PATCH .../campaigns/{key}/enabled` → `eb_ad_campaign` UPDATE |
+| 搜索 | `v-model="search"` → 重新请求 | `GET .../campaigns?search=` |
+| 状态筛选 | 模态框下拉（进行中/已暂停/已归档等） | `GET .../campaigns?status=enabled,paused` |
+| 指标筛选 | 模态框（9 种指标 × 4 种操作符，最多 9 条） | `GET .../campaigns?metricFilters=spend:gte:100;acos:between:0.1:0.3` |
+| 日期选择 | 预设（7/14/30 天）+ 自定义日期范围 | `GET .../campaigns?startDate=&endDate=` |
+| 排序 | 点击列头 `setOrdering` | `GET .../campaigns?ordering=-spend` |
+| 导出 CSV | `exportCampaigns` → Blob 下载 | `GET .../campaigns/export` |
+| 行选择 | `toggleRowSelection`/`toggleVisibleSelection` | 前端状态 |
+| 名称链接 | `RouterLink` → `advertising-campaign-detail` | 路由跳转 |
+| 分页 | 页码切换 | `GET .../campaigns?page=&pageSize=` |
+| 状态展示 | 加载骨架屏/空数据/错误重试/无权限 | - |
+
+### 8A.2 广告活动详情页（已实现，`CampaignDetailPage.vue`）
+
+展示单个 Campaign 的概览信息和每日趋势图（ECharts），含日期范围选择和返回列表。
+
+### 8A.3 广告组列表页（待实现）
+
+#### 读取数据（具体 SQL）
+
+**数据库：** `scm_remote`（SCM 库 `wecon_scm_20251228`）+ `ads_analysis_remote`（分析库 `wecon_analyze`）
+
+**读取广告组当前元数据（SCM 库 `eb_ad_group`）：**
+
+```sql
+-- 库：scm_remote (wecon_scm_20251228)
+-- 表：eb_ad_group
+SELECT
+    ad_group_id, campaign_code, type, name, bid, state
+FROM eb_ad_group
+WHERE mer_id = %s
+  AND campaign_code = %s
+  AND COALESCE(status, '0') <> '6'
+ORDER BY update_time DESC, id DESC;
+```
+
+**读取广告组历史指标（分析库 `bi_analyze_ad_group`）：**
+
+```sql
+-- 库：ads_analysis_remote (wecon_analyze)
+-- 表：bi_analyze_ad_group
+SELECT
+    campaign_code, group_state, bid, targeting_type,
+    SUM(imperssion) AS impressions, SUM(click) AS clicks,
+    SUM(spend) AS spend, SUM(orders) AS orders, SUM(sales) AS sales
+FROM bi_analyze_ad_group
+WHERE mer_id = %s AND mer_code = %s
+  AND creation_date >= %s AND creation_date < %s
+  AND campaign_code = %s
+GROUP BY campaign_code, group_state, bid, targeting_type;
+```
+
+**读取广告组实时指标（分析库 `bi_analyze_ad_group_realtime`）：**
+
+```sql
+-- 库：ads_analysis_remote (wecon_analyze)
+-- 表：bi_analyze_ad_group_realtime
+SELECT
+    campaign_code, group_name, group_state, serving_status,
+    SUM(impression) AS impressions, SUM(click) AS clicks,
+    SUM(spend) AS spend, SUM(orders) AS orders, SUM(sales) AS sales
+FROM bi_analyze_ad_group_realtime
+WHERE mer_id = %s AND mer_code = %s
+  AND creation_date >= %s AND creation_date < %s
+  AND campaign_code = %s
+GROUP BY campaign_code, group_name, group_state, serving_status;
+```
+
+**合并逻辑：** SCM `eb_ad_group` 提供名称/状态/默认竞价/类型，分析库提供指标，按 `campaign_code` 关联。
+
+#### 页面功能
+
+| 功能 | 交互方式 | 读取/写入 |
+|---|---|---|
+| 广告组列表 | 表格（名称/状态/默认竞价/投放类型/指标） | 读：`scm_remote.eb_ad_group` + `ads_analysis_remote.bi_analyze_ad_group` + `_realtime` |
+| 投放类型显示 | **直接显示 `eb_ad_group.type` 原始值**（`keyword`/`auto`/`product`） | 读：`scm_remote.eb_ad_group.type` |
+| 状态显示 | **直接显示 `eb_ad_group.state` 原始值**（`enabled`/`paused`） | 读：`scm_remote.eb_ad_group.state` |
+| 修改默认竞价 | 行内编辑 → 提交 | 写：`scm_remote.eb_ad_group.bid` |
+| 启停广告组 | 开关按钮 | 写：`scm_remote.eb_ad_group.state` |
+| 名称链接 | 跳转广告组详情（定向策略页） | 路由跳转 |
+
+### 8A.4 广告组详情页 = 定向策略页（待实现）
+
+**广告组详情页只做定向策略，不做其他 Tab。** 页面直接展示该广告组下所有定向目标（关键词/商品目标/自动投放匹配方式），可修改竞价、启停、添加。
+
+#### 读取数据（具体 SQL）
+
+**读取定向目标当前元数据（SCM 库 `eb_ad_targeting`）：**
+
+```sql
+-- 库：scm_remote (wecon_scm_20251228)
+-- 表：eb_ad_targeting
+SELECT
+    id, campaign_code, group_id, type, target_id,
+    targeting, match, bid, state
+FROM eb_ad_targeting
+WHERE mer_id = %s
+  AND campaign_code = %s
+  AND COALESCE(status, '0') <> '6'
+ORDER BY update_time DESC, id DESC;
+```
+
+**读取定向目标历史指标（分析库 `bi_analyze_ad_targeting`）：**
+
+```sql
+-- 库：ads_analysis_remote (wecon_analyze)
+-- 表：bi_analyze_ad_targeting
+SELECT
+    campaign_code, group_code, targeting, targeting_type, targeting_match,
+    targeting_state, current_bid,
+    suggented_bid, suggented_bid_min, suggested_bid_max,
+    SUM(imperssion) AS impressions, SUM(click) AS clicks,
+    SUM(spend) AS spend, SUM(orders) AS orders, SUM(sales) AS sales
+FROM bi_analyze_ad_targeting
+WHERE mer_id = %s AND mer_code = %s
+  AND creation_date >= %s AND creation_date < %s
+  AND campaign_code = %s
+GROUP BY campaign_code, group_code, targeting, targeting_type, targeting_match,
+         targeting_state, current_bid, suggented_bid, suggented_bid_min, suggested_bid_max;
+```
+
+**读取定向目标实时指标（分析库 `bi_analyze_ad_targeting_realtime`）：**
+
+```sql
+-- 库：ads_analysis_remote (wecon_analyze)
+-- 表：bi_analyze_ad_targeting_realtime
+SELECT
+    campaign_code, group_name, targeting, targeting_type, targeting_match,
+    targeting_state, targeting_status, current_bid,
+    suggested_bid, suggested_bid_min, suggested_bid_max,
+    SUM(impression) AS impressions, SUM(click) AS clicks,
+    SUM(spend) AS spend, SUM(orders) AS orders, SUM(sales) AS sales
+FROM bi_analyze_ad_targeting_realtime
+WHERE mer_id = %s AND mer_code = %s
+  AND creation_date >= %s AND creation_date < %s
+  AND campaign_code = %s
+GROUP BY campaign_code, group_name, targeting, targeting_type, targeting_match,
+         targeting_state, targeting_status, current_bid,
+         suggested_bid, suggested_bid_min, suggested_bid_max;
+```
+
+**合并逻辑：**
+- SCM `eb_ad_targeting` 提供当前竞价（`bid`）、状态（`state`）、匹配类型（`match`）、定向表达式（`targeting`）
+- 分析库 `bi_analyze_ad_targeting` + `_realtime` 提供历史指标和建议竞价范围
+- 按 `campaign_code` + `targeting`（定向表达式）关联
+
+#### 列表展示
+
+| 列 | 数据来源（库.表.字段） | 说明 |
+|---|---|---|
+| 启用开关 | `scm_remote.eb_ad_targeting.state` | `enabled`/`paused`，直接显示 |
+| 投放类型 | `scm_remote.eb_ad_targeting.type` | **直接显示原始值**：`manual`/`auto`/`keyword`/`product` |
+| 定向表达式 | `scm_remote.eb_ad_targeting.targeting` | 关键词文本或 `Asin="B08T877M36"` 或 `Close Match` |
+| 匹配类型 | `scm_remote.eb_ad_targeting.match` | **直接显示原始值**：`phrase`/`exact`/`broad`/`Product`/`Category`/`Close Match` 等 |
+| 当前竞价 | `scm_remote.eb_ad_targeting.bid` | 可修改，`DECIMAL(10,2)` |
+| 建议竞价 | `ads_analysis_remote.bi_analyze_ad_targeting.suggented_bid` | 只读，历史表字段名有拼写错误 |
+| 建议竞价范围 | `suggented_bid_min` ~ `suggested_bid_max`（历史）/ `suggested_bid_min` ~ `suggested_bid_max`（实时） | 只读展示 |
+| 状态 | `scm_remote.eb_ad_targeting.state` | **直接显示原始值**：`enabled`/`paused` |
+| 展示量 | `ads_analysis_remote.bi_analyze_ad_targeting.imperssion` | SUM 聚合 |
+| 花费 | `.spend` | SUM 聚合 |
+| 点击 | `.click` | SUM 聚合 |
+| CTR | 计算 `SUM(click)/SUM(imperssion)` | 后端 `metric_formulas` |
+| ACoS | 计算 `SUM(spend)/SUM(sales)` | 后端 `metric_formulas` |
+| ROAS | 计算 `SUM(sales)/SUM(spend)` | 后端 `metric_formulas` |
+
+#### 操作功能与写库 SQL
+
+##### 修改竞价
+
+**交互：** 点击竞价单元格 → 行内编辑输入新值 → 校验 → 提交
+
+**写入数据库（SCM 库 `eb_ad_targeting`）：**
+
+```sql
+-- 库：scm_remote (wecon_scm_20251228)
+-- 表：eb_ad_targeting
+-- 字段：bid
+UPDATE eb_ad_targeting
+SET bid = %s,
+    update_by = %s,
+    update_name = %s,
+    update_time = NOW()
+WHERE mer_id = %s
+  AND campaign_code = %s
+  AND target_id = %s
+  AND COALESCE(status, '0') <> '6';
+```
+
+**API：** `PATCH /api/v1/advertising/tenants/{tenantId}/profiles/{profileId}/campaigns/{campaign_key}/ad-groups/{ad_group_key}/targets/{target_key}/bid`
+
+**请求体：** `{ "bid": "0.85" }`
+
+**校验：** 新竞价 > 0，精度 2 位小数；若建议竞价范围存在则提示，超出范围警告但允许提交。
+
+##### 启停目标
+
+**交互：** 点击启用开关 → 乐观更新 → 提交
+
+**写入数据库（SCM 库 `eb_ad_targeting`）：**
+
+```sql
+-- 库：scm_remote (wecon_scm_20251228)
+-- 表：eb_ad_targeting
+-- 字段：state
+UPDATE eb_ad_targeting
+SET state = %s,  -- 'enabled' 或 'paused'
+    update_by = %s,
+    update_name = %s,
+    update_time = NOW()
+WHERE mer_id = %s
+  AND campaign_code = %s
+  AND target_id = %s
+  AND COALESCE(status, '0') <> '6';
+```
+
+**API：** `PATCH .../targets/{target_key}/enabled`，请求体 `{ "enabled": true }`
+
+##### 添加关键词
+
+**交互：** 点击"添加关键词"按钮 → 弹窗（关键词文本/匹配类型/竞价）→ 提交
+
+**写入数据库（SCM 库 `eb_ad_targeting`）：**
+
+```sql
+-- 库：scm_remote (wecon_scm_20251228)
+-- 表：eb_ad_targeting
+INSERT INTO eb_ad_targeting (
+    mer_id, campaign_id, campaign_code, group_id,
+    type, target_id, targeting, match, bid, state,
+    create_by, create_name, create_time, update_by, update_name, update_time, status
+) VALUES (
+    %s,  -- mer_id（商户 ID，从 remote_scope 获取）
+    %s,  -- campaign_id
+    %s,  -- campaign_code
+    %s,  -- group_id
+    'keyword',  -- type
+    %s,  -- target_id（Amazon Keyword ID）
+    %s,  -- targeting（关键词文本，如 "wireless earbuds"）
+    %s,  -- match（匹配类型：'phrase'/'exact'/'broad'）
+    %s,  -- bid（竞价）
+    'enabled',  -- state
+    %s,  -- create_by（用户 ID）
+    %s,  -- create_name（用户名）
+    NOW(),  -- create_time
+    %s,  -- update_by
+    %s,  -- update_name
+    NOW(),  -- update_time
+    '0'  -- status（有效）
+);
+```
+
+**API：** `POST .../targets`，请求体：
+
+```json
+{
+  "type": "keyword",
+  "targeting": "wireless earbuds",
+  "match": "phrase",
+  "bid": "0.85"
+}
+```
+
+##### 添加商品目标
+
+**交互：** 点击"添加商品目标"按钮 → 弹窗（ASIN/Category 表达式/竞价）→ 提交
+
+**写入数据库（SCM 库 `eb_ad_targeting`）：**
+
+```sql
+-- 库：scm_remote (wecon_scm_20251228)
+-- 表：eb_ad_targeting
+INSERT INTO eb_ad_targeting (
+    mer_id, campaign_id, campaign_code, group_id,
+    type, target_id, targeting, match, bid, state,
+    create_by, create_name, create_time, update_by, update_name, update_time, status
+) VALUES (
+    %s, %s, %s, %s,
+    'product',  -- type
+    %s,  -- target_id（Amazon Target ID）
+    %s,  -- targeting（表达式，如 'Asin="B08T877M36"'）
+    %s,  -- match（'Product'/'Category'）
+    %s,  -- bid
+    'enabled',
+    %s, %s, NOW(), %s, %s, NOW(), '0'
+);
+```
+
+**API：** `POST .../targets`，请求体：
+
+```json
+{
+  "type": "product",
+  "targeting": "Asin=\"B08T877M36\"",
+  "match": "Product",
+  "bid": "1.20"
+}
+```
+
+##### 批量修改竞价
+
+**交互：** 勾选多行 → 点击"批量修改竞价" → 输入新竞价 → 提交
+
+**写入数据库（SCM 库 `eb_ad_targeting`，事务）：**
+
+```sql
+-- 库：scm_remote (wecon_scm_20251228)
+-- 表：eb_ad_targeting
+-- 对每个选中的 target_id 执行
+UPDATE eb_ad_targeting
+SET bid = %s, update_by = %s, update_name = %s, update_time = NOW()
+WHERE mer_id = %s AND campaign_code = %s AND target_id = %s
+  AND COALESCE(status, '0') <> '6';
+```
+
+**API：** `PATCH .../targets/batch-bid`，请求体 `{ "targetKeys": ["t1","t2"], "bid": "0.80" }`
+
+##### 批量启停
+
+**交互：** 勾选多行 → 点击"批量启用/暂停"
+
+**写入数据库（SCM 库 `eb_ad_targeting`，事务）：**
+
+```sql
+UPDATE eb_ad_targeting
+SET state = %s, update_by = %s, update_name = %s, update_time = NOW()
+WHERE mer_id = %s AND campaign_code = %s AND target_id IN (%s, %s, ...)
+  AND COALESCE(status, '0') <> '6';
+```
+
+**API：** `PATCH .../targets/batch-enabled`，请求体 `{ "targetKeys": ["t1","t2"], "enabled": true }`
+
+#### 筛选功能
+
+| 筛选 | 交互 | SQL 条件 |
+|---|---|---|
+| 按投放类型 | 下拉（全部/manual/auto/keyword/product） | `WHERE type = %s`（SCM `eb_ad_targeting.type`） |
+| 按匹配类型 | 下拉（全部/phrase/exact/broad/Product/Category/Close Match/...） | `WHERE match = %s`（SCM `eb_ad_targeting.match`） |
+| 按状态 | 下拉（全部/enabled/paused） | `WHERE state = %s`（SCM `eb_ad_targeting.state`） |
+| 按表达式搜索 | 文本框 | `WHERE targeting LIKE %s`（SCM `eb_ad_targeting.targeting`） |
+
+#### 自动投放显示
+
+自动投放广告组（`eb_ad_group.type = 'auto'`）的定向目标 `eb_ad_targeting.match` 为 6 种匹配方式，**直接按数据库原始值分行展示**：
+
+| `eb_ad_targeting.match` 值 | 页面显示 | 可操作 |
+|---|---|---|
+| `Close Match` | Close Match | 可修改竞价、启停 |
+| `Loose Match` | Loose Match | 可修改竞价、启停 |
+| `Substitutes` | Substitutes | 可修改竞价、启停 |
+| `Complements` | Complements | 可修改竞价、启停 |
+| `Purchases` | Purchases | 可修改竞价、启停 |
+| `Views` | Views | 可修改竞价、启停 |
+
+**不归一化、不翻译，直接显示数据库原始值。**
+
+#### 手动投放显示
+
+手动投放广告组（`eb_ad_group.type = 'keyword'` 或 `'product'`）的定向目标：
+
+| `eb_ad_targeting.type` | `eb_ad_targeting.match` | 页面显示 |
+|---|---|---|
+| `keyword` | `phrase`/`exact`/`broad` | 关键词行，显示 `targeting` 文本 + `match` 值 |
+| `product` | `Product`/`Category`/`Product-Expanded` | 商品目标行，显示 `targeting` 表达式 + `match` 值 |
+
+**直接显示数据库原始值，不归一化大小写。**
+
+#### 竞价修改校验规则
+
+1. 新竞价必须 > 0，精度 2 位小数（`DECIMAL(10,2)`）。
+2. 若 `suggented_bid_min`/`suggested_bid_max` 存在，提示建议范围；超出范围时警告但允许提交。
+3. 校验 `ProfileAccessLevel.OPERATE` 权限。
+4. 校验对象归属（Tenant/Profile/Campaign/AdGroup）。
+5. 记录审计日志（`before`/`after` 竞价值），写入 `default` 库 `audit_log` 表。
+6. 受 D-180 阻塞时，前端开关和编辑框置灰，提示"写操作未授权"。
+
+### 8A.5 前端组件结构（待实现）
+
+```text
+frontend/src/features/advertising/
+├── components/
+│   ├── CampaignSection.vue          # 已实现
+│   ├── AdGroupSection.vue           # 待实现：广告组列表
+│   ├── TargetingSection.vue         # 待实现：定向策略（广告组详情页核心）
+│   ├── TargetingEditDialog.vue      # 待实现：添加关键词/商品目标弹窗
+│   ├── BidEditDialog.vue            # 待实现：修改竞价弹窗
+│   └── RemotePerformanceChart.vue   # 已实现
+├── pages/
+│   ├── AdvertisingOverviewPage.vue  # 已实现
+│   ├── CampaignDetailPage.vue       # 已实现
+│   ├── AdGroupListPage.vue          # 待实现
+│   └── AdGroupDetailPage.vue        # 待实现（= 定向策略页）
+├── api/
+│   ├── campaignApi.ts               # 已实现
+│   ├── adGroupApi.ts                # 待实现
+│   └── targetingApi.ts              # 待实现
+└── types/
+    ├── campaign.ts                  # 已实现
+    ├── adGroup.ts                   # 待实现
+    └── targeting.ts                 # 待实现
+```
+
 ## 9. 写操作边界
 
 ### 9.1 当前约束
@@ -575,21 +1068,49 @@ URL 使用签名编码的 `campaign_key`（`cmp_` 前缀）和 `ad_group_key`（
 
 ### 9.2 操作服务设计
 
-竞价/启停操作必须通过独立 Service，不得在 Selector 或 View 中直接写远程表：
+竞价/启停操作必须通过独立 Service，不得在 Selector 或 View 中直接写远程表。**写操作落库到 SCM 维表，分析事实表永远只读。**
 
-- `apps.advertising.services.update_campaign_enabled_state`（已实现，受约束）
-- `apps.advertising.services.update_keyword_bid`（待实现）
-- `apps.advertising.services.update_keyword_enabled_state`（待实现）
-- `apps.advertising.services.update_product_target_bid`（待实现）
-- `apps.advertising.services.update_product_target_enabled_state`（待实现）
+#### 已实现
+
+- `apps.advertising.services.update_campaign_enabled_state` → `UPDATE eb_ad_campaign SET state=%s`
+- `apps.advertising.services.create_remote_campaign` → `INSERT INTO eb_ad_campaign`
+
+#### 待实现 — 广告组操作（落库 `eb_ad_group`）
+
+- `update_ad_group_bid` → `UPDATE eb_ad_group SET bid=%s, update_time=NOW() WHERE mer_id=%s AND campaign_code=%s AND ad_group_id=%s`
+- `update_ad_group_enabled_state` → `UPDATE eb_ad_group SET state=%s, update_time=NOW() WHERE ...`
+- `create_ad_group` → `INSERT INTO eb_ad_group (mer_id, campaign_code, ad_group_id, type, name, bid, state, create_by, create_name, create_time, status)`
+
+#### 待实现 — 定向操作（落库 `eb_ad_targeting`）
+
+- `update_target_bid` → `UPDATE eb_ad_targeting SET bid=%s, update_time=NOW() WHERE mer_id=%s AND campaign_code=%s AND target_id=%s`
+- `update_target_enabled_state` → `UPDATE eb_ad_targeting SET state=%s, update_time=NOW() WHERE ...`
+- `create_keyword_target` → `INSERT INTO eb_ad_targeting (mer_id, campaign_code, group_id, type='keyword', target_id, targeting=%s, match=%s, bid=%s, state='enabled', ...)`
+- `create_product_target` → `INSERT INTO eb_ad_targeting (mer_id, campaign_code, group_id, type='product', target_id, targeting='Asin="xxx"', bid=%s, state='enabled', ...)`
+- `batch_update_target_bid` → 批量 `UPDATE eb_ad_targeting`（事务）
+- `batch_update_target_enabled_state` → 批量 `UPDATE eb_ad_targeting`（事务）
+
+#### 待实现 — 对应 API
+
+| API | 方法 | Service | 写入库.表.字段 |
+|---|---|---|---|
+| `.../ad-groups/{key}/bid` | PATCH | `update_ad_group_bid` | `scm_remote.eb_ad_group.bid` |
+| `.../ad-groups/{key}/enabled` | PATCH | `update_ad_group_enabled_state` | `scm_remote.eb_ad_group.state` |
+| `.../ad-groups` | POST | `create_ad_group` | `scm_remote.eb_ad_group` INSERT |
+| `.../targets/{key}/bid` | PATCH | `update_target_bid` | `scm_remote.eb_ad_targeting.bid` |
+| `.../targets/{key}/enabled` | PATCH | `update_target_enabled_state` | `scm_remote.eb_ad_targeting.state` |
+| `.../targets` | POST | `create_keyword_target`/`create_product_target` | `scm_remote.eb_ad_targeting` INSERT |
+| `.../targets/batch-bid` | PATCH | `batch_update_target_bid` | `scm_remote.eb_ad_targeting.bid` 批量 |
+| `.../targets/batch-enabled` | PATCH | `batch_update_target_enabled_state` | `scm_remote.eb_ad_targeting.state` 批量 |
 
 所有写操作必须：
 1. 校验 `ProfileAccessLevel.OPERATE`。
-2. 校验对象归属（Tenant/Profile）。
-3. 校验当前对象状态、修改前值、金额上下限。
-4. 通过 SCM 元数据表写入（V1 受控写通道）。
-5. 记录 `AuditLog`（只追加）。
-6. 不物理删除 Campaign、Keyword、Target，用暂停替代。
+2. 校验对象归属（Tenant/Profile/Campaign/AdGroup）。
+3. 校验当前对象状态、修改前值、金额上下限（竞价 > 0，精度 2 位小数）。
+4. 通过 SCM 维表写入（`scm_remote.eb_ad_group`/`scm_remote.eb_ad_targeting`），**分析事实表（`ads_analysis_remote`）永远只读**。
+5. 记录 `AuditLog`（只追加，脱敏 before/after），写入 `default.audit_log`。
+6. 不物理删除 Campaign、AdGroup、Keyword、Target，用暂停或软删（`status='6'`）替代。
+7. 受 D-180 阻塞时返回 403 或特定错误码，前端置灰。
 
 ## 10. 现有实现状态
 
@@ -609,18 +1130,28 @@ URL 使用签名编码的 `campaign_key`（`cmp_` 前缀）和 `ad_group_key`（
 - 广告组列表 API、Selector、Serializer、View、前端页面。
 - 广告组详情 API、Selector、Serializer、View、前端页面。
 - 定向策略 metrics/trend/targets API、Selector、Serializer、View。
-- 定向策略前端 tab 组件。
+- 定向策略前端组件（广告组详情页核心内容）。
 - `ad_group_key` 签名编码/解码工具（参照 `_campaign_key`/`_raw_campaign_key`）。
 - Keyword/ProductTarget 竞价/启停操作 Service（受 D-180 阻塞）。
 
 ## 11. 必须确认
 
-1. 远程 `bi_analyze_ad_campaign` / `bi_analyze_ad_campaign_realtime` 是否包含 `ad_group_id` / `ad_group_name` 维度；若不包含，广告组列表需从本地 `TargetingDailyMetric.ad_group` 聚合。
-2. 本地 `TargetingDailyMetric` 是否已有足够数据支撑广告组维度展示（依赖 Targeting Report 上传与导入）。
-3. `ad_group_key` 签名编码方案（建议 `grp_` 前缀，salt 含 `campaign_key`）。
-4. 定向策略 tab 是否需要区分 AUTO/MANUAL 展示；AUTO Campaign 的 `TargetingDailyMetric` 如何填充。
-5. 竞价/启停操作服务是否解除 D-180 阻塞；未解除前前端开关置灰并提示。
-6. `ProductTarget.expression` 是否需要结构化解析以区分 ASIN/Category/Brand。
+**已由数据库核验确认（2026-08-06）：**
+
+1. ~~远程 `bi_analyze_ad_campaign` / `bi_analyze_ad_campaign_realtime` 是否包含 `ad_group_id` / `ad_group_name` 维度~~ → **已确认：Campaign 表不含广告组维度；但远程库存在独立的 `bi_analyze_ad_group` / `bi_analyze_ad_group_realtime` / `eb_ad_group` 表，广告组列表从这三表聚合。**
+2. ~~本地 `TargetingDailyMetric` 是否已有足够数据~~ → **已确认：定向策略主数据源是远程 `bi_analyze_ad_targeting` + `bi_analyze_ad_targeting_realtime` + `eb_ad_targeting`，非本地表。**
+3. ~~定向策略 tab 是否需要区分 AUTO/MANUAL 展示~~ → **已确认：`targeting_type` 实际值为 `auto`/`manual-keyword`/`manual-PAT`/`manual-SD`；自动投放细分 6 种 `targeting_match`（Close Match/Loose Match/Substitutes/Complements/Purchases/Views），需分行展示。**
+4. ~~`group_id` 是否可用~~ → **已确认：`group_id` 在所有分析表中全为 NULL，必须用 `group_code`（历史）/`group_name`（实时）作为广告组关联键。**
+5. ~~建议竞价是否存在~~ → **已确认：`current_bid`/`suggested_bid`/`suggested_bid_min`/`suggested_bid_max` 字段存在且有数据。**
+
+**仍需确认：**
+
+6. `ad_group_key` 签名编码方案（建议 `grp_` 前缀，salt 含 `campaign_key`，参照 `_campaign_key` 实现）。
+7. 竞价/启停操作服务是否解除 D-180 阻塞；未解除前前端开关置灰并提示。
+8. `targeting` 字段（如 `Asin="B08T877M36"`）是否需要结构化解析以区分 ASIN/Category/Brand，或直接字符串展示。
+9. `targeting_match` 大小写并存（`broad`/`BROAD`）的归一化策略。
+10. SCM `eb_ad_targeting` 表的完整字段结构（21 列，本次核验输出被截断，需补充查询）。
+11. 远程表去重策略：`bi_analyze_ad_targeting` 和 `bi_analyze_ad_targeting_realtime` 是否存在同 Campaign+group+targeting+date 的重复快照，需参照 Campaign 三表的 `ROW_NUMBER()` 去重方案。
 
 ## 12. 验收标准
 

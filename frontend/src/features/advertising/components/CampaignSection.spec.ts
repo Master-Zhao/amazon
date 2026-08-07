@@ -28,7 +28,7 @@ const response: CampaignListResponse = {
     {
       campaignKey: 'cmp_demo',
       name: '真实远程广告活动',
-      referenceCode: 'SP-REMOTE-001',
+      campaignCode: 'SP-REMOTE-001',
       enabled: true,
       targetingType: 'AUTO',
       status: 'DELIVERING',
@@ -176,6 +176,23 @@ describe('CampaignSection', () => {
     expect(wrapper.get('.campaign-name-cell a').attributes('href')).toContain('/advertising/campaigns/cmp_demo')
     expect(wrapper.text()).toContain('正在投放')
     expect(wrapper.text()).not.toContain('已启用')
+  })
+
+  it('renders top of search share as an integer percentage', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ...response,
+      items: [
+        {
+          ...response.items[0],
+          metrics: { ...response.items[0].metrics, topOfSearchShare: '0.30' },
+        },
+      ],
+    })
+
+    const { wrapper } = await mountSection()
+
+    expect(wrapper.text()).toContain('30%')
+    expect(wrapper.text()).not.toContain('30.00%')
   })
 
   it('selects rows from the checkbox column', async () => {

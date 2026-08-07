@@ -217,7 +217,7 @@ class CampaignExportView(APIView):
         writer.writerow(
             [
                 "广告活动名称",
-                "辅助代码",
+                "广告活动代码",
                 "投放类型",
                 "状态",
                 "竞价方案",
@@ -243,7 +243,7 @@ class CampaignExportView(APIView):
             writer.writerow(
                 [
                     _csv_safe(item["name"]),
-                    _csv_safe(item["reference_code"]),
+                    _csv_safe(item["campaign_code"]),
                     item["targeting_type"],
                     item["status"],
                     item["bidding_strategy"],

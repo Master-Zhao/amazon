@@ -202,7 +202,7 @@ def test_remote_scm_auth_requires_configured_scm_database_alias():
     )
 
 
-def test_remote_multi_database_mode_uses_system_default_and_read_only_scm():
+def test_remote_multi_database_mode_uses_system_default_and_writable_scm():
     environment = os.environ.copy()
     environment.update(
         {
@@ -256,7 +256,7 @@ def test_remote_multi_database_mode_uses_system_default_and_read_only_scm():
         "defaultAge": 45,
         "scmName": "scm_test_database",
         "scmHost": "scm-db.example.invalid",
-        "scmInit": "SET SESSION TRANSACTION READ ONLY",
+        "scmInit": "SET sql_mode='STRICT_TRANS_TABLES'",
         "scmAge": 45,
     }
     combined_output = result.stdout + result.stderr

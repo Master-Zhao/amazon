@@ -263,7 +263,7 @@ class CampaignOverviewMetricsSerializer(serializers.Serializer):
 class CampaignOverviewItemSerializer(serializers.Serializer):
     campaign_key = serializers.CharField()
     name = serializers.CharField()
-    reference_code = serializers.CharField()
+    campaign_code = serializers.CharField()
     enabled = serializers.BooleanField()
     targeting_type = serializers.CharField()
     status = serializers.CharField()

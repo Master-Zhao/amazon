@@ -33,7 +33,9 @@ def _ratio(formula: dict[str, Decimal | str | None]) -> str | None:
 def _normalized_status(value: str) -> str:
     return {
         "enabled": "DELIVERING",
+        "delivering": "DELIVERING",
         "paused": "PAUSED",
+        "campaign_paused": "PAUSED",
         "archived": "ARCHIVED",
         "ended": "ENDED",
         "applying": "REVIEWING",
@@ -174,7 +176,7 @@ def _risk_level(*, metric, rules: dict[str, dict], target_acos: Decimal | None) 
     if (
         metric.clicks >= int(conversion_rule["minimum_clicks"])
         and isinstance(cvr, Decimal)
-        and cvr <= Decimal(str(conversion_rule["maximum_cvr"]))
+        and cvr < Decimal(str(conversion_rule["maximum_cvr"]))
     ):
         medium_count += 1
 
@@ -248,7 +250,7 @@ def _overview_item_payload(
     if not metric.scm_matched:
         partial_fields.extend(
             [
-                "referenceCode",
+                "campaignCode",
                 "targetingType",
                 "biddingStrategy",
                 "endDate",
@@ -261,7 +263,7 @@ def _overview_item_payload(
             metric.campaign_key,
         ),
         "name": metric.campaign_name,
-        "reference_code": metric.reference_code,
+        "campaign_code": metric.reference_code,
         "enabled": metric.state.strip().lower() == "enabled",
         "targeting_type": _normalized_targeting_type(metric.targeting_type),
         "status": _normalized_status(metric.state),

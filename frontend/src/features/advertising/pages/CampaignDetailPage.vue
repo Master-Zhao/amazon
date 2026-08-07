@@ -98,7 +98,7 @@ onBeforeUnmount(() => controller?.abort())
         <div>
           <p>广告活动</p>
           <h1>{{ detail.item.name }}</h1>
-          <span>{{ detail.item.referenceCode }}</span>
+          <span>{{ detail.item.campaignCode }}</span>
         </div>
         <span class="source-badge">远程数据库 · 只读</span>
       </header>

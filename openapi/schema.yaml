@@ -3189,7 +3189,7 @@ components:
           type: string
         name:
           type: string
-        reference_code:
+        campaign_code:
           type: string
         enabled:
           type: boolean
@@ -3232,7 +3232,7 @@ components:
       - metrics
       - name
       - partial_fields
-      - reference_code
+      - campaign_code
       - start_date
       - status
       - targeting_type

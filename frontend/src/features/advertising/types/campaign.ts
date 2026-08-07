@@ -20,7 +20,7 @@ export interface CampaignMetrics {
 export interface CampaignOverviewItem {
   campaignKey: string
   name: string
-  referenceCode: string
+  campaignCode: string
   enabled: boolean
   targetingType: 'AUTO' | 'MANUAL' | 'UNKNOWN'
   status:

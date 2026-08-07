@@ -94,7 +94,7 @@ def mysql_database_config(prefix: str = "DB") -> dict[str, object]:
     }
 
 
-def remote_mysql_database_config(prefix: str) -> dict[str, object]:
+def remote_mysql_database_config(prefix: str, *, read_only: bool = True) -> dict[str, object]:
     required_names = (
         f"{prefix}_DB_NAME",
         f"{prefix}_DB_USER",
@@ -108,6 +108,11 @@ def remote_mysql_database_config(prefix: str) -> dict[str, object]:
         raise ImproperlyConfigured(
             "Missing remote database configuration: " + ", ".join(missing)
         )
+    init_command = (
+        "SET SESSION TRANSACTION READ ONLY"
+        if read_only
+        else "SET sql_mode='STRICT_TRANS_TABLES'"
+    )
     return {
         "ENGINE": "django.db.backends.mysql",
         "NAME": values[f"{prefix}_DB_NAME"],
@@ -121,6 +126,6 @@ def remote_mysql_database_config(prefix: str) -> dict[str, object]:
         ),
         "OPTIONS": {
             "charset": "utf8mb4",
-            "init_command": "SET SESSION TRANSACTION READ ONLY",
+            "init_command": init_command,
         },
     }
